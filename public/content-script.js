@@ -1093,25 +1093,27 @@ async function translateTexts(texts) {
         continue;
       }
       
-      // 使用Google翻译API（非官方）
-      const url = 'https://translate.googleapis.com/translate_a/t';
-      
-      // 使用fetch API请求翻译
+      // 使用后台脚本进行翻译
       try {
-        const response = await fetch(`${url}?client=gtx&sl=${translationSettings.sourceLanguage}&tl=${translationSettings.targetLanguage}&dt=t&q=${encodeURIComponent(text)}`);
+        const translation = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({
+            action: 'translateText',
+            text: text,
+            sourceLanguage: translationSettings.sourceLanguage,
+            targetLanguage: translationSettings.targetLanguage
+          }, response => {
+            if (response && response.success) {
+              resolve(response.translation);
+            } else {
+              console.warn('后台翻译失败:', response?.error);
+              resolve(text); // 失败时返回原文
+            }
+          });
+        });
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data && Array.isArray(data)) {
-            results.push(data[0]);
-          } else {
-            results.push(text); // 如果翻译失败，返回原文
-          }
-        } else {
-          results.push(text); // 如果请求失败，返回原文
-        }
+        results.push(translation);
       } catch (apiError) {
-        console.error('翻译API请求出错:', apiError);
+        console.error('翻译请求出错:', apiError);
         results.push(text);
       }
     }
@@ -1372,16 +1374,33 @@ function initSelectionTranslator() {
             <div class="transor-selection-translation no-translate">翻译中...</div>
           `;
           
-          // 获取翻译
-          const translations = await translateTexts([text]);
-          const translationResult = translations[0] || text;
-          
-          // 确保translation是字符串
-          const translation = typeof translationResult === 'string' ? translationResult : 
-                             (translationResult ? String(translationResult) : text);
+          // 使用后台脚本进行翻译
+          let translation = text;
+          try {
+            translation = await new Promise((resolve) => {
+              chrome.runtime.sendMessage({
+                action: 'translateText',
+                text: text,
+                sourceLanguage: translationSettings.sourceLanguage,
+                targetLanguage: translationSettings.targetLanguage
+              }, response => {
+                if (response && response.success) {
+                  resolve(response.translation);
+                } else {
+                  console.warn('滑词翻译失败:', response?.error);
+                  resolve(`[翻译失败] ${text}`);
+                }
+              });
+            });
+          } catch (translationError) {
+            console.error('翻译过程出错:', translationError);
+            translation = `[翻译失败] ${text}`;
+          }
           
           // 清理翻译结果，移除可能的语言标记
-          const cleanTranslation = translation.replace(/,\s*(en|zh-CN|zh|auto)$/i, '');
+          const cleanTranslation = typeof translation === 'string' ? 
+                                  translation.replace(/,\s*(en|zh-CN|zh|auto)$/i, '') : 
+                                  translation;
           
           // 显示翻译结果
           popupContent.innerHTML = `

@@ -35,6 +35,11 @@
       "js": ["content-script.js"],
       "css": ["content-style.css"],
       "run_at": "document_end"
+    },
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["youtube-cinema.js"],
+      "run_at": "document_end"
     }
   ],
   "web_accessible_resources": [
@@ -45,6 +50,13 @@
     {
       "resources": ["favorites.html", "favorites.js"],
       "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["libs/axios.min.js"],
+      "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com"
+  }
 } 
