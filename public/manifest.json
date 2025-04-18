@@ -32,7 +32,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content-script.js"],
+      "js": ["content-script.js", "image-translator.js"],
       "css": ["content-style.css"],
       "run_at": "document_end"
     },
@@ -57,6 +57,6 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com https://api.ocr.space"
   }
 } 

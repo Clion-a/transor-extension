@@ -1217,6 +1217,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     
     sendResponse({ success: true });
+  } else if (message.action === 'convertImageToBase64') {
+    convertImageToBase64(message.imageUrl)
+      .then(base64Data => {
+        sendResponse({ success: true, base64Data });
+      })
+      .catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // 异步响应
   }
   
   return true; // 保持消息通道开放以进行异步响应
@@ -1519,6 +1528,45 @@ function initSelectionTranslator() {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
+}
+
+// 处理图片转base64的函数（支持图片OCR功能）
+function convertImageToBase64(imageUrl) {
+  return new Promise((resolve, reject) => {
+    // 创建img元素
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // 尝试解决跨域问题
+    
+    // 处理图片加载完成事件
+    img.onload = function() {
+      try {
+        // 创建canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // 绘制图片到canvas
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        // 获取base64数据
+        const base64Data = canvas.toDataURL('image/png');
+        resolve(base64Data);
+      } catch (error) {
+        console.error('图片转base64失败:', error);
+        reject(error);
+      }
+    };
+    
+    // 处理加载失败
+    img.onerror = function(error) {
+      console.error('图片加载失败:', error);
+      reject(new Error('图片加载失败'));
+    };
+    
+    // 设置图片源
+    img.src = imageUrl;
+  });
 }
 
 // 初始化
