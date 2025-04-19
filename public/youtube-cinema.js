@@ -487,10 +487,12 @@ async function loadSubtitles() {
 
     // 直接获取字幕，不再通过background.js
     console.log(`正在获取视频ID为 ${currentVideoId} 的字幕...`);
-    const data = await fetch(`http://localhost:3000/subtitle-api-url?url=${encodeURIComponent(window.location.href)}`)
-    const requestUrl = await data.json();
 
-    const response = await fetchYouTubeSubtitles(requestUrl.subtitleUrl)
+    const webUrlResponse = await fetch(`https://www.youtube.com/watch?v=${currentVideoId}`);
+    const html = await webUrlResponse.text();
+    const ytInitialPlayerResponse = JSON.parse(html.split('ytInitialPlayerResponse = ')[1].split(`;var meta = document.createElement('meta')`)[0]);
+    const requestUrl = ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks[0]?.baseUrl;
+    const response = await fetchYouTubeSubtitles(`${requestUrl}&fmt=json3`)
     // 检查响应结构并提取字幕数据
     console.log('字幕获取响应:', response);
 
@@ -584,6 +586,8 @@ async function loadSubtitles() {
       showSubtitlesUI();
       initSubtitleTracking();
     }
+
+
   } catch (error) {
     console.error('加载字幕失败:', error);
     updateLoadingProgress(100, '加载失败，使用备用字幕');
@@ -598,8 +602,7 @@ async function fetchYouTubeSubtitles(videoUrl) {
   try {
     // 官方API获取字幕
     try {
-      const url = `${videoUrl}&fmt=json3`;
-      const response = await fetch('https://www.youtube.com/api/timedtext?v=IWH8LZx8qoQ&ei=4fUBaKXXOsHysfIP6Yyj-Qs&caps=asr&opi=112496729&xoaf=5&hl=en&ip=0.0.0.0&ipbits=0&expire=1744984146&sparams=ip%2Cipbits%2Cexpire%2Cv%2Cei%2Ccaps%2Copi%2Cxoaf&signature=1905318694F315DE6AAC806EF6FE4206A9A698C0.704BCE0B0A2EE4E7A758C672C296905014F58D&key=yt8&lang=en&fmt=json3&xorb=2&xobt=3&xovt=3&cbrand=apple&cbr=Chrome&cbrver=134.0.0.0&c=WEB&cver=2.20250417.01.00&cplayer=UNIPLAYER&cos=Macintosh&cosver=10_15_7&cplatform=DESKTOP');
+      const response = await fetch(videoUrl);
       if (response.ok) {
         const responseText = await response.text();
         const subtitles = parseYouTubeSubtitles(responseText);
@@ -629,7 +632,7 @@ function parseYouTubeSubtitles(responseText) {
           .filter(event => event.segs && Array.isArray(event.segs))
           .map(event => {
             const text = event.segs.map(seg => seg.utf8 || '').join(' ').trim()
-              
+
             if (!text) return null;
 
             const start = event.tStartMs / 1000;
@@ -666,7 +669,7 @@ function parseYouTubeSubtitles(responseText) {
           if (text) {
             // 移除XML格式字幕中的换行符
             text = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-            
+
             subtitles.push({
               start: start,
               end: start + dur,
@@ -708,19 +711,19 @@ function generateMockTranslations(texts) {
 // 显示字幕UI
 function showSubtitlesUI() {
   console.log('显示字幕UI...');
-  
+
   if (!subtitlesContainer) {
     console.error('无法找到字幕容器');
     return;
   }
-  
+
   // 清理并清空加载UI
   subtitlesContainer.innerHTML = '';
-  
+
   // 创建字幕显示内容
   const subtitleContent = document.createElement('div');
   subtitleContent.className = 'subtitle-content';
-  
+
   // 创建原文字幕元素
   const subtitleText = document.createElement('div');
   subtitleText.className = 'cinema-original-subtitle';
@@ -731,7 +734,7 @@ function showSubtitlesUI() {
   subtitleText.style.margin = '10px 0';
   // 初始化为空白，等待字幕显示
   subtitleText.textContent = '';
-  
+
   // 创建翻译字幕元素
   const subtitleTranslation = document.createElement('div');
   subtitleTranslation.className = 'cinema-translated-subtitle';
@@ -742,11 +745,11 @@ function showSubtitlesUI() {
   subtitleTranslation.style.margin = '10px 0';
   // 初始化为空白，等待字幕显示
   subtitleTranslation.textContent = '';
-  
+
   // 添加字幕元素到容器
   subtitleContent.appendChild(subtitleText);
   subtitleContent.appendChild(subtitleTranslation);
-  
+
   // 创建字幕导航控制
   const subtitleControls = document.createElement('div');
   subtitleControls.className = 'subtitle-controls';
@@ -756,7 +759,7 @@ function showSubtitlesUI() {
   subtitleControls.style.marginTop = '15px';
   subtitleControls.style.paddingTop = '10px';
   subtitleControls.style.borderTop = '1px solid rgba(255, 255, 255, 0.2)';
-  
+
   // 创建导航按钮
   const prevButton = document.createElement('button');
   prevButton.className = 'cinema-subtitle-btn';
@@ -766,7 +769,7 @@ function showSubtitlesUI() {
       displaySubtitle(currentSubtitleIndex - 1);
     }
   });
-  
+
   const nextButton = document.createElement('button');
   nextButton.className = 'cinema-subtitle-btn';
   nextButton.textContent = '下一条 →';
@@ -775,22 +778,22 @@ function showSubtitlesUI() {
       displaySubtitle(currentSubtitleIndex + 1);
     }
   });
-  
+
   // 创建导航信息
   const navInfo = document.createElement('div');
   navInfo.id = 'subtitle-nav-info';
   navInfo.style.color = 'rgba(255, 255, 255, 0.7)';
   navInfo.textContent = '0/0';
-  
+
   // 添加导航元素到控制区
   subtitleControls.appendChild(prevButton);
   subtitleControls.appendChild(navInfo);
   subtitleControls.appendChild(nextButton);
-  
+
   // 将所有元素添加到字幕容器
   subtitlesContainer.appendChild(subtitleContent);
   subtitlesContainer.appendChild(subtitleControls);
-  
+
   // 初始化并显示第一条字幕
   console.log('初始化第一条字幕...');
   displaySubtitle(0);
@@ -895,7 +898,7 @@ function initSubtitleTracking() {
         // 处理YouTube API的时间响应
         if (data.event === 'infoDelivery' && data.info && data.info.currentTime !== undefined) {
           const currentTime = data.info.currentTime;
-          
+
           // 仅在时间变化超过一定阈值时更新（减少不必要的处理）
           const timeDiff = Math.abs(currentTime - (iframe._lastVideoTime || 0));
           if (timeDiff > 0.01) { // 10毫秒时间差阈值
@@ -904,24 +907,24 @@ function initSubtitleTracking() {
             iframe._lastVideoTime = currentTime;
           }
         }
-        
+
         // 处理播放状态响应
         if (data.event === 'infoDelivery' && data.info && data.info.playerState !== undefined) {
           const playerState = data.info.playerState;
           const isPaused = playerState === 2; // 2 表示暂停状态
-          
+
           // 如果播放状态改变，记录日志
           if (isPaused !== iframe._isPaused) {
             iframe._isPaused = isPaused;
             console.log(isPaused ? '视频已暂停' : '视频已开始播放');
-            
+
             // 如果从暂停状态恢复播放，立即更新当前字幕
             if (!isPaused && iframe._lastVideoTime) {
               updateSubtitleByTime(iframe._lastVideoTime);
             }
           }
         }
-        
+
         // 处理播放速率变化
         if (data.event === 'infoDelivery' && data.info && data.info.playbackRate !== undefined) {
           const newRate = data.info.playbackRate;
@@ -989,10 +992,10 @@ function updateSubtitleByTime(currentTime) {
 
   // 字幕提前显示时间 - 提前1秒显示字幕
   const PREVIEW_TIME = 1.0;
-  
+
   // 字幕切换防抖时间 - 避免频繁切换
   const DEBOUNCE_TIME = 0.05; // 50毫秒
-  
+
   let foundIndex = -1;
   let closestStartTime = Infinity;
   let foundSubtitle = null;
@@ -1007,14 +1010,14 @@ function updateSubtitleByTime(currentTime) {
 
   // 二分查找最接近当前时间的字幕
   let bestMatchIndex = -1;
-  
+
   // 优先查找在时间范围内的字幕
   for (let i = 0; i < subtitles.length; i++) {
     const subtitle = subtitles[i];
     if (!subtitle || subtitle.start === undefined || subtitle.end === undefined) {
       continue;
     }
-    
+
     // 判断当前时间是否落入字幕的时间范围内（包含提前量）
     if (currentTime >= subtitle.start - PREVIEW_TIME && currentTime <= subtitle.end) {
       // 如果当前时间在多个字幕的范围内，优先选择开始时间更接近的
@@ -1023,7 +1026,7 @@ function updateSubtitleByTime(currentTime) {
         foundSubtitle = subtitle;
       }
     }
-    
+
     // 记录最接近的即将到来的字幕
     if (subtitle.start > currentTime && subtitle.start < closestStartTime) {
       closestStartTime = subtitle.start;
@@ -1031,19 +1034,19 @@ function updateSubtitleByTime(currentTime) {
       bestMatchIndex = i;
     }
   }
-  
+
   // 如果没有找到当前范围内的字幕，但找到了即将显示的字幕
   if (foundIndex === -1 && bestMatchIndex !== -1) {
     const timeToNext = subtitles[bestMatchIndex].start - currentTime;
-    
+
     // 如果非常接近下一个字幕（小于PREVIEW_TIME秒），提前显示
     if (timeToNext > 0 && timeToNext < PREVIEW_TIME) {
       foundIndex = bestMatchIndex;
       foundSubtitle = subtitles[bestMatchIndex];
-      console.log(`提前${timeToNext.toFixed(2)}秒显示字幕 #${foundIndex+1}`);
+      console.log(`提前${timeToNext.toFixed(2)}秒显示字幕 #${foundIndex + 1}`);
     }
   }
-  
+
   // 检查是否找到了匹配的字幕
   if (foundIndex !== -1 && foundSubtitle) {
     // 检查是否需要更新显示
@@ -1054,27 +1057,27 @@ function updateSubtitleByTime(currentTime) {
         // 计算字幕延迟时间
         const delay = currentTime - foundSubtitle.start;
         const delayStatus = delay >= 0 ? `延迟=${delay.toFixed(2)}s` : `提前=${(-delay).toFixed(2)}s`;
-        
-        console.log(`显示字幕 #${foundIndex+1}/${subtitles.length}: 起始=${foundSubtitle.start.toFixed(2)}s, 结束=${foundSubtitle.end.toFixed(2)}s, ${delayStatus}, 当前=${currentTime.toFixed(2)}s`);
-        
+
+        console.log(`显示字幕 #${foundIndex + 1}/${subtitles.length}: 起始=${foundSubtitle.start.toFixed(2)}s, 结束=${foundSubtitle.end.toFixed(2)}s, ${delayStatus}, 当前=${currentTime.toFixed(2)}s`);
+
         // 更新显示字幕
         displaySubtitle(foundIndex);
-        
+
         // 更新最后切换时间
         iframe._lastSubtitleSwitchTime = now;
         iframe._lastSubtitleIndex = foundIndex;
       }
     }
-  } 
+  }
   // 如果当前有字幕显示，但当前时间超出了该字幕的结束时间，清除显示
   else if (currentSubtitleIndex !== -1) {
     const currentSub = subtitles[currentSubtitleIndex];
-    
+
     // 当前时间超出结束时间，清除字幕
     if (currentSub && currentSub.end !== undefined && currentTime > currentSub.end) {
-      console.log(`清除字幕 #${currentSubtitleIndex+1}/${subtitles.length}: 当前时间=${currentTime.toFixed(2)}s, 结束时间=${currentSub.end.toFixed(2)}s`);
+      console.log(`清除字幕 #${currentSubtitleIndex + 1}/${subtitles.length}: 当前时间=${currentTime.toFixed(2)}s, 结束时间=${currentSub.end.toFixed(2)}s`);
       clearSubtitleDisplay();
-      
+
       // 记录下一个字幕的信息
       if (closestStartTime !== Infinity) {
         const timeToNext = closestStartTime - currentTime;
@@ -1082,14 +1085,14 @@ function updateSubtitleByTime(currentTime) {
       }
     }
   }
-  
+
   // 预加载下一个字幕的翻译（如果有必要）
   if (bestMatchIndex !== -1 && bestMatchIndex !== currentSubtitleIndex) {
     const timeToNext = subtitles[bestMatchIndex].start - currentTime;
-    if (timeToNext > 0 && timeToNext < PREVIEW_TIME && 
-        (!translatedSubtitles[bestMatchIndex] || !translatedSubtitles[bestMatchIndex].translatedText)) {
+    if (timeToNext > 0 && timeToNext < PREVIEW_TIME &&
+      (!translatedSubtitles[bestMatchIndex] || !translatedSubtitles[bestMatchIndex].translatedText)) {
       // 如果下一个字幕很快就要显示但还没有翻译，可以触发翻译预加载
-      console.log(`预加载字幕 #${bestMatchIndex+1} 的翻译，将在 ${timeToNext.toFixed(2)}秒后显示`);
+      console.log(`预加载字幕 #${bestMatchIndex + 1} 的翻译，将在 ${timeToNext.toFixed(2)}秒后显示`);
     }
   }
 }
@@ -1101,12 +1104,12 @@ function displaySubtitle(index) {
     const subtitleText = document.getElementById('subtitle-text');
     const subtitleTranslation = document.getElementById('subtitle-translation');
     const navInfo = document.getElementById('subtitle-nav-info');
-    
+
     if (!subtitleText || !subtitleTranslation) {
       console.error('字幕DOM元素不存在');
       return;
     }
-    
+
     // 检查索引是否有效
     if (!subtitles || !Array.isArray(subtitles) || index < 0 || index >= subtitles.length) {
       console.error(`无效的字幕索引: ${index}, 总字幕数: ${subtitles ? subtitles.length : 0}`);
@@ -1114,20 +1117,20 @@ function displaySubtitle(index) {
       subtitleTranslation.textContent = '请检查视频是否有可用字幕';
       return;
     }
-    
+
     // 更新当前索引
     currentSubtitleIndex = index;
-    
+
     // 获取当前字幕
     const currentSubtitle = subtitles[index];
-    
+
     if (!currentSubtitle) {
       console.error(`索引 ${index} 处的字幕为空`);
       subtitleText.textContent = '字幕数据错误';
       subtitleTranslation.textContent = '请尝试刷新页面';
       return;
     }
-    
+
     // 清理并显示原文字幕
     let cleanText = '';
     if (currentSubtitle.text) {
@@ -1136,7 +1139,7 @@ function displaySubtitle(index) {
     } else {
       subtitleText.textContent = '[无原文]';
     }
-    
+
     // 显示翻译文本（如果有）
     if (translatedSubtitles && translatedSubtitles[index] && translatedSubtitles[index].translatedText) {
       let cleanTranslation = cleanTextThoroughly(translatedSubtitles[index].translatedText);
@@ -1145,21 +1148,21 @@ function displaySubtitle(index) {
       // 如果没有翻译，显示加载中
       subtitleTranslation.textContent = '加载翻译中...';
     }
-    
+
     // 更新导航信息
     if (navInfo) {
       navInfo.textContent = `${index + 1}/${subtitles.length}`;
     }
-    
-    console.log(`显示字幕 #${index+1}/${subtitles.length}: ${cleanText?.substring(0, 50)}${cleanText?.length > 50 ? '...' : ''}`);
+
+    console.log(`显示字幕 #${index + 1}/${subtitles.length}: ${cleanText?.substring(0, 50)}${cleanText?.length > 50 ? '...' : ''}`);
   } catch (error) {
     console.error('显示字幕时出错:', error);
-    
+
     // 尝试恢复UI
     try {
       const subtitleText = document.getElementById('subtitle-text');
       const subtitleTranslation = document.getElementById('subtitle-translation');
-      
+
       if (subtitleText) subtitleText.textContent = '显示字幕时出错';
       if (subtitleTranslation) subtitleTranslation.textContent = '请刷新页面重试';
     } catch (e) {
@@ -1368,7 +1371,7 @@ function translateSubtitles(subtitlesToTranslate) {
   const textsToTranslate = subtitlesToTranslate.map(subtitle => {
     // 确保我们有有效的字幕文本
     let text = subtitle && subtitle.text ? subtitle.text : '';
-    
+
     // 清理文本中的所有特殊字符：换行符、回车符、制表符等
     return cleanTextThoroughly(text);
   });
@@ -1411,10 +1414,10 @@ function translateSubtitles(subtitlesToTranslate) {
             // 如果成功获取翻译，将翻译结果与字幕对象合并并清理结果
             const translatedSubs = subtitlesToTranslate.map((subtitle, index) => {
               // 获取翻译结果，如果没有则使用备选
-              let translation = response.translations[index] || 
-                mockTranslations[index] || 
+              let translation = response.translations[index] ||
+                mockTranslations[index] ||
                 subtitle.text || '';
-                
+
               // 清理翻译结果中的所有特殊字符
               translation = cleanTextThoroughly(translation);
               console.log({
@@ -1428,11 +1431,11 @@ function translateSubtitles(subtitlesToTranslate) {
             });
 
             console.log('翻译成功，使用真实翻译');
-            
+
             // 记录首尾字幕的时间信息，用于校验
             console.log(`字幕时间校验 - 第一条: ${translatedSubs[0]?.start}s - ${translatedSubs[0]?.end}s`);
-            console.log(`字幕时间校验 - 最后一条: ${translatedSubs[translatedSubs.length-1]?.start}s - ${translatedSubs[translatedSubs.length-1]?.end}s`);
-            
+            console.log(`字幕时间校验 - 最后一条: ${translatedSubs[translatedSubs.length - 1]?.start}s - ${translatedSubs[translatedSubs.length - 1]?.end}s`);
+
             setTranslatedSubtitles(translatedSubs);
             updateLoadingProgress(100, '翻译完成');
 
@@ -1467,50 +1470,50 @@ function translateSubtitles(subtitlesToTranslate) {
 // 设置翻译后的字幕
 function setTranslatedSubtitles(newTranslatedSubtitles) {
   console.log(`设置翻译字幕，总数: ${newTranslatedSubtitles ? newTranslatedSubtitles.length : 0}`);
-  
+
   if (!newTranslatedSubtitles || !Array.isArray(newTranslatedSubtitles)) {
     console.error('无效的翻译字幕数据');
     return;
   }
-  
+
   // 清理所有字幕中的特殊字符，但保留时间属性
   translatedSubtitles = newTranslatedSubtitles.map(subtitle => {
     if (!subtitle) return subtitle;
-    
+
     // 创建新对象，避免修改原始对象
-    const cleanedSubtitle = {...subtitle};
-    
+    const cleanedSubtitle = { ...subtitle };
+
     // 清理原文中的特殊字符
     if (cleanedSubtitle.text) {
       cleanedSubtitle.text = cleanTextThoroughly(cleanedSubtitle.text);
     }
-    
+
     // 清理翻译文本中的特殊字符
     if (cleanedSubtitle.translatedText) {
       cleanedSubtitle.translatedText = cleanTextThoroughly(cleanedSubtitle.translatedText);
     }
-    
+
     // 确保start和end时间属性被保留
     if (subtitle.start !== undefined) {
       cleanedSubtitle.start = subtitle.start;
     }
-    
+
     if (subtitle.end !== undefined) {
       cleanedSubtitle.end = subtitle.end;
     }
-    
+
     return cleanedSubtitle;
   });
-  
+
   // 检查第一条和最后一条字幕的时间信息，确保时间信息正确保留
   if (translatedSubtitles.length > 0) {
     const first = translatedSubtitles[0];
     const last = translatedSubtitles[translatedSubtitles.length - 1];
-    
+
     console.log(`字幕时间检查 - 第一条: ${first.start}s - ${first.end}s`);
     console.log(`字幕时间检查 - 最后一条: ${last.start}s - ${last.end}s`);
   }
-  
+
   // 同时更新全局变量
   window.translatedSubtitles = translatedSubtitles;
 }
@@ -1518,7 +1521,7 @@ function setTranslatedSubtitles(newTranslatedSubtitles) {
 // 彻底清理文本中的所有特殊字符和分隔符
 function cleanTextThoroughly(text) {
   if (!text) return '';
-  
+
   // 处理基本的可见字符和常见空白
   let cleanedText = text
     // 替换所有常见的换行、回车、制表符等
@@ -1535,7 +1538,7 @@ function cleanTextThoroughly(text) {
     .replace(/\s+/g, ' ')
     // 移除前后空格
     .trim();
-    
+
   // 手动过滤出可打印字符
   let result = '';
   for (let i = 0; i < cleanedText.length; i++) {
@@ -1545,6 +1548,6 @@ function cleanTextThoroughly(text) {
       result += cleanedText[i];
     }
   }
-  
+
   return result.trim();
 } 
