@@ -1102,7 +1102,7 @@ function displaySubtitle(index) {
   try {
     // 获取DOM元素
     const subtitleText = document.getElementById('subtitle-original-text');
-    const subtitleTranslation = document.getElementById('subtitle-translation');
+  const subtitleTranslation = document.getElementById('subtitle-translation');
     const navInfo = document.getElementById('subtitle-nav-info');
 
     if (!subtitleText || !subtitleTranslation) {
@@ -1119,7 +1119,7 @@ function displaySubtitle(index) {
     }
 
     // 更新当前索引
-    currentSubtitleIndex = index;
+  currentSubtitleIndex = index;
 
     // 获取当前字幕
     const currentSubtitle = subtitles[index];
@@ -1221,7 +1221,7 @@ function displaySubtitle(index) {
           }
         }
       }, 20);
-    } else {
+      } else {
       // 如果没有翻译，显示加载中
       subtitleTranslation.textContent = '加载翻译中...';
     }

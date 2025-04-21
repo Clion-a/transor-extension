@@ -352,15 +352,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   let imageUrl; // 添加imageUrl变量声明
   switch (message.action) {
     case 'getSettings':
-      // 获取设置
-      getSettings().then(function(settings) {
-        sendResponse({ success: true, settings: settings });
-      }).catch(function(error) {
-        sendResponse({ success: false, error: error.message });
-      });
-      return true;
+    // 获取设置
+    getSettings().then(function(settings) {
+      sendResponse({ success: true, settings: settings });
+    }).catch(function(error) {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
     case 'translateText':
-      // 单条文本翻译
+    // 单条文本翻译
       getSettings().then(async function(settings) {
         try {
           // 首先检查是否有API密钥和模型设置
@@ -378,13 +378,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.error('翻译失败:', error);
           sendResponse({ success: false, error: error.message });
         }
-      }).catch(function(error) {
+    }).catch(function(error) {
         sendResponse({ success: false, error: error.message });
-      });
-      return true;
+    });
+    return true;
     case "openFavorites":
-      openFavoritesPage();
-      sendResponse({ success: true });
+    openFavoritesPage();
+    sendResponse({ success: true });
       return true;
     case "translateTexts":
       // 批量翻译文本（为YouTube影院模式和页面翻译提供支持）
@@ -409,7 +409,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse(result);
         } catch (error) {
             console.error('批量翻译过程出错:', error);
-          // 使用模拟翻译作为备选
+        // 使用模拟翻译作为备选
           const mockTranslations = generateMockTranslations(texts);
           sendResponse({ success: true, translations: mockTranslations });
         }
@@ -454,7 +454,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             error: error.toString() 
           });
         });
-      return true;
+    return true;
     default:
       return false;
   }
@@ -877,8 +877,8 @@ async function bulkTranslateTexts(texts, sourceLanguage, targetLanguage) {
       return translatedSegments;
     } else {
       throw new Error('Google翻译API返回无效数据结构');
-    }
-  } catch (error) {
+      }
+    } catch (error) {
     console.error('批量翻译失败:', error);
     // 直接返回原文
     return texts;
@@ -1004,7 +1004,7 @@ async function translateWithBaiDu(text, sourceLanguage, targetLanguage) {
     if (response.data && response.data.trans_result && response.data.trans_result.length > 0) {
       console.log('百度翻译响应:', response.data);
       return response.data.trans_result[0].dst;
-    } else {
+      } else {
       console.error('百度翻译响应格式错误:', response.data);
       throw new Error('百度翻译响应格式错误');
       }
@@ -1449,7 +1449,7 @@ async function recognizeWithJSONRequest(base64Image) {
     // 发送JSON格式请求
     const response = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
-      headers: {
+        headers: {
         'Content-Type': 'application/json',
         'apikey': 'K81445045388957'
       },

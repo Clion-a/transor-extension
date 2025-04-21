@@ -8,7 +8,8 @@
     "tabs",
     "scripting",
     "activeTab",
-    "contextMenus"
+    "contextMenus",
+    "identity"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -54,9 +55,20 @@
     {
       "resources": ["libs/axios.min.js"],
       "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["login.html", "login.js", "login.css"],
+      "matches": ["<all_urls>"]
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com https://api.ocr.space"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com https://api.ocr.space https://accounts.google.com"
+  },
+  "oauth2": {
+    "client_id": "1058880216647-bcpb440uiuqrq345ea5250qe877ur5g5.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile"
+    ]
   }
 } 

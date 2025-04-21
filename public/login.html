@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transor - 登录</title>
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+  <div class="login-container">
+    <img src="icons/icon128.png" alt="Transor Logo" class="logo">
+    <h1>欢迎回来</h1>
+    
+    <form id="login-form">
+      <div class="form-group">
+        <label for="email">邮箱地址</label>
+        <input type="email" id="email" name="email" placeholder="请输入您的邮箱" required>
+        <p class="error-message" id="email-error">请输入有效的邮箱地址</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input type="password" id="password" name="password" placeholder="请输入您的密码" required>
+        <p class="error-message" id="password-error">密码至少需要6个字符</p>
+      </div>
+      
+      <div class="remember-forgot">
+        <div class="remember-me">
+          <input type="checkbox" id="remember" name="remember">
+          <label for="remember">记住我</label>
+        </div>
+        <a href="#" class="forgot-password" id="forgot-password">忘记密码？</a>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" id="login-button">登录</button>
+    </form>
+    
+    <div class="divider"><span>或</span></div>
+    
+    <div class="social-buttons">
+      <button type="button" class="social-btn" id="google-login">
+        <img src="icons/google-icon.png" alt="Google">
+        <span>Google</span>
+      </button>
+      <button type="button" class="social-btn" id="apple-login">
+        <img src="icons/apple-icon.png" alt="Apple">
+        <span>Apple</span>
+      </button>
+    </div>
+    
+    <div class="signup-hint">
+      还没有账号？ <span class="signup-link"><a href="#" id="signup-link">立即注册</a></span>
+    </div>
+    
+    <div class="footer">
+      <a href="#" onclick="signOut();" id="signout-link" style="display: none;">退出登录</a>
+    </div>
+  </div>
+  
+  <script src="login.js"></script>
+</body>
+</html> 
