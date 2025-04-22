@@ -6,6 +6,7 @@
 - 请求格式: JSON
 - 响应格式: JSON
 - 认证方式: Bearer Token
+- Language: Header
 
 ## 认证相关接口
 
