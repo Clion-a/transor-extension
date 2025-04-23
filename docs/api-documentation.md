@@ -368,6 +368,8 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 |----------------------|----------|--------------------------|
 | code              | Boolean  | 请求是否成功             |
 | data             | Object   | 用户配置对象             |
+
+|你传的啥就是啥|||
 | settings.targetLanguage | String | 目标语言代码             |
 | settings.sourceLanguage | String | 源语言代码               |
 | settings.translationEngine | String | 首选翻译引擎          |
@@ -399,7 +401,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 **接口描述**: 更新用户的翻译配置
 
-**请求URL**: `/user/settings`
+**请求URL**: `/priapi1/update_chrome_settings`
 
 **请求方法**: post
 
@@ -410,14 +412,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名          | 类型    | 必填 | 描述                     |
 |-----------------|---------|------|--------------------------|
-| targetLanguage  | String  | 否   | 目标语言代码             |
-| sourceLanguage  | String  | 否   | 源语言代码               |
-| translationEngine | String | 否  | 首选翻译引擎             |
-| translationStyle | String | 否   | 翻译样式(inline/popup)   |
-| excludedTags    | Array   | 否   | 不翻译的HTML标签         |
-| excludedClasses | Array   | 否   | 不翻译的CSS类            |
-| excludedUrls    | Array   | 否   | 不翻译的网址规则         |
-| customCss       | String  | 否   | 自定义CSS                |
+| settings  | String  | 否   | 传一个json上来          |
 
 **请求示例**:
 ```json
@@ -431,25 +426,16 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名          | 类型    | 描述                     |
 |-----------------|---------|--------------------------|
-| success         | Boolean | 请求是否成功             |
-| message         | String  | 操作结果描述             |
-| settings        | Object  | 更新后的完整配置         |
+| code         | Boolean | 请求是否成功       1成功， -1 失败       |
+| data         | String  | 操作结果描述     空        |
+| info        | Object  | 错误提示     |
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "message": "设置已更新",
-  "settings": {
-    "targetLanguage": "ja",
-    "sourceLanguage": "auto",
-    "translationEngine": "deepl",
-    "translationStyle": "inline",
-    "excludedTags": ["code", "pre", "script", "style"],
-    "excludedClasses": ["no-translate"],
-    "excludedUrls": [],
-    "customCss": ""
-  }
+  "code": 1,
+  "info": "成功",
+  "data":''
 }
 ```
 
