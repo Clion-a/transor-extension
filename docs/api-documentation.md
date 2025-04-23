@@ -75,6 +75,9 @@ http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsa
 
 **请求方法**: POST
 
+http://api-test.transor.ai/pubapi1/google_login
+现在返回数据是假数据
+
 **请求参数**:
 
 | 参数名     | 类型   | 必填 | 描述     |
@@ -120,9 +123,11 @@ http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsa
 
 **接口描述**: 使用Apple账号登录系统
 
-**请求URL**: `/auth/apple`
+**请求URL**: `/pubapi1/apple_login`
 
 **请求方法**: POST
+
+现在没有
 
 **请求参数**:
 
@@ -149,27 +154,17 @@ http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsa
 | 参数名      | 类型   | 描述                     |
 |-------------|--------|--------------------------|
 | success     | Boolean| 请求是否成功             |
-| token       | String | 访问令牌                 |
-| expiresIn   | Number | 令牌有效期(秒)           |
-| user        | Object | 用户信息对象             |
-| user.id     | String | 用户唯一标识             |
-| user.email  | String | 用户邮箱                 |
-| user.name   | String | 用户名称                 |
-| user.avatar | String | 用户头像URL              |
-| user.plan   | String | 用户当前套餐(free/pro)   |
+| data.SESSID       | String | 访问令牌                 |
+| data.expires_in   | Number | 令牌有效期(秒)           |
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresIn": 86400,
-  "user": {
-    "id": "usr_987654321",
-    "email": "privaterelay.appleid.com#user@privaterelay.appleid.com",
-    "name": "John Doe",
-    "avatar": "https://api.transor.com/avatars/default.png",
-    "plan": "free"
+  "code": 1,
+  
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": 86400
   },
 }
 ```
