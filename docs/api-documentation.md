@@ -14,16 +14,21 @@
 
 **接口描述**: 用户使用账号密码登录系统，获取访问令牌
 
-**请求URL**: `/auth/login`
+**请求URL**: `/pubapi1/email_login`
 
 **请求方法**: POST
+
+测试的时候可以GET
+http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsasdfasd
+
+测试的时候，这个URL也是可以注册账号的，直接改email即可注册。
 
 **请求参数**:
 
 | 参数名     | 类型   | 必填 | 描述     |
 |------------|--------|------|----------|
 | email      | String | 是   | 用户邮箱 |
-| password   | String | 是   | 用户密码 |
+| psw   | String | 是   | 用户密码 |
 
 **请求示例**:
 ```json
@@ -37,28 +42,18 @@
 
 | 参数名      | 类型   | 描述                     |
 |-------------|--------|--------------------------|
-| success     | Boolean| 请求是否成功             |
-| token       | String | 访问令牌                 |
-| expiresIn   | Number | 令牌有效期(秒)           |
-| user        | Object | 用户信息对象             |
-| user.id     | String | 用户唯一标识             |
-| user.email  | String | 用户邮箱                 |
-| user.name   | String | 用户名称                 |
-| user.avatar | String | 用户头像URL              |
-| user.plan   | String | 用户当前套餐(free/pro)   |
+| code     | Boolean|  请求是否成功  1成功，-1失败            |
+| data.SESSID       | String | 访问令牌,这个先沿用以前的字段 SESSID                 |
+| expires_in   | Number | 令牌有效期(秒)，现在这个是个假数据           |
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresIn": 86400,
-  "user": {
-    "id": "usr_123456789",
-    "email": "user@example.com",
-    "name": "John Doe",
-    "avatar": "https://api.transor.com/avatars/default.png",
-    "plan": "free"
+  "code": 1,
+  
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": 86400,
   }
 }
 ```
