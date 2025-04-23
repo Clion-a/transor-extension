@@ -41,9 +41,27 @@
       "matches": ["*://*.youtube.com/*"],
       "js": ["youtube-cinema.js"],
       "run_at": "document_end"
+    },
+    {
+      "matches": ["http://localhost:8080/*", "https://localhost:8080/*"],
+      "js": ["login-bridge.js"],
+      "run_at": "document_end"
     }
   ],
   "web_accessible_resources": [
+    {
+      "resources": [
+        "youtube-cinema.js",
+        "youtube-cinema.css",
+        "youtube-cinema.html",
+        "iconfont.js",
+        "fonts/*"
+      ],
+      "matches": [
+        "https://*.youtube.com/*",
+        "https://*.youtu.be/*"
+      ]
+    },
     {
       "resources": ["inject.js"],
       "matches": ["<all_urls>"]
@@ -57,18 +75,11 @@
       "matches": ["<all_urls>"]
     },
     {
-      "resources": ["login.html", "login.js", "login.css"],
-      "matches": ["<all_urls>"]
+      "resources": ["transor-bridge-injection.js"],
+      "matches": ["http://localhost:8080/*", "https://localhost:8080/*"]
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com https://api.ocr.space https://accounts.google.com"
-  },
-  "oauth2": {
-    "client_id": "1058880216647-bcpb440uiuqrq345ea5250qe877ur5g5.apps.googleusercontent.com",
-    "scopes": [
-      "https://www.googleapis.com/auth/userinfo.email",
-      "https://www.googleapis.com/auth/userinfo.profile"
-    ]
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com https://api.ocr.space"
   }
 } 

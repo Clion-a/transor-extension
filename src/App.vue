@@ -1,9 +1,6 @@
 <template>
   <div id="app">
     <div class="transor-container">
-      <div class="header">
-        <h1>Transor 沉浸式翻译</h1>
-      </div>
       <div class="content">
         <TranslationSettings />
         <el-divider></el-divider>
@@ -32,12 +29,7 @@ export default {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: #2c3e50;
-  width: 350px;
   min-height: 450px;
-}
-
-.transor-container {
-  padding: 16px;
 }
 
 .header {

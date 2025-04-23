@@ -1,7 +1,5 @@
 <template>
   <div class="translation-control">
-    <h3>翻译控制</h3>
-    
     <div class="control-panel">
       <div class="toggle-container">
         <span>翻译开关</span>
@@ -12,11 +10,6 @@
           @change="toggleTranslation"
         ></el-switch>
       </div>
-      
-      <el-button type="primary" size="small" @click="translateCurrentPage" :disabled="!isTranslationEnabled">
-        立即翻译当前页面
-      </el-button>
-      
       <el-collapse v-model="activeCollapse">
         <el-collapse-item title="高级设置" name="advanced">
           <div class="advanced-settings">
