@@ -326,6 +326,8 @@
 | target_lang     | String   | 是   | 目标语言代码,i18n,zh-CN,zh-HK,en,en-US |
 | engine          | String   | 否   | 翻译引擎(/openai/deepseek)，参看上面的表，区分大小写和版本|
 
+http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%B8%96%E7%95%8C%22,%22%E4%BD%A0%E5%A5%BD%E5%90%97%EF%BC%9F%22]&souce_lang=auto&target_lang=en&engine=DeepSeek-V3
+测试的时候可以GET，线上POST
 **请求示例**:
 ```json
 {
