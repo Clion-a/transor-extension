@@ -321,18 +321,18 @@
 
 | 参数名          | 类型     | 必填 | 描述                    |
 |-----------------|----------|------|-------------------------|
-| texts           | Array    | 是   | 待翻译的文本数组        |
-| sourceLanguage  | String   | 否   | 源语言代码(默认"auto")  |
-| targetLanguage  | String   | 是   | 目标语言代码            |
-| engine          | String   | 否   | 翻译引擎(/openai/deepseek)
+| source_text     | Array/String| 是   | 待翻译的文本数组，如果只传一个字符串，返回值也会是一个数组        |
+| source_lang     | String   | 否   | 源语言代码(默认"auto")  |
+| target_lang     | String   | 是   | 目标语言代码,i18n,zh-CN,zh-HK,en,en-US |
+| engine          | String   | 否   | 翻译引擎(/openai/deepseek)，参看上面的表，区分大小写和版本|
 
 **请求示例**:
 ```json
 {
-  "texts": ["Hello world", "How are you?"],
-  "sourceLanguage": "en",
-  "targetLanguage": "zh-CN",
-  "engine": "openai"
+  "source_text": ["Hello world", "How are you?"],
+  "source_lang": "en",
+  "target_lang": "zh-CN",
+  "engine": "DeepSeek-V3"
 }
 ```
 
@@ -340,29 +340,26 @@
 
 | 参数名        | 类型    | 描述                     |
 |---------------|---------|--------------------------|
-| success       | Boolean | 请求是否成功             |
-| translations  | Array   | 翻译结果数组             |
-| engine        | String  | 实际使用的翻译引擎       |
+| code       | Boolean | 请求是否成功 1成功，-1失败            |
+| data.translations  | Array   | 翻译结果数组             |
+| data.engine        | String  | 实际使用的翻译引擎 DeepSeek-V3      |
 | usage         | Object  | 使用量统计               |
-| usage.count   | Number  | 翻译字符数               |
-| usage.limit   | Number  | 当前计划字符限制         |
-| usage.remaining| Number | 剩余可用字符数           |
+| usage.total_tokens   | Number  | 消耗的token数量               |
 
 **响应示例**:
 ```json
 {
-  "success": true,
+  "code": 1,
   "translations": ["你好世界", "你好吗？"],
-  "engine": "openai",
+  "engine": "DeepSeek-V3",
   "usage": {
-    "count": 15,
-    "limit": 500000,
-    "remaining": 499985
+    "total_tokens": 30
   }
 }
 ```
 
 **错误码**:
+这个暂时没提供
 
 | 错误码 | 描述                   |
 |--------|------------------------|
