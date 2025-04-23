@@ -355,7 +355,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 **接口描述**: 获取用户的翻译配置
 
-**请求URL**: `/user/settings`
+**请求URL**: `/priapi1/get_chrome_settings`
 
 **请求方法**: GET
 
@@ -366,8 +366,8 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名               | 类型     | 描述                     |
 |----------------------|----------|--------------------------|
-| success              | Boolean  | 请求是否成功             |
-| settings             | Object   | 用户配置对象             |
+| code              | Boolean  | 请求是否成功             |
+| data             | Object   | 用户配置对象             |
 | settings.targetLanguage | String | 目标语言代码             |
 | settings.sourceLanguage | String | 源语言代码               |
 | settings.translationEngine | String | 首选翻译引擎          |
@@ -380,8 +380,9 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 **响应示例**:
 ```json
 {
-  "success": true,
-  "settings": {
+  "code": 1,
+  "data": {
+    //存啥放出来就是啥
     "targetLanguage": "zh-CN",
     "sourceLanguage": "auto",
     "translationEngine": "google",
