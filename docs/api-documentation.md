@@ -34,7 +34,7 @@ http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsa
 ```json
 {
   "email": "user@example.com",
-  "password": "password123",
+  "psw": "password123",
 }
 ```
 
@@ -59,6 +59,7 @@ http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsa
 ```
 
 **错误码**:
+暂时没有这个
 
 | 错误码 | 描述                   |
 |--------|------------------------|
