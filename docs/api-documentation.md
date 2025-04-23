@@ -445,7 +445,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 **接口描述**: 获取当前用户的详细信息
 
-**请求URL**: `/user/profile`
+**请求URL**: `/priapi1/my_info`
 
 **请求方法**: GET
 
@@ -456,34 +456,32 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名             | 类型    | 描述                     |
 |--------------------|---------|--------------------------|
-| success            | Boolean | 请求是否成功             |
-| profile            | Object  | 用户资料对象             |
-| profile.id         | String  | 用户ID                   |
-| profile.name       | String  | 用户名称                 |
-| profile.email      | String  | 用户邮箱                 |
-| profile.avatar     | String  | 用户头像URL              |
-| profile.plan       | String  | 用户套餐类型             |
-| profile.usageStats | Object  | 使用统计信息             |
-| profile.createdAt  | String  | 账号创建时间             |
+| code            | int | 请求是否成功  1 -1            |
+| data            | Object  | 用户资料对象             |
+| data.id         | String  | 用户ID                   |
+| data.email       | String  | 用户邮箱                 |
+| data.status      | String  | 用户状态，1正常，-1被锁定                 |
+| data.plan     | String  | 用户套餐类型               |
+
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "profile": {
+  "code": 1,
+  "data": {
     "id": "usr_123456789",
-    "name": "John Doe",
+    "name": "John Doe", //暂时没有
     "email": "user@example.com",
-    "avatar": "https://api.transor.com/avatars/default.png",
+    //"avatar": "https://api.transor.com/avatars/default.png",
     "plan": "free",
-    "usageStats": {
-      "charactersTranslated": 3547,
-      "imagesProcessed": 5,
-      "subtitlesTranslated": 245,
-      "charactersLimit": 500000,
-      "remainingCharacters": 496453
-    },
-    "createdAt": "2023-01-15T08:30:00Z"
+    //"usageStats": {
+    //  "charactersTranslated": 3547,
+    //  "imagesProcessed": 5,
+    //  "subtitlesTranslated": 245,
+    //  "charactersLimit": 500000,
+    //  "remainingCharacters": 496453
+    //},
+    //"createdAt": "2023-01-15T08:30:00Z"
   }
 }
 ```
