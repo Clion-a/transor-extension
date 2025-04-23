@@ -6,6 +6,7 @@
 - 请求格式: JSON
 - 响应格式: JSON
 - 认证方式: Bearer Token
+- Language: Header
 
 ## 认证相关接口
 
@@ -13,22 +14,27 @@
 
 **接口描述**: 用户使用账号密码登录系统，获取访问令牌
 
-**请求URL**: `/auth/login`
+**请求URL**: `/pubapi1/email_login`
 
 **请求方法**: POST
+
+测试的时候可以GET
+http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsasdfasd
+
+测试的时候，这个URL也是可以注册账号的，直接改email即可注册。
 
 **请求参数**:
 
 | 参数名     | 类型   | 必填 | 描述     |
 |------------|--------|------|----------|
 | email      | String | 是   | 用户邮箱 |
-| password   | String | 是   | 用户密码 |
+| psw   | String | 是   | 用户密码 |
 
 **请求示例**:
 ```json
 {
   "email": "user@example.com",
-  "password": "password123",
+  "psw": "password123",
 }
 ```
 
@@ -36,33 +42,24 @@
 
 | 参数名      | 类型   | 描述                     |
 |-------------|--------|--------------------------|
-| success     | Boolean| 请求是否成功             |
-| token       | String | 访问令牌                 |
-| expiresIn   | Number | 令牌有效期(秒)           |
-| user        | Object | 用户信息对象             |
-| user.id     | String | 用户唯一标识             |
-| user.email  | String | 用户邮箱                 |
-| user.name   | String | 用户名称                 |
-| user.avatar | String | 用户头像URL              |
-| user.plan   | String | 用户当前套餐(free/pro)   |
+| code     | Boolean|  请求是否成功  1成功，-1失败            |
+| data.SESSID       | String | 访问令牌,这个先沿用以前的字段 SESSID                 |
+| expires_in   | Number | 令牌有效期(秒)，现在这个是个假数据           |
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresIn": 86400,
-  "user": {
-    "id": "usr_123456789",
-    "email": "user@example.com",
-    "name": "John Doe",
-    "avatar": "https://api.transor.com/avatars/default.png",
-    "plan": "free"
+  "code": 1,
+  
+  "data": {
+    "SESSID": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": 86400,
   }
 }
 ```
 
 **错误码**:
+暂时没有这个
 
 | 错误码 | 描述                   |
 |--------|------------------------|
@@ -74,9 +71,12 @@
 
 **接口描述**: 使用谷歌账号登录系统
 
-**请求URL**: `/auth/google`
+**请求URL**: `/pubapi1/google_login`
 
 **请求方法**: POST
+
+http://api-test.transor.ai/pubapi1/google_login
+现在返回数据是假数据
 
 **请求参数**:
 
@@ -96,30 +96,18 @@
 | 参数名      | 类型   | 描述                     |
 |-------------|--------|--------------------------|
 | success     | Boolean| 请求是否成功             |
-| token       | String | 访问令牌                 |
-| expiresIn   | Number | 令牌有效期(秒)           |
-| user        | Object | 用户信息对象             |
-| user.id     | String | 用户唯一标识             |
-| user.email  | String | 用户邮箱                 |
-| user.name   | String | 用户名称                 |
-| user.avatar | String | 用户头像URL              |
-| user.plan   | String | 用户当前套餐(free/pro)   |
-| isNewUser   | Boolean| 是否是首次登录的新用户   |
+| data.SESSID       | String | 访问令牌                 |
+| data.expires_in   | Number | 令牌有效期(秒)           |
 
 **响应示例**:
 ```json
 {
   "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresIn": 86400,
   "user": {
-    "id": "usr_123456789",
-    "email": "user@gmail.com",
-    "name": "John Doe",
-    "avatar": "https://lh3.googleusercontent.com/a/AATXAJxxxx...",
-    "plan": "free"
-  },
-  "isNewUser": false
+    "SESSID": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 86400,
+  }
+  
 }
 ```
 
@@ -135,9 +123,11 @@
 
 **接口描述**: 使用Apple账号登录系统
 
-**请求URL**: `/auth/apple`
+**请求URL**: `/pubapi1/apple_login`
 
 **请求方法**: POST
+
+现在没有
 
 **请求参数**:
 
@@ -164,27 +154,17 @@
 | 参数名      | 类型   | 描述                     |
 |-------------|--------|--------------------------|
 | success     | Boolean| 请求是否成功             |
-| token       | String | 访问令牌                 |
-| expiresIn   | Number | 令牌有效期(秒)           |
-| user        | Object | 用户信息对象             |
-| user.id     | String | 用户唯一标识             |
-| user.email  | String | 用户邮箱                 |
-| user.name   | String | 用户名称                 |
-| user.avatar | String | 用户头像URL              |
-| user.plan   | String | 用户当前套餐(free/pro)   |
+| data.SESSID       | String | 访问令牌                 |
+| data.expires_in   | Number | 令牌有效期(秒)           |
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresIn": 86400,
-  "user": {
-    "id": "usr_987654321",
-    "email": "privaterelay.appleid.com#user@privaterelay.appleid.com",
-    "name": "John Doe",
-    "avatar": "https://api.transor.com/avatars/default.png",
-    "plan": "free"
+  "code": 1,
+  
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": 86400
   },
 }
 ```
@@ -304,22 +284,36 @@
 **请求头**:
 - Authorization: Bearer {token}
 
+为了不必要的空格的问题，后端传输全部都用-连接各种翻译engine
+
+| 翻译引擎          | 代码     | 备注 |
+|-----------------|----------|------|
+|谷歌翻译|Google||
+|微软翻译|Microsoft||
+|ChatGPT 4o|ChatGPT-4o||
+|ChatGPT 4o mini| ChatGPT-4o-mini||
+|DeepSeek V3|DeepSeek-V3||
+|Gemini 2.0 flash|Gemini-2.0-flash||
+|DeepL|DeepL||
+
 **请求参数**:
 
 | 参数名          | 类型     | 必填 | 描述                    |
 |-----------------|----------|------|-------------------------|
-| texts           | Array    | 是   | 待翻译的文本数组        |
-| sourceLanguage  | String   | 否   | 源语言代码(默认"auto")  |
-| targetLanguage  | String   | 是   | 目标语言代码            |
-| engine          | String   | 否   | 翻译引擎(/openai/deepseek)
+| source_text     | Array/String| 是   | 待翻译的文本数组，如果只传一个字符串，返回值也会是一个数组        |
+| source_lang     | String   | 否   | 源语言代码(默认"auto")  |
+| target_lang     | String   | 是   | 目标语言代码,i18n,zh-CN,zh-HK,en,en-US |
+| engine          | String   | 否   | 翻译引擎(/openai/deepseek)，参看上面的表，区分大小写和版本|
 
+http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%B8%96%E7%95%8C%22,%22%E4%BD%A0%E5%A5%BD%E5%90%97%EF%BC%9F%22]&souce_lang=auto&target_lang=en&engine=DeepSeek-V3
+测试的时候可以GET，线上POST
 **请求示例**:
 ```json
 {
-  "texts": ["Hello world", "How are you?"],
-  "sourceLanguage": "en",
-  "targetLanguage": "zh-CN",
-  "engine": "openai"
+  "source_text": ["Hello world", "How are you?"],
+  "source_lang": "en",
+  "target_lang": "zh-CN",
+  "engine": "DeepSeek-V3"
 }
 ```
 
@@ -327,29 +321,26 @@
 
 | 参数名        | 类型    | 描述                     |
 |---------------|---------|--------------------------|
-| success       | Boolean | 请求是否成功             |
-| translations  | Array   | 翻译结果数组             |
-| engine        | String  | 实际使用的翻译引擎       |
+| code       | Boolean | 请求是否成功 1成功，-1失败            |
+| data.translations  | Array   | 翻译结果数组             |
+| data.engine        | String  | 实际使用的翻译引擎 DeepSeek-V3      |
 | usage         | Object  | 使用量统计               |
-| usage.count   | Number  | 翻译字符数               |
-| usage.limit   | Number  | 当前计划字符限制         |
-| usage.remaining| Number | 剩余可用字符数           |
+| usage.total_tokens   | Number  | 消耗的token数量               |
 
 **响应示例**:
 ```json
 {
-  "success": true,
+  "code": 1,
   "translations": ["你好世界", "你好吗？"],
-  "engine": "openai",
+  "engine": "DeepSeek-V3",
   "usage": {
-    "count": 15,
-    "limit": 500000,
-    "remaining": 499985
+    "total_tokens": 30
   }
 }
 ```
 
 **错误码**:
+这个暂时没提供
 
 | 错误码 | 描述                   |
 |--------|------------------------|
@@ -364,7 +355,7 @@
 
 **接口描述**: 获取用户的翻译配置
 
-**请求URL**: `/user/settings`
+**请求URL**: `/priapi1/get_chrome_settings`
 
 **请求方法**: GET
 
@@ -375,8 +366,10 @@
 
 | 参数名               | 类型     | 描述                     |
 |----------------------|----------|--------------------------|
-| success              | Boolean  | 请求是否成功             |
-| settings             | Object   | 用户配置对象             |
+| code              | Boolean  | 请求是否成功             |
+| data             | Object   | 用户配置对象             |
+
+|你传的啥就是啥|||
 | settings.targetLanguage | String | 目标语言代码             |
 | settings.sourceLanguage | String | 源语言代码               |
 | settings.translationEngine | String | 首选翻译引擎          |
@@ -389,8 +382,9 @@
 **响应示例**:
 ```json
 {
-  "success": true,
-  "settings": {
+  "code": 1,
+  "data": {
+    //存啥放出来就是啥
     "targetLanguage": "zh-CN",
     "sourceLanguage": "auto",
     "translationEngine": "google",
@@ -407,7 +401,7 @@
 
 **接口描述**: 更新用户的翻译配置
 
-**请求URL**: `/user/settings`
+**请求URL**: `/priapi1/update_chrome_settings`
 
 **请求方法**: post
 
@@ -418,14 +412,7 @@
 
 | 参数名          | 类型    | 必填 | 描述                     |
 |-----------------|---------|------|--------------------------|
-| targetLanguage  | String  | 否   | 目标语言代码             |
-| sourceLanguage  | String  | 否   | 源语言代码               |
-| translationEngine | String | 否  | 首选翻译引擎             |
-| translationStyle | String | 否   | 翻译样式(inline/popup)   |
-| excludedTags    | Array   | 否   | 不翻译的HTML标签         |
-| excludedClasses | Array   | 否   | 不翻译的CSS类            |
-| excludedUrls    | Array   | 否   | 不翻译的网址规则         |
-| customCss       | String  | 否   | 自定义CSS                |
+| settings  | String  | 否   | 传一个json上来          |
 
 **请求示例**:
 ```json
@@ -439,25 +426,16 @@
 
 | 参数名          | 类型    | 描述                     |
 |-----------------|---------|--------------------------|
-| success         | Boolean | 请求是否成功             |
-| message         | String  | 操作结果描述             |
-| settings        | Object  | 更新后的完整配置         |
+| code         | Boolean | 请求是否成功       1成功， -1 失败       |
+| data         | String  | 操作结果描述     空        |
+| info        | Object  | 错误提示     |
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "message": "设置已更新",
-  "settings": {
-    "targetLanguage": "ja",
-    "sourceLanguage": "auto",
-    "translationEngine": "deepl",
-    "translationStyle": "inline",
-    "excludedTags": ["code", "pre", "script", "style"],
-    "excludedClasses": ["no-translate"],
-    "excludedUrls": [],
-    "customCss": ""
-  }
+  "code": 1,
+  "info": "成功",
+  "data":''
 }
 ```
 
@@ -467,7 +445,7 @@
 
 **接口描述**: 获取当前用户的详细信息
 
-**请求URL**: `/user/profile`
+**请求URL**: `/priapi1/my_info`
 
 **请求方法**: GET
 
@@ -478,34 +456,32 @@
 
 | 参数名             | 类型    | 描述                     |
 |--------------------|---------|--------------------------|
-| success            | Boolean | 请求是否成功             |
-| profile            | Object  | 用户资料对象             |
-| profile.id         | String  | 用户ID                   |
-| profile.name       | String  | 用户名称                 |
-| profile.email      | String  | 用户邮箱                 |
-| profile.avatar     | String  | 用户头像URL              |
-| profile.plan       | String  | 用户套餐类型             |
-| profile.usageStats | Object  | 使用统计信息             |
-| profile.createdAt  | String  | 账号创建时间             |
+| code            | int | 请求是否成功  1 -1            |
+| data            | Object  | 用户资料对象             |
+| data.id         | String  | 用户ID                   |
+| data.email       | String  | 用户邮箱                 |
+| data.status      | String  | 用户状态，1正常，-1被锁定                 |
+| data.plan     | String  | 用户套餐类型               |
+
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "profile": {
+  "code": 1,
+  "data": {
     "id": "usr_123456789",
-    "name": "John Doe",
+    "name": "John Doe", //暂时没有
     "email": "user@example.com",
-    "avatar": "https://api.transor.com/avatars/default.png",
+    //"avatar": "https://api.transor.com/avatars/default.png",
     "plan": "free",
-    "usageStats": {
-      "charactersTranslated": 3547,
-      "imagesProcessed": 5,
-      "subtitlesTranslated": 245,
-      "charactersLimit": 500000,
-      "remainingCharacters": 496453
-    },
-    "createdAt": "2023-01-15T08:30:00Z"
+    //"usageStats": {
+    //  "charactersTranslated": 3547,
+    //  "imagesProcessed": 5,
+    //  "subtitlesTranslated": 245,
+    //  "charactersLimit": 500000,
+    //  "remainingCharacters": 496453
+    //},
+    //"createdAt": "2023-01-15T08:30:00Z"
   }
 }
 ```
@@ -610,15 +586,73 @@
 }
 ```
 
-## 错误码说明
+### 2. 收藏单词
 
-| 错误码 | 描述                            |
-|--------|--------------------------------|
-| 400    | 请求参数错误或缺失              |
-| 401    | 未授权访问，令牌无效或已过期    |
-| 402    | 需要付款，免费额度已用完        |
-| 403    | 禁止访问，无权执行该操作        |
-| 404    | 请求的资源不存在                |
-| 429    | 请求频率超限，请稍后再试        |
-| 500    | 服务器内部错误                  |
-| 503    | 服务暂时不可用，请稍后再试      |
+**接口描述**: 收藏单词
+
+**请求URL**: `/priapi1/collect_my_words`
+
+**请求方法**: POST
+
+**请求头**:
+- Authorization: Bearer {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| source_text   | String | 是   | 源词                    |
+| source_lang | String | 是 |源语言 zh-CN,zh-TW, en |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| code     | Boolean | 1 -1                 |
+| data | String  | 空                 |
+| info     | String  | 成功 失败                    |
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "redirectUrl": "https://payment.transor.com/checkout?session=xyz123",
+  "orderId": "ord_987654321"
+}
+```
+
+### 2. 获取我收藏的单词
+
+**接口描述**: 订阅指定套餐
+
+**请求URL**: `/priapi1/get_my_words`
+
+**请求方法**: GET
+
+**请求头**:
+- Authorization: Bearer {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| 现在啥也不用传   | String | 是   | 套餐ID                     |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| success     | Boolean | 请求是否成功                 |
+| redirectUrl | String  | 支付页面URL                  |
+| orderId     | String  | 订单ID                       |
+
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": "一个数组",
+ 
+}
+```
+
+
