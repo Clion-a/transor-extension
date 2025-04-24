@@ -41,6 +41,12 @@ async function init() {
   // 初始化滑词翻译功能
   initSelectionTranslator();
   
+  // 添加消息监听器处理快捷键
+  setupMessageListeners();
+  
+  // 添加对全局切换事件的监听
+  setupGlobalEventListeners();
+  
   // 自动翻译（如果启用）
   if (translationSettings.isEnabled) {
     setTimeout(() => {
@@ -1104,10 +1110,10 @@ async function translateTexts(texts) {
           }, response => {
             if (response && response.success) {
               resolve(response.translation);
-            } else {
+          } else {
               console.warn('后台翻译失败:', response?.error);
               resolve(text); // 失败时返回原文
-            }
+          }
           });
         });
         
@@ -1426,10 +1432,22 @@ function initSelectionTranslator() {
             favoriteBtn.addEventListener('click', function(e) {
               e.preventDefault();
               e.stopPropagation();
+              
+              // 显示加载状态
+              this.textContent = '⌛';
+              this.title = '正在收藏...';
+              this.disabled = true;
+              
+              // 保存收藏
               saveFavorite(text, cleanTranslation);
-              this.classList.add('active');
-              this.textContent = '★';
-              this.title = '已收藏';
+              
+              // 显示已收藏状态
+              setTimeout(() => {
+                this.classList.add('active');
+                this.textContent = '★';
+                this.title = '已收藏';
+                this.disabled = false;
+              }, 500);
             });
           }
         }
@@ -1468,6 +1486,39 @@ function initSelectionTranslator() {
     };
     
     console.log('准备保存收藏:', favorite);
+    
+    // 调用API收藏单词
+    chrome.storage.local.get(['authToken'], function(result) {
+      const token = result.authToken;
+      if (token) {
+        // 调用接口收藏单词
+        fetch('http://api-test.transor.ai/priapi1/collect_my_words', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token
+          },
+          body: JSON.stringify({
+            source_text: originalText,
+            source_lang: translationSettings.sourceLanguage
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log('单词收藏API响应:', data);
+          if (data.code === 1) {
+            console.log('单词收藏成功');
+          } else {
+            console.error('单词收藏失败:', data.info);
+          }
+        })
+        .catch(error => {
+          console.error('调用单词收藏API出错:', error);
+        });
+      } else {
+        console.warn('未找到访问令牌，无法调用收藏API');
+      }
+    });
     
     // 读取现有收藏
     chrome.storage.sync.get('transorFavorites', function(result) {
@@ -1566,6 +1617,98 @@ function convertImageToBase64(imageUrl) {
     
     // 设置图片源
     img.src = imageUrl;
+  });
+}
+
+// 设置消息监听器
+function setupMessageListeners() {
+  chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+    console.log('内容脚本收到消息:', message);
+    
+    // 处理快捷键触发
+    if (message.action === 'shortcutTriggered' && message.shortcut === 'altA') {
+      console.log('收到快捷键触发消息，执行翻译开关');
+      toggleTranslation();
+      sendResponse({ success: true });
+      return true;
+    }
+    
+    // 处理直接翻译请求
+    if (message.action === 'translate') {
+      console.log('收到直接翻译请求');
+      if (!translationSettings.isEnabled) {
+        translationSettings.isEnabled = true;
+        translateVisibleContent();
+      }
+      sendResponse({ success: true });
+      return true;
+    }
+    
+    return false;
+  });
+}
+
+// 切换翻译开关
+function toggleTranslation() {
+  console.log('切换翻译状态');
+  // 切换翻译状态
+  translationSettings.isEnabled = !translationSettings.isEnabled;
+  
+  // 保存新状态到存储
+  chrome.storage.sync.set({ isEnabled: translationSettings.isEnabled }, function() {
+    console.log('已保存翻译开关状态:', translationSettings.isEnabled);
+  });
+  
+  // 根据新状态执行相应操作
+  if (translationSettings.isEnabled) {
+    console.log('启用翻译，开始翻译可见内容');
+    translateVisibleContent();
+  } else {
+    console.log('禁用翻译，移除所有翻译');
+    removeAllTranslations();
+  }
+  
+  // 通知UI更新状态
+  updateStatusIndicator();
+}
+
+// 更新状态指示器
+function updateStatusIndicator() {
+  try {
+    // 发送消息给popup或其他UI组件更新状态
+    chrome.runtime.sendMessage({ 
+      action: 'updateStatus', 
+      isEnabled: translationSettings.isEnabled 
+    });
+  } catch (error) {
+    console.error('更新状态指示器失败:', error);
+  }
+}
+
+// 设置全局事件监听器
+function setupGlobalEventListeners() {
+  // 监听来自后台脚本的自定义事件
+  document.addEventListener('transor-toggle-translation', (event) => {
+    console.log('收到翻译切换自定义事件:', event.detail);
+    toggleTranslation();
+  });
+  
+  // 也可以直接在content-script中监听键盘事件
+  document.addEventListener('keydown', (event) => {
+    // 检测Alt+A (Option+A) 快捷键
+    const isAltAPressed = 
+      // 标准检测方式
+      (event.altKey && (event.key === 'a' || event.key === 'A')) ||
+      // Mac上Option+A可能生成的特殊字符
+      (event.key === 'å' || event.key === 'Å') ||
+      // 使用keyCode检测 (65是字母A的keyCode)
+      (event.altKey && event.keyCode === 65);
+      
+    if (isAltAPressed) {
+      console.log('内容脚本直接检测到快捷键 ⌥A');
+      event.preventDefault(); // 阻止默认行为，避免可能的按键冲突
+      toggleTranslation();
+    }
   });
 }
 

@@ -79,7 +79,17 @@
       "matches": ["http://localhost:8080/*", "https://localhost:8080/*"]
     }
   ],
+  "commands": {
+    "toggle_translation": {
+      "suggested_key": {
+        "default": "Alt+A",
+        "mac": "Alt+A"
+      },
+      "description": "开启/关闭翻译功能",
+      "global": true
+    }
+  },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com https://api.ocr.space"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com https://api.ocr.space http://api-test.transor.ai https://api-test.transor.ai"
   }
 } 

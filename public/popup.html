@@ -9,7 +9,7 @@
   <style>
     :root {
       --primary-color: #ff5588;
-      --primary-gradient: linear-gradient(135deg, #ff5588, #ff70a8);
+      --primary-gradient: linear-gradient(135deg, #ff5588, #ff3377, #ff6699);
       --secondary-color: #0ea5e9;
       --success-color: #10b981;
       --text-color: #212529;
@@ -18,6 +18,25 @@
       --border-radius: 8px;
       --box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
       --transition: all 0.3s ease;
+    }
+
+    /* 极细滚动条方案 */
+    ::-webkit-scrollbar {
+      width: 2px;
+      height: 2px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: transparent;
+    }
+
+    /* 鼠标悬停时显示极细滚动条 */
+    :hover::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.1);
     }
 
     body {
@@ -34,7 +53,7 @@
       background: var(--primary-gradient);
       color: var(--light-text);
       padding: 15px 20px;
-      border-radius: 0 0 16px 16px;
+      /* border-radius: 0 0 16px 16px; */
       box-shadow: var(--box-shadow);
       position: relative;
       overflow: hidden;
@@ -68,19 +87,18 @@
       margin: 0;
       display: inline-block;
       position: relative;
-      background-image: linear-gradient(
-        to right,
-        #ff5588 0%,
-        #ff99cc 30%,
-        #ffffff 50%,
-        #ff99cc 70%,
-        #ff5588 100%
-      );
+      background-image: linear-gradient(to right,
+          #ff5588 0%,
+          #ff99cc 30%,
+          #ffffff 50%,
+          #ff99cc 70%,
+          #ff5588 100%);
       background-size: 200% auto;
       background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      color: transparent; /* 备用 */
+      color: transparent;
+      /* 备用 */
       animation: textGradient 4s linear infinite;
       /* 备用文字颜色，确保在任何情况下文字可见 */
       text-shadow: 0 0 0 transparent;
@@ -95,11 +113,12 @@
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
       }
     }
-    
+
     @keyframes textGradient {
       0% {
         background-position: 0% center;
       }
+
       100% {
         background-position: 200% center;
       }
@@ -180,50 +199,121 @@
       border: 1px solid rgba(255, 204, 217, 0.3);
     }
 
-    .favorites-btn {
-      display: block;
-      margin: 15px auto;
-      padding: 12px 18px;
-      background: var(--primary-gradient);
-      color: white;
-      border: none;
-      border-radius: var(--border-radius);
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 500;
-      transition: var(--transition);
-      box-shadow: var(--box-shadow);
-      width: 90%;
-      text-align: center;
+    /* 心形图标样式 */
+    .heart-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       position: relative;
-      overflow: hidden;
+      width: 42px;
+      height: 42px;
+      background-color: #ffebf3;
+      border-radius: 10px;
+      margin: 0;
     }
-
-    .favorites-btn::before {
-      content: '';
+    
+    .heart {
+      background-color: #ff5588;
+      display: inline-block;
+      height: 14px;
+      width: 14px;
+      position: relative;
+      transform: rotate(-45deg);
+      border-radius: 2px;
+    }
+    
+    .heart:before,
+    .heart:after {
+      content: "";
+      background-color: #ff5588;
+      border-radius: 50%;
+      height: 14px;
       position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-      transition: all 0.6s ease;
+      width: 14px;
     }
-
+    
+    .heart:before {
+      top: -7px;
+      left: 0;
+    }
+    
+    .heart:after {
+      left: 7px;
+      top: 0;
+    }
+    
+    .count {
+      font-size: 14px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 2px;
+    }
+    
+    .favorites-btn {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      /* margin: 15px auto; */
+      padding: 10px;
+      background: white;
+      color: #333;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 400;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      height: auto;
+      text-align: left;
+      position: relative;
+      gap: 12px;
+    }
+    
+    .favorites-btn .text-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    
+    .favorites-btn .btn-text {
+      color: #999;
+      font-size: 12px;
+    }
+    
     .favorites-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
-
-    .favorites-btn:hover::before {
-      left: 100%;
-    }
-
+    
     .favorites-btn:active,
     .favorites-btn.active {
-      transform: scale(0.98) translateY(1px);
-      box-shadow: 0 2px 3px rgba(50, 50, 93, 0.1), 0 1px 2px rgba(0, 0, 0, 0.08);
-      background: linear-gradient(135deg, #e11d48, #db2777);
+      transform: scale(0.98);
+    }
+    
+    @keyframes heartbeat {
+      0% {
+        transform: scale(1) rotate(-45deg);
+      }
+      15% {
+        transform: scale(1.2) rotate(-45deg);
+      }
+      30% {
+        transform: scale(1) rotate(-45deg);
+      }
+      45% {
+        transform: scale(1.15) rotate(-45deg);
+      }
+      60% {
+        transform: scale(1) rotate(-45deg);
+      }
+    }
+    
+    .favorites-btn:hover .heart {
+      animation: heartbeat 1.2s ease infinite;
     }
 
     /* 添加动画效果 */
@@ -232,12 +322,12 @@
         transform: scale(1);
         opacity: 1;
       }
-      
+
       50% {
         transform: scale(1.1);
         opacity: 0.8;
       }
-      
+
       100% {
         transform: scale(1);
         opacity: 1;
@@ -248,11 +338,11 @@
       0% {
         box-shadow: 0 0 5px var(--success-color);
       }
-      
+
       50% {
         box-shadow: 0 0 10px var(--success-color), 0 0 15px var(--success-color);
       }
-      
+
       100% {
         box-shadow: 0 0 5px var(--success-color);
       }
@@ -267,7 +357,7 @@
       .login-status {
         background-color: rgba(255, 255, 255, 0.4);
       }
-      
+
       #app {
         background-color: rgba(255, 255, 255, 0.9);
       }
@@ -279,21 +369,31 @@
   <!-- 顶部导航栏 -->
   <div class="header">
     <div class="login-container">
-      <h1 class="app-title">Transor</h1>
+      <h1 class="app-title" data-i18n="app_title">Transor</h1>
 
       <!-- 登录状态显示 -->
       <div id="login-status" class="login-status">
         <span class="status-dot logged-out" id="status-indicator"></span>
-        <span id="login-text">未登录</span>
+        <span id="login-text" data-i18n="login_status.logged_out">未登录</span>
       </div>
     </div>
   </div>
 
   <div class="content">
+    <button id="open-favorites" class="favorites-btn">
+      <div class="heart-icon">
+        <span class="heart"></span>
+      </div>
+      <div class="text-container">
+        <span class="count">1</span>
+        <span class="btn-text" data-i18n="favorites_label">生词本</span>
+      </div>
+    </button>
     <div id="app"></div>
-    <button id="open-favorites" class="favorites-btn">打开英语学习收藏夹</button>
   </div>
 
+  <!-- 引入多语言支持脚本 -->
+  <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 

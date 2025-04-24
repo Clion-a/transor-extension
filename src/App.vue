@@ -3,8 +3,7 @@
     <div class="transor-container">
       <div class="content">
         <TranslationSettings />
-        <el-divider></el-divider>
-        <TranslationControl />
+        <!-- <TranslationControl /> -->
       </div>
     </div>
   </div>
@@ -12,13 +11,13 @@
 
 <script>
 import TranslationSettings from './components/TranslationSettings.vue'
-import TranslationControl from './components/TranslationControl.vue'
+// import TranslationControl from './components/TranslationControl.vue'
 
 export default {
   name: 'App',
   components: {
     TranslationSettings,
-    TranslationControl
+    // TranslationControl
   }
 }
 </script>
@@ -29,17 +28,16 @@ export default {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: #2c3e50;
-  min-height: 450px;
+  /* min-height: 450px; */
 }
 
 .header {
   text-align: center;
-  margin-bottom: 16px;
 }
 
 .header h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 26px;
   color: #409EFF;
 }
 

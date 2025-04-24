@@ -145,6 +145,12 @@ function init() {
   
   // 加载Tesseract OCR库
   loadOCRLibrary();
+  
+  // 注册全局快捷键
+  registerGlobalShortcuts();
+  
+  // 监听来自内容脚本和弹出窗口的消息
+  chrome.runtime.onMessage.addListener(handleRuntimeMessages);
 }
 
 // 初始化存储
@@ -343,6 +349,150 @@ function cleanTextForCaching(text) {
   return cleanText;
 }
 
+// 处理来自内容脚本和弹出窗口的消息
+function handleRuntimeMessages(message, sender, sendResponse) {
+  console.log('收到消息:', message, '来自:', sender);
+  
+  if (message.action === "registerShortcut") {
+    console.log('收到注册快捷键请求:', message.shortcut);
+    registerShortcutForTab(sender.tab?.id, message.shortcut);
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (message.action === "openFavorites") {
+    openFavoritesPage();
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  // 继续处理其他消息...
+  return false;
+}
+
+// 注册全局快捷键
+function registerGlobalShortcuts() {
+  console.log('注册全局快捷键');
+  
+  try {
+    // 使用Chrome的commands API注册快捷键
+    chrome.commands.onCommand.addListener((command) => {
+      console.log('快捷键触发:', command);
+      
+      if (command === "toggle_translation") {
+        console.log('触发翻译切换快捷键');
+        // 向当前活动标签页发送消息
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs.length > 0) {
+            // 添加try-catch块捕获可能的错误
+            try {
+              chrome.tabs.sendMessage(tabs[0].id, { 
+                action: 'shortcutTriggered', 
+                shortcut: 'altA'
+              }, (response) => {
+                // 添加回调处理以捕获lastError
+                if (chrome.runtime.lastError) {
+                  console.log('发送消息时出错（正常现象）:', chrome.runtime.lastError.message);
+                  // 当content-script未加载时，尝试直接执行翻译切换
+                  toggleTranslationWithoutResponse(tabs[0].id);
+                } else if (response) {
+                  console.log('快捷键消息响应:', response);
+                }
+              });
+            } catch (error) {
+              console.error('发送快捷键消息失败:', error);
+              // 尝试备用方案
+              toggleTranslationWithoutResponse(tabs[0].id);
+            }
+          }
+        });
+      }
+    });
+    
+    console.log('全局快捷键注册成功');
+  } catch (error) {
+    console.error('注册全局快捷键失败:', error);
+  }
+}
+
+// 备用方案：无需content-script响应的翻译切换
+function toggleTranslationWithoutResponse(tabId) {
+  console.log('使用备用方案切换翻译状态');
+  
+  // 获取当前设置
+  chrome.storage.sync.get(['isEnabled'], (result) => {
+    const newState = result.isEnabled === undefined ? true : !result.isEnabled;
+    
+    // 保存新状态
+    chrome.storage.sync.set({ isEnabled: newState }, () => {
+      console.log(`切换翻译状态为: ${newState ? '启用' : '禁用'}`);
+      
+      // 尝试注入脚本来处理页面翻译
+      if (newState) {
+        try {
+          // 尝试执行简单的内容脚本来触发翻译
+          chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            function: () => {
+              // 触发翻译事件
+              document.dispatchEvent(new CustomEvent('transor-toggle-translation', { 
+                detail: { enabled: true }
+              }));
+            }
+          }).catch(err => console.log('执行脚本出错:', err));
+        } catch (error) {
+          console.error('注入切换脚本失败:', error);
+        }
+      }
+      
+      // 更新图标状态
+      updateIcon(newState);
+    });
+  });
+}
+
+// 为特定标签页注册快捷键
+function registerShortcutForTab(tabId, shortcutType) {
+  if (!tabId) return;
+  
+  console.log(`为标签页 ${tabId} 注册快捷键: ${shortcutType}`);
+  
+  // 向指定标签页注入快捷键处理脚本
+  chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    function: (shortcutType) => {
+      // 在页面上下文中运行的脚本
+      console.log(`在标签页中注册快捷键处理: ${shortcutType}`);
+      
+      // 为页面添加快捷键监听器
+      window.addEventListener('keydown', (event) => {
+        // 检测Option+A (⌥A) 快捷键
+        const isAltAPressed = 
+          // 标准检测方式
+          (event.altKey && (event.key === 'a' || event.key === 'A')) ||
+          // Mac上Option+A可能生成的特殊字符
+          (event.key === 'å' || event.key === 'Å') ||
+          // 使用keyCode检测 (65是字母A的keyCode)
+          (event.altKey && event.keyCode === 65);
+          
+        if (isAltAPressed && shortcutType === 'altA') {
+          console.log('页面中检测到快捷键 ⌥A');
+          event.preventDefault();
+          
+          // 发送消息给扩展的内容脚本
+          chrome.runtime.sendMessage({ 
+            action: 'shortcutTriggered', 
+            shortcut: 'altA'
+          });
+        }
+      });
+    },
+    args: [shortcutType]
+  }).catch(error => {
+    console.error(`为标签页 ${tabId} 注册快捷键失败:`, error);
+  });
+}
+
 // 监听来自弹出窗口和内容脚本的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('收到消息:', message.action);
@@ -382,10 +532,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: false, error: error.message });
     });
     return true;
-    case "openFavorites":
-    openFavoritesPage();
-    sendResponse({ success: true });
-      return true;
     case "translateTexts":
       // 批量翻译文本（为YouTube影院模式和页面翻译提供支持）
       // 确保文本是数组
