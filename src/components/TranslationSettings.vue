@@ -96,12 +96,12 @@
       <div class="ai-mode">
         <div class="setting-label">{{ $t('display_type') }}</div>
         <el-select v-model="transStyle" size="large" class="dark-select">
-          <el-option :label="$t('general')" value="general"></el-option>
+          <el-option :label="$t('inline')" value="inline"></el-option>
+          <el-option :label="$t('general')" value="tip"></el-option>
           <el-option :label="$t('replace')" value="replace"></el-option>
           <el-option :label="$t('bilingual_above')" value="bilingual"></el-option>
           <el-option :label="$t('bilingual_below')" value="below"></el-option>
           <el-option :label="$t('hover')" value="hover"></el-option>
-          <el-option :label="$t('tip')" value="tip"></el-option>
         </el-select>
       </div>
     </div>
@@ -294,8 +294,14 @@ export default {
           'display_type': '显示类型：',
           'ui_language': '界面语言：',
           'translation_toggle': '翻译开关',
-          'toggle_translation': '开启/关闭翻译（⌥A）',
+          'toggle_translation': '开启/关闭翻译',
           'advanced_settings': '高级设置',
+          'inline': '双语(原文后方显示译文)',
+          'general': '导航提示(适合菜单和小元素)',
+          'replace': '替换(仅显示译文)',
+          'bilingual_above': '双语(原文上方显示译文)',
+          'bilingual_below': '双语(原文下方显示译文)',
+          'hover': '悬浮(鼠标悬停显示译文)',
           // 其他基本翻译...
         },
         'en': {
@@ -307,6 +313,12 @@ export default {
           'translation_toggle': 'Translation Toggle',
           'toggle_translation': 'Enable/Disable Translation (⌥A)',
           'advanced_settings': 'Advanced Settings',
+          'inline': 'Bilingual (Translation after Original)',
+          'general': 'Smart Tooltips (For Menus & Small Elements)',
+          'replace': 'Replace (Translation Only)',
+          'bilingual_above': 'Bilingual (Translation Above)',
+          'bilingual_below': 'Bilingual (Translation Below)',
+          'hover': 'Hover (Show on Mouse Over)',
           // 其他基本翻译...
         }
       };

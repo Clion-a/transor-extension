@@ -111,22 +111,32 @@ async function translateText(text) {
   // 发送消息给background.js，请求翻译服务
   return new Promise((resolve, reject) => {
     console.log(`开始翻译文字: ${text}`);
-    
-    chrome.runtime.sendMessage({
-      action: 'translateText',
-      text: text
-    }, response => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
+    // 首先获取翻译引擎配置
+    chrome.storage.sync.get(['translationEngine', 'sourceLanguage', 'targetLanguage'], (result) => {
+      // 使用获取到的配置或默认值
+      const engine = result.translationEngine || 'google';
+      const sourceLanguage = result.sourceLanguage || 'auto';
+      const targetLanguage = result.targetLanguage || 'zh-CN';
       
-      if (response && response.success) {
-        console.log('翻译成功:', response.translation);
-        resolve(response.translation);
-      } else {
-        reject(new Error(response?.error || '翻译失败'));
-      }
+      chrome.runtime.sendMessage({
+        action: 'translateTexts',
+        texts: [text],
+        sourceLanguage: sourceLanguage,
+        targetLanguage: targetLanguage,
+        engine: engine
+      }, response => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        
+        if (response && response.success && response.translations && response.translations.length > 0) {
+          console.log('翻译成功:', response.translations[0]);
+          resolve(response.translations[0]);
+        } else {
+          reject(new Error(response?.error || '翻译失败'));
+        }
+      });
     });
   });
 }

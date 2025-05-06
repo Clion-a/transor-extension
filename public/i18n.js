@@ -20,7 +20,7 @@ const i18n = {
     'display_type': '显示类型：',
     'ui_language': '界面语言：',
     'translation_toggle': '翻译开关',
-    'toggle_translation': '开启/关闭翻译(⌥A)',
+    'toggle_translation': '开启/关闭翻译',
     'advanced_settings': '高级设置',
     
     // 语言选项
