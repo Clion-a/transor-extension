@@ -490,8 +490,16 @@ async function loadSubtitles() {
 
     const webUrlResponse = await fetch(`https://www.youtube.com/watch?v=${currentVideoId}`);
     const html = await webUrlResponse.text();
+
+    console.log('html', html)
     const ytInitialPlayerResponse = JSON.parse(html.split('ytInitialPlayerResponse = ')[1].split(`;var meta = document.createElement('meta')`)[0]);
-    const requestUrl = ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks[0]?.baseUrl;
+
+    console.log('ytInitialPlayerResponse', ytInitialPlayerResponse)
+
+    const defaultCaptionIndex = ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.audioTracks[0]?.defaultCaptionTrackIndex || 0;
+    const requestUrl = ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks[defaultCaptionIndex]?.baseUrl;
+
+    console.log('requestUrl', requestUrl)
     const response = await fetchYouTubeSubtitles(`${requestUrl}&fmt=json3`)
     // 检查响应结构并提取字幕数据
     console.log('字幕获取响应:', response);
@@ -518,16 +526,20 @@ async function loadSubtitles() {
       throw new Error('未找到字幕');
     }
 
-    // 保存字幕数据到全局变量
-    window.subtitles = fetchedSubtitles;
-    subtitles = fetchedSubtitles; // 确保本地变量也更新
+    // 在保存字幕数据前进行智能合并处理
+    const processedSubtitles = processSubtitlesSmartMerging(fetchedSubtitles);
+    console.log(`字幕智能合并处理后，从${fetchedSubtitles.length}条优化为${processedSubtitles.length}条`);
+    
+    // 保存处理后的字幕数据到全局变量
+    window.subtitles = processedSubtitles;
+    subtitles = processedSubtitles; // 确保本地变量也更新
     
     // 检查第一条字幕的内容，判断是否为模拟数据
-    const isMockData = fetchedSubtitles[0]?.text?.includes('模拟字幕');
+    const isMockData = processedSubtitles[0]?.text?.includes('模拟字幕');
     if (isMockData) {
       console.log('使用模拟字幕数据');
       // 对于模拟数据，我们可以直接构建翻译结果
-      window.translatedSubtitles = fetchedSubtitles.map(sub => ({
+      window.translatedSubtitles = processedSubtitles.map(sub => ({
         ...sub,
         translatedText: sub.text  // 模拟数据本身就是中文，无需翻译
       }));
@@ -548,14 +560,14 @@ async function loadSubtitles() {
       return; // 使用模拟数据时，不需要进行翻译步骤
     }
     
-    console.log(`成功获取${fetchedSubtitles.length}条字幕`);
+    console.log(`成功获取并处理${processedSubtitles.length}条字幕`);
     
     // 更新加载进度
     updateLoadingProgress(60, '正在翻译字幕...');
     
     try {
       // 使用translateSubtitles函数来翻译字幕
-      await translateSubtitles(fetchedSubtitles);
+      await translateSubtitles(processedSubtitles);
 
       // 显示字幕界面
       console.log('字幕翻译完成，准备显示...');
@@ -569,9 +581,9 @@ async function loadSubtitles() {
     } catch (translationError) {
       console.error('翻译字幕失败:', translationError);
       // 使用模拟翻译作为备选
-      const texts = fetchedSubtitles.map(sub => sub.text);
+      const texts = processedSubtitles.map(sub => sub.text);
       const translations = generateMockTranslations(texts);
-      window.translatedSubtitles = fetchedSubtitles.map((sub, index) => {
+      window.translatedSubtitles = processedSubtitles.map((sub, index) => {
       return {
         ...sub,
           translatedText: translations[index] || `[未翻译] ${sub.text}`
@@ -585,9 +597,7 @@ async function loadSubtitles() {
       // 显示字幕UI
       showSubtitlesUI();
       initSubtitleTracking();
-    }
-
-    
+    }    
   } catch (error) {
     console.error('加载字幕失败:', error);
     updateLoadingProgress(100, '加载失败，使用备用字幕');
@@ -990,8 +1000,8 @@ function updateSubtitleByTime(currentTime) {
     iframe._lastLogTime = now;
   }
 
-  // 字幕提前显示时间 - 提前1秒显示字幕
-  const PREVIEW_TIME = 1.0;
+  // 字幕提前显示时间 - 提前0.3秒显示字幕(减少提前量，提高精准度)
+  const PREVIEW_TIME = 0.3;
 
   // 字幕切换防抖时间 - 避免频繁切换
   const DEBOUNCE_TIME = 0.05; // 50毫秒
@@ -1351,25 +1361,49 @@ function useBackupSubtitles() {
       { start: 45, end: 50, text: "Thank you for watching this video!" }
     ];
 
-    // 设置全局字幕变量
-    window.subtitles = backupSubtitles;
-    subtitles = backupSubtitles;
+    // 对模拟字幕进行智能合并处理
+    const processedBackupSubtitles = processSubtitlesSmartMerging(backupSubtitles);
 
-    console.log(`成功设置${backupSubtitles.length}条备用字幕`);
+    // 设置全局字幕变量
+    window.subtitles = processedBackupSubtitles;
+    subtitles = processedBackupSubtitles;
+
+    console.log(`成功设置${processedBackupSubtitles.length}条备用字幕`);
 
     // 模拟翻译数据
-    const translatedSubs = [
-      { start: 0, end: 5, text: "Welcome to this video", translatedText: "欢迎观看本视频" },
-      { start: 5, end: 10, text: "Today we're going to learn about translation", translatedText: "今天我们将学习翻译相关知识" },
-      { start: 10, end: 15, text: "Let's get started with some examples", translatedText: "让我们从一些例子开始" },
-      { start: 15, end: 20, text: "First, we'll look at basic concepts", translatedText: "首先，我们来看看基本概念" },
-      { start: 20, end: 25, text: "Then we'll see how it works in practice", translatedText: "然后，我们将看看它在实践中如何工作" },
-      { start: 25, end: 30, text: "The key to good translation is understanding context", translatedText: "好的翻译的关键是理解上下文" },
-      { start: 30, end: 35, text: "Always consider cultural differences too", translatedText: "也要始终考虑文化差异" },
-      { start: 35, end: 40, text: "Machine translation is getting better every day", translatedText: "机器翻译每天都在变得更好" },
-      { start: 40, end: 45, text: "But human translators still have advantages", translatedText: "但人类翻译仍然有优势" },
-      { start: 45, end: 50, text: "Thank you for watching this video!", translatedText: "感谢您观看本视频！" }
-    ];
+    const translatedSubs = processedBackupSubtitles.map(sub => {
+      // 根据原始文本生成对应的翻译
+      let translatedText = '';
+      
+      if (sub.text.includes("Welcome to this video")) {
+        translatedText = "欢迎观看本视频";
+      } else if (sub.text.includes("Today we're going to learn")) {
+        translatedText = "今天我们将学习翻译相关知识";
+      } else if (sub.text.includes("Let's get started")) {
+        translatedText = "让我们从一些例子开始";
+      } else if (sub.text.includes("First, we'll look")) {
+        translatedText = "首先，我们来看看基本概念";
+      } else if (sub.text.includes("Then we'll see")) {
+        translatedText = "然后，我们将看看它在实践中如何工作";
+      } else if (sub.text.includes("key to good translation")) {
+        translatedText = "好的翻译的关键是理解上下文";
+      } else if (sub.text.includes("cultural differences")) {
+        translatedText = "也要始终考虑文化差异";
+      } else if (sub.text.includes("Machine translation")) {
+        translatedText = "机器翻译每天都在变得更好";
+      } else if (sub.text.includes("human translators")) {
+        translatedText = "但人类翻译仍然有优势";
+      } else if (sub.text.includes("Thank you")) {
+        translatedText = "感谢您观看本视频！";
+      } else {
+        translatedText = `[中文翻译] ${sub.text}`;
+      }
+      
+      return {
+        ...sub,
+        translatedText: translatedText
+      };
+    });
 
     // 设置全局翻译字幕变量
     window.translatedSubtitles = translatedSubs;
@@ -1380,7 +1414,7 @@ function useBackupSubtitles() {
     // 更新加载进度
     updateLoadingProgress(100, '已加载备用字幕');
 
-// 显示字幕UI
+    // 显示字幕UI
     setTimeout(() => {
       showSubtitlesUI();
     }, 100);
@@ -1627,4 +1661,149 @@ function cleanTextThoroughly(text) {
   }
 
   return result.trim();
+}
+
+// 新增: 智能合并字幕的函数
+function processSubtitlesSmartMerging(subtitles) {
+  if (!subtitles || !Array.isArray(subtitles) || subtitles.length === 0) {
+    return subtitles;
+  }
+
+  console.log('开始智能处理字幕，原始字幕数量:', subtitles.length);
+  
+  // 按时间顺序排序字幕
+  const sortedSubtitles = [...subtitles].sort((a, b) => a.start - b.start);
+  
+  // 处理后的字幕数组
+  const processedSubtitles = [];
+  
+  // 定义合并条件参数 - 调整参数以提高匹配精度
+  const MAX_TIME_GAP = 1.5;        // 最大时间间隔（秒）- 减小间隔，提高匹配精度
+  const MAX_SENTENCE_LENGTH = 160; // 最大句子长度（字符）- 减小长度，防止合并过多
+  const PUNCTUATION_END = ['.', '!', '?', '。', '！', '？']; // 仅保留主要句子结束标点符号
+  const CONJUNCTION_WORDS = ['and', 'but', 'or', 'because']; // 减少连接词列表，只保留主要连接词
+  
+  // 辅助函数：检查文本是否以句子结束标点结尾
+  const endsWithPunctuation = (text) => {
+    if (!text || text.length === 0) return false;
+    const lastChar = text.trim().slice(-1);
+    return PUNCTUATION_END.includes(lastChar);
+  };
+  
+  // 辅助函数：检查文本是否小写字母开头
+  const startsWithLowerCase = (text) => {
+    if (!text || text.length === 0) return false;
+    const firstChar = text.trim()[0];
+    return firstChar >= 'a' && firstChar <= 'z';
+  };
+  
+  // 辅助函数：检查文本是否以连接词开头
+  const startsWithConjunction = (text) => {
+    if (!text) return false;
+    const words = text.trim().toLowerCase().split(/\s+/);
+    return words.length > 0 && CONJUNCTION_WORDS.includes(words[0]);
+  };
+  
+  // 简化的不完整句子检测
+  const isIncompletePhrase = (text) => {
+    if (!text) return false;
+    
+    // 清理并获取最后一个单词
+    const words = text.trim().toLowerCase().replace(/[,.!?]$/, '').split(/\s+/);
+    if (words.length === 0) return false;
+    
+    const lastWord = words[words.length - 1];
+    
+    // 简化的不完整句子标记词列表
+    const incompleteEndWords = [
+      'in', 'on', 'at', 'to', 'a', 'an', 'the', 'and', 'but', 'or', 'if'
+    ];
+    
+    return incompleteEndWords.includes(lastWord);
+  };
+  
+  // 简化的合并判断函数 - 更保守的合并策略
+  const shouldMerge = (current, next) => {
+    if (!current || !next) return false;
+    
+    // 检查时间间隔 - 更严格的时间限制
+    const timeGap = next.start - current.end;
+    if (timeGap > MAX_TIME_GAP) return false;
+    
+    // 当前文本和下一条文本
+    const currentText = current.text || '';
+    const nextText = next.text || '';
+    
+    // 如果时间间隔很小（几乎无间隔），强制合并
+    if (timeGap < 0.3) {
+      // 但仍然检查合并后的总长度
+      const mergedTextLength = (currentText + ' ' + nextText).length;
+      if (mergedTextLength <= MAX_SENTENCE_LENGTH) {
+        return true;
+      }
+    }
+    
+    // 检查是否为明显的不完整句子
+    if (isIncompletePhrase(currentText)) {
+      return true;
+    }
+    
+    // 如果下一个字幕以小写字母开头或以连接词开头，很可能是前一句的延续
+    if (startsWithLowerCase(nextText) || startsWithConjunction(nextText)) {
+      // 但仍然需要检查合并后的总长度
+      const mergedTextLength = (currentText + ' ' + nextText).length;
+      if (mergedTextLength <= MAX_SENTENCE_LENGTH) {
+        return true;
+      }
+    }
+    
+    // 如果当前字幕已经以句号等结束，通常不需要合并
+    if (endsWithPunctuation(currentText)) {
+      return false;
+    }
+    
+    // 检查合并后长度
+    const mergedTextLength = (currentText + ' ' + nextText).length;
+    if (mergedTextLength > MAX_SENTENCE_LENGTH) {
+      return false;
+    }
+    
+    // 如果当前字幕不是完整句子且合并后长度合理，倾向于合并
+    return !endsWithPunctuation(currentText);
+  };
+  
+  // 保留字幕时间信息的简化版合并处理
+  for (let i = 0; i < sortedSubtitles.length; i++) {
+    const currentSubtitle = sortedSubtitles[i];
+    
+    // 清理当前字幕文本
+    if (currentSubtitle.text) {
+      currentSubtitle.text = cleanTextThoroughly(currentSubtitle.text);
+    }
+    
+    // 如果是第一条字幕，直接添加
+    if (i === 0) {
+      processedSubtitles.push({...currentSubtitle});
+      continue;
+    }
+    
+    // 获取上一条处理过的字幕
+    const lastProcessed = processedSubtitles[processedSubtitles.length - 1];
+    
+    // 判断是否应该合并
+    if (shouldMerge(lastProcessed, currentSubtitle)) {
+      // 合并文本
+      lastProcessed.text = `${lastProcessed.text} ${currentSubtitle.text}`;
+      // 更新结束时间为当前字幕的结束时间
+      lastProcessed.end = currentSubtitle.end;
+    } else {
+      // 不合并，添加为新的字幕条目
+      processedSubtitles.push({...currentSubtitle});
+    }
+  }
+  
+  console.log(`智能合并完成，从${subtitles.length}条优化为${processedSubtitles.length}条`);
+  
+  // 确保排序正确
+  return processedSubtitles.sort((a, b) => a.start - b.start);
 } 

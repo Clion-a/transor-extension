@@ -96,7 +96,7 @@ const TRANSLATION_CONFIG = {
   },
   // 翻译批次大小
   batchSize: {
-    default: 100,
+    default: 80,
     subtitle: 10
   },
   // 缓存设置

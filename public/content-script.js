@@ -30,7 +30,7 @@ let visibilityObserver = null;
 const translationQueue = {
   pendingTexts: new Map(), // 待翻译的文本映射: 文本 -> 回调数组
   isProcessing: false,     // 是否正在处理队列
-  batchSize: 50,           // 批处理大小
+  batchSize: 100,           // 批处理大小
   debounceTime: 300,       // 防抖时间(毫秒)
   debounceTimer: null,     // 防抖定时器
 
@@ -400,19 +400,19 @@ function isCodeElement(element) {
     if (text) {
       // 检查是否包含代码特征
       const codePatterns = [
-        /function\s+\w+\s*\(/i,              // 函数声明
-        /const|let|var\s+\w+\s*=/i,          // 变量声明
-        /if\s*\(.+\)\s*{/i,                  // if语句
-        /for\s*\(.+\)\s*{/i,                 // for循环
-        /while\s*\(.+\)\s*{/i,               // while循环
-        /class\s+\w+/i,                      // 类声明
-        /import\s+.*\s+from/i,               // import语句
-        /export\s+/i,                        // export语句
-        /<\/?[a-z][\s\S]*>/i,                // HTML标签
-        /\$\(.+\)\./i,                       // jQuery代码
-        /console\.log/i,                     // 控制台输出
-        /\w+\s*\.\s*\w+\s*\(/i,              // 方法调用
-        /return\s+.+;/i                      // return语句
+        // /function\s+\w+\s*\(/i,              // 函数声明
+        // /const|let|var\s+\w+\s*=/i,          // 变量声明
+        // /if\s*\(.+\)\s*{/i,                  // if语句
+        // /for\s*\(.+\)\s*{/i,                 // for循环
+        // /while\s*\(.+\)\s*{/i,               // while循环
+        // /class\s+\w+/i,                      // 类声明
+        // /import\s+.*\s+from/i,               // import语句
+        // /export\s+/i,                        // export语句
+        // /<\/?[a-z][\s\S]*>/i,                // HTML标签
+        // /\$\(.+\)\./i,                       // jQuery代码
+        // /console\.log/i,                     // 控制台输出
+        // /\w+\s*\.\s*\w+\s*\(/i,              // 方法调用
+        // /return\s+.+;/i                      // return语句
       ];
       
       for (const pattern of codePatterns) {
@@ -456,7 +456,19 @@ function shouldTranslateElement(element) {
   if (element.classList && element.classList.length > 0) {
     for (const cls of element.classList) {
       if (excludedClassesSet.has(cls)) return false;
+      // 特别排除no-translate类
+      if (cls === 'no-translate') return false;
     }
+  }
+  
+  // 检查是否是tip弹出框
+  if (element.classList && element.classList.contains('transor-tip-popup')) {
+    return false;
+  }
+  
+  // 检查是否在tip弹出框内部
+  if (element.closest && element.closest('.transor-tip-popup')) {
+    return false;
   }
   
   // 检查是否已经翻译过
@@ -497,10 +509,43 @@ function needsTipStyle(element, text, translation) {
       element = element.parentNode;
     }
     
-    // 获取父元素，检查元素上下文
-    const parent = element.parentElement;
+    // ===== 0. 检查相同行的其他元素 =====
+    // 如果已经有使用tip样式的相邻元素，则当前元素也应该使用tip
+    const parentElement = element.parentElement;
+    if (parentElement) {
+      // 获取直接兄弟节点
+      const siblings = Array.from(parentElement.childNodes);
+      
+      // 检查是否有兄弟节点已使用tip样式
+      for (const sibling of siblings) {
+        if (sibling !== element && 
+            sibling.nodeType === Node.ELEMENT_NODE && 
+            (sibling.classList && sibling.classList.contains('transor-tip'))) {
+          return true; // 同行有元素使用tip样式，当前元素也用tip
+        }
+      }
+      
+      // 更广泛的检查 - 检查同一行的所有相关元素
+      if (typeof element.getBoundingClientRect === 'function') {
+        const rect = element.getBoundingClientRect();
+        const elementY = rect.top;
+        const yThreshold = 5; // 判断是否同一行的高度阈值（像素）
+        
+        // 查找页面中所有已翻译的元素
+        const allTranslatedElements = document.querySelectorAll('.transor-translation');
+        for (const translatedElem of allTranslatedElements) {
+          if (translatedElem !== element && translatedElem.classList.contains('transor-tip')) {
+            const otherRect = translatedElem.getBoundingClientRect();
+            // 如果Y坐标接近，认为是同一行
+            if (Math.abs(otherRect.top - elementY) < yThreshold) {
+              return true; // 同一行有使用tip样式的元素
+            }
+          }
+        }
+      }
+    }
     
-    // 检查元素尺寸
+    // ===== 1. 元素尺寸检查 =====
     let elementWidth = 0;
     let elementHeight = 0;
     let isVerySmall = false;
@@ -511,8 +556,8 @@ function needsTipStyle(element, text, translation) {
         elementWidth = rect.width;
         elementHeight = rect.height;
         
-        // 非常小的元素（宽度小于100px）几乎肯定放不下翻译
-        if (elementWidth < 100) {
+        // 小元素检测: 宽度小于120px
+        if (elementWidth < 120) {
           isVerySmall = true;
         }
       } catch (e) {
@@ -520,7 +565,7 @@ function needsTipStyle(element, text, translation) {
       }
     }
     
-    // 创建测试元素，估算翻译所需空间
+    // ===== 2. 翻译内容空间评估 =====
     let contentTooLarge = false;
     if (typeof element.getBoundingClientRect === 'function' && typeof document.createElement === 'function') {
       try {
@@ -541,13 +586,13 @@ function needsTipStyle(element, text, translation) {
         document.body.appendChild(tempElement);
         const translationRect = tempElement.getBoundingClientRect();
         
-        // 如果翻译后文本高度超过原始元素高度的2倍，认为内容太多
-        if (translationRect.height > elementHeight * 2) {
+        // 如果翻译后文本高度明显超过原始元素高度
+        if (translationRect.height > elementHeight * 1.8) {
           contentTooLarge = true;
         }
         
-        // 如果翻译后文本宽度接近或超过原始元素宽度，同时元素宽度有限
-        if (translationRect.width > elementWidth * 0.9 && elementWidth < 300) {
+        // 如果翻译后文本宽度接近或超过原始元素宽度
+        if (translationRect.width > elementWidth * 0.9 && elementWidth < 350) {
           contentTooLarge = true;
         }
         
@@ -557,83 +602,179 @@ function needsTipStyle(element, text, translation) {
       }
     }
     
-    // 检查是否在导航栏或菜单中
-    let isInNavOrMenu = false;
-    let currentElement = element;
+    // ===== 3. 导航元素识别（导航栏、菜单、页脚等）=====
     
-    // 向上查找3层，检查是否在导航/菜单中
-    for (let i = 0; i < 3 && currentElement; i++) {
-      // 检查标签
-      if (currentElement.tagName) {
-        const tag = currentElement.tagName.toLowerCase();
-        if (['nav', 'header', 'menu', 'ul', 'ol'].includes(tag)) {
-          isInNavOrMenu = true;
+    // 为导航和页脚识别准备更广泛的标识符列表
+    const navIdentifiers = [
+      'nav', 'navigation', 'menu', 'header', 'toolbar', 'topbar', 'navbar', 
+      'sidebar', 'side-nav', 'sidenav', 'tabs', 'tab-nav',
+      'footer', 'foot', 'bottom', 'copyright', 'site-info',
+      'breadcrumb', 'pagination', 'pager'
+    ];
+    
+    // 为侧边导航识别准备标识符
+    const sideNavIdentifiers = [
+      'sidebar', 'side-nav', 'sidenav', 'left-nav', 'right-nav',
+      'drawer', 'toc', 'table-of-content', 'tree-nav', 'vertical-nav'
+    ];
+    
+    let isInNav = false;          // 导航
+    let isInFooter = false;       // 页脚
+    let isInSideNav = false;      // 侧边导航
+    let isInCompactLayout = false; // 紧凑布局
+    
+    // 向上遍历DOM树，最多检查4层
+    let currentElement = element;
+    for (let i = 0; i < 4 && currentElement; i++) {
+      if (!currentElement.tagName) {
+        currentElement = currentElement.parentElement;
+        continue;
+      }
+      
+      // 标签检查
+      const tag = currentElement.tagName.toLowerCase();
+      
+      // 导航类标签直接识别
+      if (['nav', 'header', 'menu', 'ul', 'ol', 'footer'].includes(tag)) {
+        isInNav = true;
+        
+        // 特殊标签单独识别
+        if (tag === 'footer') {
+          isInFooter = true;
+        }
+      }
+      
+      // 检查当前元素是否为垂直导航列表项
+      if (tag === 'li' && currentElement.parentElement) {
+        const parentTag = currentElement.parentElement.tagName.toLowerCase();
+        if (parentTag === 'ul' || parentTag === 'ol') {
+          // 检查列表的样式和定位，确定是否是侧边导航
+          const listStyles = window.getComputedStyle(currentElement.parentElement);
+          const isVertical = listStyles.display === 'block' || 
+                             listStyles.flexDirection === 'column' ||
+                             listStyles.display === 'flex' && listStyles.flexDirection === 'column';
+          
+          if (isVertical) {
+            isInSideNav = true;
+            isInCompactLayout = true;
+          }
+        }
+      }
+      
+      // 获取类名和ID供检查
+      const className = currentElement.className || '';
+      const id = currentElement.id || '';
+      
+      // 横向排版检测：使用flex或grid的横向布局
+      try {
+        const styles = window.getComputedStyle(currentElement);
+        if (styles.display === 'flex' && styles.flexDirection === 'row') {
+          isInCompactLayout = true;
+        }
+        
+        if (styles.display === 'grid') {
+          const gridColumns = styles.gridTemplateColumns;
+          // 如果有多列，认为是横向排版
+          if (gridColumns && gridColumns.split(' ').length > 1) {
+            isInCompactLayout = true;
+          }
+        }
+      } catch (e) {
+        // 忽略样式获取错误
+      }
+      
+      // 通过ID和类名检查导航相关元素
+      for (const identifier of navIdentifiers) {
+        if ((typeof className === 'string' && className.toLowerCase().includes(identifier)) ||
+            (typeof id === 'string' && id.toLowerCase().includes(identifier))) {
+          isInNav = true;
+          
+          // 页脚特殊检测
+          if (identifier === 'footer' || identifier === 'foot' || identifier === 'copyright' || 
+              identifier === 'site-info' || identifier === 'bottom') {
+            isInFooter = true;  
+          }
+          
+          // 侧边导航特殊检测
+          if (sideNavIdentifiers.includes(identifier)) {
+            isInSideNav = true;
+          }
+          
           break;
         }
       }
       
-      // 检查ID和类名
-      const navIdentifiers = ['nav', 'menu', 'header', 'toolbar', 'topbar', 'navbar'];
-      
-      if (currentElement.id && typeof currentElement.id === 'string') {
-        for (const id of navIdentifiers) {
-          if (currentElement.id.toLowerCase().includes(id)) {
-            isInNavOrMenu = true;
-            break;
+      // 检查位置：页脚通常在页面底部
+      if (currentElement.getBoundingClientRect) {
+        const rect = currentElement.getBoundingClientRect();
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        // 如果元素底部接近视口底部，可能是页脚
+        if (rect.bottom > viewportHeight * 0.8) {
+          // 进一步检查是否包含典型页脚文本
+          const text = currentElement.textContent.toLowerCase();
+          if (text.includes('copyright') || text.includes('©') || 
+              text.includes('rights reserved') || text.includes('隐私') || 
+              text.includes('条款') || text.includes('联系') || 
+              text.includes('备案')) {
+            isInFooter = true;
           }
         }
       }
       
-      if (currentElement.className && typeof currentElement.className === 'string') {
-        for (const cls of navIdentifiers) {
-          if (currentElement.className.toLowerCase().includes(cls)) {
-            isInNavOrMenu = true;
-            break;
-          }
-        }
+      // 检查子元素数量，判断是否为紧凑布局
+      if (currentElement.children && currentElement.children.length > 4) {
+        // 如果有多个子元素且排列紧凑，可能是导航或菜单
+        isInCompactLayout = true;
       }
       
       // 移至父元素
       currentElement = currentElement.parentElement;
     }
     
-    // 检查是否紧凑布局的元素（周围有很多同级元素）
-    let isCompactLayout = false;
-    if (parent) {
-      // 如果父元素包含多个子元素，可能是紧凑布局
-      const siblingCount = parent.children.length;
-      if (siblingCount > 4) {
-        isCompactLayout = true;
-      }
-      
-      // 检查是否为列表项
-      if (element.tagName && element.tagName.toLowerCase() === 'li') {
-        const parentTag = parent.tagName.toLowerCase();
-        if (parentTag === 'ul' || parentTag === 'ol') {
-          isCompactLayout = true;
-        }
-      }
-    }
+    // ===== 4. 决策逻辑 =====
     
-    // 1. 非常小的元素总是需要提示样式
+    // 1. 非常小的元素总是使用提示样式
     if (isVerySmall) {
       return true;
     }
     
-    // 2. 检测到导航/菜单元素且翻译内容较多时使用提示
-    if (isInNavOrMenu && contentTooLarge) {
+    // 2. 页脚元素总是使用提示样式
+    if (isInFooter) {
       return true;
     }
     
-    // 3. 紧凑布局中内容较多的元素使用提示
-    if (isCompactLayout && contentTooLarge) {
+    // 3. 侧边导航使用提示样式
+    if (isInSideNav) {
       return true;
     }
     
-    // 4. 特定的导航元素标签
+    // 4. 导航元素，如果内容较多则使用提示样式
+    if (isInNav && (contentTooLarge || elementWidth < 150)) {
+      return true;
+    }
+    
+    // 5. 水平紧凑布局中的元素，如果内容较多则使用提示样式
+    if (isInCompactLayout && contentTooLarge) {
+      return true;
+    }
+    
+    // 6. 特定的导航元素标签
     if (element.tagName) {
       const tag = element.tagName.toLowerCase();
-      if ((tag === 'a' || tag === 'button') && contentTooLarge && elementWidth < 200) {
+      // 链接或按钮，如果内容较多且宽度有限，则使用提示样式
+      if ((tag === 'a' || tag === 'button') && (contentTooLarge || elementWidth < 180)) {
+        return true;
+      }
+      
+      // 列表项在紧凑布局中使用提示样式
+      if (tag === 'li' && isInCompactLayout) {
+        return true;
+      }
+      
+      // 标记为导航角色的元素
+      if (element.getAttribute('role') === 'navigation' || 
+          element.getAttribute('role') === 'menu' ||
+          element.getAttribute('role') === 'menuitem') {
         return true;
       }
     }
@@ -886,7 +1027,7 @@ function applyTranslation(node, originalText, translatedText, overrideStyle = nu
       hoverWrapper.setAttribute('data-original-text', node.textContent);
       
       const hoverContent = document.createElement('span');
-      hoverContent.classList.add('transor-hover-content');
+      hoverContent.classList.add('transor-hover-content', 'no-translate');
       hoverContent.textContent = cleanTranslation;
       
       hoverWrapper.appendChild(hoverContent);
@@ -905,18 +1046,24 @@ function applyTranslation(node, originalText, translatedText, overrideStyle = nu
       
       // 创建提示气泡元素
       const tipPopup = document.createElement('span');
-      tipPopup.classList.add('transor-tip-popup');
+      tipPopup.classList.add('transor-tip-popup', 'no-translate');
       tipPopup.textContent = cleanTranslation;
       
       // 使用随机ID
       const popupId = 'transor-tip-' + Math.random().toString(36).substr(2, 9);
       tipPopup.id = popupId;
       
-      // 关联元素和popup
+      // 关联元素和popup - 保持两种属性一致，保证兼容性
       tipWrapper.setAttribute('data-popup-id', popupId);
+      tipWrapper.setAttribute('data-tip-id', popupId);
       
       // 将popup添加到body
       document.body.appendChild(tipPopup);
+      
+      // 将新创建的tip元素注册到全局tip系统
+      if (window.transorTipSystem && window.transorTipSystem.initialized) {
+        window.transorTipSystem.registerTip(tipWrapper, tipPopup);
+      }
       
       // 元素移除时清理关联的popup
       const observer = new MutationObserver(mutations => {
@@ -929,6 +1076,10 @@ function applyTranslation(node, originalText, translatedText, overrideStyle = nu
                 const popup = document.getElementById(popupId);
                 if (popup) {
                   popup.remove();
+                }
+                // 从全局tip系统中移除
+                if (window.transorTipSystem && window.transorTipSystem.initialized) {
+                  window.transorTipSystem.unregisterTip(tipWrapper);
                 }
                 observer.disconnect();
                 break;
@@ -1134,7 +1285,8 @@ function setupScrollListener() {
         if (item.element && document.body.contains(item.element)) {
           // 重新绑定事件函数
           const onMouseEnter = function() {
-            const popupId = item.element.getAttribute('data-tip-id');
+            // 检查两种可能的ID属性
+            const popupId = item.element.getAttribute('data-tip-id') || item.element.getAttribute('data-popup-id');
             if (!popupId) return;
             
             const popup = document.getElementById(popupId);
@@ -1181,7 +1333,8 @@ function setupScrollListener() {
           };
           
           const onMouseLeave = function() {
-            const popupId = item.element.getAttribute('data-tip-id');
+            // 检查两种可能的ID属性
+            const popupId = item.element.getAttribute('data-tip-id') || item.element.getAttribute('data-popup-id');
             if (!popupId) return;
             
             const popup = document.getElementById(popupId);
@@ -1200,7 +1353,8 @@ function setupScrollListener() {
             } else {
               window.transorTipSystem.tipElements.forEach(tip => {
                 if (tip !== item.element) {
-                  const popupId = tip.element.getAttribute('data-tip-id');
+                  // 检查两种可能的ID属性
+                  const popupId = tip.element.getAttribute('data-tip-id') || tip.element.getAttribute('data-popup-id');
                   if (popupId) {
                     const popup = document.getElementById(popupId);
                     if (popup) {
@@ -1245,48 +1399,51 @@ function setupScrollListener() {
     lastScrollTop = currentScrollTop;
     
     // 在滚动过程中更新正在显示的提示位置
-    window.transorTipSystem.tipElements.forEach(item => {
-      if (item.active) {
-        const popupId = item.element.getAttribute('data-tip-id');
-        if (popupId) {
-          const popup = document.getElementById(popupId);
-          if (popup && popup.classList.contains('active')) {
-            // 更新位置
-            const rect = item.element.getBoundingClientRect();
-            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            
-            const offsetY = 10;
-            let top = rect.bottom + scrollTop + offsetY;
-            let left = rect.left + scrollLeft + (rect.width / 2);
-            
-            popup.style.left = left + 'px';
-            popup.style.top = top + 'px';
-            
-            // 检查是否超出视口
-            const popupRect = popup.getBoundingClientRect();
-            const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-            const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-            
-            // 调整位置确保在视口内
-            if (popupRect.bottom > viewportHeight) {
-              top = rect.top + scrollTop - popupRect.height - offsetY;
+    if (window.transorTipSystem && window.transorTipSystem.tipElements) {
+      window.transorTipSystem.tipElements.forEach(item => {
+        if (item.active) {
+          // 检查两种可能的ID属性
+          const popupId = item.element.getAttribute('data-tip-id') || item.element.getAttribute('data-popup-id');
+          if (popupId) {
+            const popup = document.getElementById(popupId);
+            if (popup && popup.classList.contains('active')) {
+              // 更新位置
+              const rect = item.element.getBoundingClientRect();
+              const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+              const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+              
+              const offsetY = 10;
+              let top = rect.bottom + scrollTop + offsetY;
+              let left = rect.left + scrollLeft + (rect.width / 2);
+              
+              popup.style.left = left + 'px';
               popup.style.top = top + 'px';
-            }
-            
-            if (popupRect.right > viewportWidth) {
-              left = left - (popupRect.right - viewportWidth) - 10;
-              popup.style.left = left + 'px';
-            }
-            
-            if (popupRect.left < 0) {
-              left = left - popupRect.left + 10;
-              popup.style.left = left + 'px';
+              
+              // 检查是否超出视口
+              const popupRect = popup.getBoundingClientRect();
+              const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+              const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+              
+              // 调整位置确保在视口内
+              if (popupRect.bottom > viewportHeight) {
+                top = rect.top + scrollTop - popupRect.height - offsetY;
+                popup.style.top = top + 'px';
+              }
+              
+              if (popupRect.right > viewportWidth) {
+                left = left - (popupRect.right - viewportWidth) - 10;
+                popup.style.left = left + 'px';
+              }
+              
+              if (popupRect.left < 0) {
+                left = left - popupRect.left + 10;
+                popup.style.left = left + 'px';
+              }
             }
           }
         }
-      }
-    });
+      });
+    }
     
     // 滚动速度快时(超过100px)或方向改变时，立即重新绑定事件
     if (scrollDistance > 100 || window.lastScrollDirection !== scrollDirection) {
@@ -1301,8 +1458,34 @@ function setupScrollListener() {
       // 滚动结束后立即重新绑定所有tip元素的事件
       rebindAllTips();
       
-      // 加载新内容
+      // 加载新内容 - 确保新进入视口的内容被正确翻译
       translateVisibleContent();
+      
+      // 确保所有新创建的tip元素都正确注册
+      if (translationSettings.translationStyle === 'tip') {
+        // 查找所有未注册的tip元素
+        const allTipElements = document.querySelectorAll('.transor-tip');
+        allTipElements.forEach(tipElement => {
+          const popupId = tipElement.getAttribute('data-popup-id') || tipElement.getAttribute('data-tip-id');
+          if (popupId) {
+            const popup = document.getElementById(popupId);
+            if (popup && window.transorTipSystem && window.transorTipSystem.initialized) {
+              // 检查是否已经注册
+              let isRegistered = false;
+              window.transorTipSystem.tipElements.forEach(item => {
+                if (item.element === tipElement) {
+                  isRegistered = true;
+                }
+              });
+              
+              // 如果未注册，则添加到系统中
+              if (!isRegistered) {
+                window.transorTipSystem.registerTip(tipElement, popup);
+              }
+            }
+          }
+        });
+      }
     }, 150);
   }, { passive: true });
   
@@ -2067,6 +2250,15 @@ function setupGlobalTipSystem() {
         border-color: rgba(66, 185, 131, 0.2);
       }
     }
+    
+    /* 禁止翻译tip弹出框内容 */
+    .transor-tip-popup span,
+    .transor-tip-popup div,
+    .transor-tip-popup p,
+    .transor-tip-popup * {
+      border-bottom: none !important;
+      text-decoration: none !important;
+    }
   `;
   
   // 插入样式
@@ -2119,14 +2311,71 @@ if (!window.transorTipSystem) {
     
     // 注册tip元素
     registerTip(element, popup) {
+      // 确保元素和popup都存在
+      if (!element || !popup) return;
+      
+      // 检查元素是否已经注册
+      for (const item of this.tipElements) {
+        if (item.element === element) {
+          // 已经注册过，更新popup引用
+          item.popup = popup;
+          return;
+        }
+      }
+      
+      // 添加新的tip元素
       this.tipElements.add({
         element,
         popup,
         active: false
       });
       
+      // 确保ID属性一致性
+      const popupId = element.getAttribute('data-popup-id') || element.getAttribute('data-tip-id');
+      if (popupId) {
+        element.setAttribute('data-popup-id', popupId);
+        element.setAttribute('data-tip-id', popupId);
+      }
+      
       // 确保系统初始化
       this.init();
+      
+      // 绑定事件
+      const onMouseEnter = () => {
+        this.showTip(element);
+      };
+      
+      const onMouseLeave = () => {
+        this.hideTip(element);
+      };
+      
+      const onTipClick = () => {
+        if (element.getAttribute('data-active') === 'true') {
+          this.hideTip(element);
+        } else {
+          // 先隐藏所有其他tip
+          this.hideAllTips();
+          // 显示当前tip
+          this.showTip(element);
+        }
+      };
+      
+      // 移除已有事件（避免重复绑定）
+      element.removeEventListener('mouseenter', onMouseEnter);
+      element.removeEventListener('mouseleave', onMouseLeave);
+      element.removeEventListener('click', onTipClick);
+      
+      // 添加事件
+      element.addEventListener('mouseenter', onMouseEnter);
+      element.addEventListener('mouseleave', onMouseLeave);
+      element.addEventListener('click', onTipClick);
+      
+      // 存储事件处理函数引用
+      element._tipHandlers = {
+        mouseEnter: onMouseEnter,
+        mouseLeave: onMouseLeave,
+        click: onTipClick
+      };
     },
     
     // 注销tip元素
@@ -2146,12 +2395,22 @@ if (!window.transorTipSystem) {
     showTip(element) {
       for (const item of this.tipElements) {
         if (item.element === element) {
+          // 获取popup ID（兼容两种属性）
+          const popupId = element.getAttribute('data-popup-id') || element.getAttribute('data-tip-id');
+          if (!popupId) return;
+
+          const popup = document.getElementById(popupId);
+          if (!popup) return;
+          
+          // 标记为激活
+          element.setAttribute('data-active', 'true');
+          item.active = true;
+          
           // 显示提示框
-          if (item.popup) {
-            item.popup.classList.add('active');
-            item.active = true;
-            this.updateTipPosition(item);
-          }
+          popup.classList.add('active');
+          
+          // 更新位置
+          this.updateTipPosition(item);
           break;
         }
       }
@@ -2161,11 +2420,19 @@ if (!window.transorTipSystem) {
     hideTip(element) {
       for (const item of this.tipElements) {
         if (item.element === element) {
+          // 获取popup ID（兼容两种属性）
+          const popupId = element.getAttribute('data-popup-id') || element.getAttribute('data-tip-id');
+          if (!popupId) return;
+
+          const popup = document.getElementById(popupId);
+          if (!popup) return;
+          
+          // 标记为非激活
+          element.setAttribute('data-active', 'false');
+          item.active = false;
+          
           // 隐藏提示框
-          if (item.popup) {
-            item.popup.classList.remove('active');
-            item.active = false;
-          }
+          popup.classList.remove('active');
           break;
         }
       }
