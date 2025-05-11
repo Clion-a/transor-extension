@@ -13,7 +13,12 @@ export default new Vuex.Store({
     excludedTags: ['code', 'pre', 'script', 'style'],
     excludedClasses: ['no-translate'],
     excludedUrls: [],
-    customCss: ''
+    customCss: '',
+    apiKeys: {
+      microsoftapi: '',
+      microsoft: '',
+      deepseek: ''
+    }
   },
   mutations: {
     setEnabled(state, enabled) {
@@ -42,20 +47,33 @@ export default new Vuex.Store({
     },
     setCustomCss(state, css) {
       state.customCss = css
+    },
+    setApiKey(state, { type, key }) {
+      if (!state.apiKeys) {
+        state.apiKeys = {}
+      }
+      state.apiKeys[type] = key
+    },
+    setApiKeys(state, apiKeys) {
+      state.apiKeys = apiKeys
     }
   },
   actions: {
     loadSettings({ commit }) {
-      chrome.storage.sync.get(null, (result) => {
-        if (result.isEnabled !== undefined) commit('setEnabled', result.isEnabled)
-        if (result.targetLanguage) commit('setTargetLanguage', result.targetLanguage)
-        if (result.sourceLanguage) commit('setSourceLanguage', result.sourceLanguage)
-        if (result.translationEngine) commit('setTranslationEngine', result.translationEngine)
-        if (result.translationStyle) commit('setTranslationStyle', result.translationStyle)
-        if (result.excludedTags) commit('setExcludedTags', result.excludedTags)
-        if (result.excludedClasses) commit('setExcludedClasses', result.excludedClasses)
-        if (result.excludedUrls) commit('setExcludedUrls', result.excludedUrls)
-        if (result.customCss) commit('setCustomCss', result.customCss)
+      return new Promise((resolve) => {
+        chrome.storage.sync.get(null, (result) => {
+          if (result.isEnabled !== undefined) commit('setEnabled', result.isEnabled)
+          if (result.targetLanguage) commit('setTargetLanguage', result.targetLanguage)
+          if (result.sourceLanguage) commit('setSourceLanguage', result.sourceLanguage)
+          if (result.translationEngine) commit('setTranslationEngine', result.translationEngine)
+          if (result.translationStyle) commit('setTranslationStyle', result.translationStyle)
+          if (result.excludedTags) commit('setExcludedTags', result.excludedTags)
+          if (result.excludedClasses) commit('setExcludedClasses', result.excludedClasses)
+          if (result.excludedUrls) commit('setExcludedUrls', result.excludedUrls)
+          if (result.customCss) commit('setCustomCss', result.customCss)
+          if (result.apiKeys) commit('setApiKeys', result.apiKeys)
+          resolve()
+        })
       })
     },
     saveSettings({ state }) {
@@ -68,7 +86,8 @@ export default new Vuex.Store({
         excludedTags: state.excludedTags,
         excludedClasses: state.excludedClasses,
         excludedUrls: state.excludedUrls,
-        customCss: state.customCss
+        customCss: state.customCss,
+        apiKeys: state.apiKeys
       })
       
       // 向当前活动标签发送更新设置的消息
@@ -80,6 +99,15 @@ export default new Vuex.Store({
           })
         }
       })
+      
+      // 向background.js发送API密钥更新消息，确保API密钥也在后台脚本中更新
+      if (state.apiKeys && state.apiKeys.deepseek) {
+        chrome.runtime.sendMessage({
+          action: 'setApiKey',
+          type: 'deepseek',
+          key: state.apiKeys.deepseek
+        })
+      }
     },
     toggleTranslation({ commit, state, dispatch }) {
       commit('setEnabled', !state.isEnabled)

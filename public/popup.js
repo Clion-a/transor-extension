@@ -1,5 +1,7 @@
 // 检查用户登录状态
-function checkLoginStatus() {
+// 注：此函数当前被注释掉，但保留以备将来需要恢复登录状态检查功能时使用
+// 将其导出为全局函数以避免linter警告
+window.checkLoginStatus = function checkLoginStatus() {
   console.log('检查登录状态...');
   
   // 从chrome.storage.local获取authToken和userInfo
@@ -166,10 +168,25 @@ chrome.storage.onChanged.addListener(function(changes, namespace) {
     }
   }
   
+  // 检测生词本数据变化
+  if (namespace === 'local' && changes['transor-words']) {
+    console.log('检测到生词本数据变化，更新计数');
+    fetchWordsList();
+  }
+  
   // 监听收藏夹内容变化
   if (namespace === 'sync' && changes.transorFavorites) {
     console.log('检测到收藏夹内容变化，更新计数');
     updateFavoritesCount();
+  }
+});
+
+// 添加storage事件监听器，捕获localStorage变化
+window.addEventListener('storage', function(event) {
+  // 如果是生词本数据变化
+  if (event.key === 'transor-words') {
+    console.log('检测到localStorage中生词本数据变化，更新计数');
+    fetchWordsList();
   }
 });
 
@@ -186,60 +203,63 @@ function updateFavoritesCount() {
 
 // 封装获取生词本数据的接口请求方法
 function fetchWordsList() {
-  const apiUrl = 'http://api-test.transor.ai/priapi1/get_my_words';
+  console.log('从本地存储获取生词本数量...');
+  
+  // 获取DOM元素
+  const countElement = document.querySelector('.favorites-btn .count');
+  if (!countElement) {
+    console.error('无法找到显示计数的元素');
+    return;
+  }
   
   // 显示加载状态
-  const countElement = document.querySelector('.favorites-btn .count');
-  const originalText = countElement.textContent;
   countElement.textContent = '...';
   
-  // 从chrome.storage.local获取authToken
-  chrome.storage.local.get(['authToken'], function(result) {
-    const authToken = result.authToken;
+  // 从localStorage中获取生词本数据
+  try {
+    const wordsData = localStorage.getItem('transor-words');
     
-    // 如果没有authToken，显示未登录状态
-    if (!authToken) {
-      console.log('获取生词本：用户未登录');
-      countElement.textContent = '0';
-      return;
-    }
-    
-    console.log('开始请求生词本数据...');
-    
-    // 直接发起请求，带上Authorization头部
-    fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authToken
-      },
-      credentials: 'include' // 包含跨域请求的cookies
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('网络请求失败：' + response.status);
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log('获取生词本数据成功:', data);
-      // 更新生词本数量
-      if (data && data.code === 1 && Array.isArray(data.data)) {
-        countElement.textContent = data.data.length;
-        
-        // 存储生词数据，以便稍后使用
-        localStorage.setItem('transor-words', JSON.stringify(data.data));
-      } else {
-        // 如果返回的数据格式不正确，显示0
+    if (wordsData) {
+      // 解析JSON数据
+      try {
+        const words = JSON.parse(wordsData);
+        if (Array.isArray(words)) {
+          console.log(`从本地存储获取到${words.length}个生词`);
+          countElement.textContent = words.length;
+        } else {
+          console.warn('生词本数据不是数组格式');
+          countElement.textContent = '0';
+        }
+      } catch (error) {
+        console.error('解析本地生词本数据失败:', error);
         countElement.textContent = '0';
       }
-    })
-    .catch(error => {
-      console.error('获取生词本数据失败:', error);
-      // 请求失败时恢复原有显示，或显示错误提示
-      countElement.textContent = originalText;
-    });
-  });
+    } else {
+      console.log('本地存储中无生词本数据');
+      countElement.textContent = '0';
+      
+      // 本地没有数据，尝试从chrome.storage.local获取
+      chrome.storage.local.get(['transor-words'], function(result) {
+        if (result && result['transor-words']) {
+          try {
+            const words = JSON.parse(result['transor-words']);
+            if (Array.isArray(words)) {
+              console.log(`从chrome.storage获取到${words.length}个生词`);
+              countElement.textContent = words.length;
+              
+              // 同步到localStorage
+              localStorage.setItem('transor-words', JSON.stringify(words));
+            }
+          } catch (e) {
+            console.error('解析chrome.storage中的生词本数据失败:', e);
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.error('读取本地生词本数据失败:', error);
+    countElement.textContent = '0';
+  }
 }
 
 // 页面加载后初始化

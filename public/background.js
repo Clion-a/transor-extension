@@ -44,13 +44,6 @@ const initializeAxios = () => {
   }
 };
 
-// Qs库简化实现
-const Qs = {
-  stringify: (obj) => Object.entries(obj)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-    .join('&')
-};
-
 // 默认设置
 const defaultSettings = {
   enabled: true,
@@ -64,8 +57,8 @@ const defaultSettings = {
   translationEngine: 'microsoftapi',  // 翻译引擎: google, microsoft, microsoftapi, deepseek
   // API密钥配置
   apiKeys: {
-    microsoft: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // 微软翻译API密钥
-    microsoftapi: '',  // Microsoft API翻译API密钥
+    // microsoft: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // 微软翻译API密钥
+    microsoftapi: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // Microsoft API翻译API密钥
     deepseek: ''    // DeepSeek翻译API密钥
   },
   // 区域配置
@@ -95,7 +88,7 @@ const TRANSLATION_CONFIG = {
     google: 'https://translate.googleapis.com/translate_a/single',
     microsoft: 'https://edge.microsoft.com',
     microsoftapi: 'https://api.cognitive.microsofttranslator.com/translate',
-    deepseek: 'https://api.deepseek.com/v1/translate'
+    deepseek: 'https://api.deepseek.com/chat/completions'
   },
   // 翻译批次大小
   batchSize: {
@@ -109,9 +102,9 @@ const TRANSLATION_CONFIG = {
   },
   // API密钥配置
   apiKeys: {
-    microsoft: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // 微软翻译API密钥
+    // microsoft: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // 微软翻译API密钥
+    microsoftapi: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // Microsoft API翻译API密钥
     deepseek: '',    // DeepSeek翻译API密钥
-    microsoftapi: ''  // Microsoft API翻译API密钥
   },
   // 区域配置
   regions: {
@@ -305,18 +298,19 @@ const UI = {
 };
 
 // 收藏单词到服务器
-async function collectWord(sourceText, sourceLang) {
+async function collectWord( sourceText, sourceLang ) {
+  // 注意：此功能当前已被注释掉，等待后续实现
   // try {
   //   // 获取认证令牌
   //   const result = await new Promise((resolve) => {
   //     chrome.storage.local.get(['authToken'], resolve);
   //   });
-    
+  //   
   //   const token = result.authToken;
   //   if (!token) {
   //     throw new Error('未找到访问令牌，无法收藏单词');
   //   }
-    
+  //   
   //   // 调用API收藏单词
   //   const response = await fetch('http://api-test.transor.ai/priapi1/collect_my_words', {
   //     method: 'POST',
@@ -329,10 +323,10 @@ async function collectWord(sourceText, sourceLang) {
   //       source_lang: sourceLang
   //     })
   //   });
-    
+  //   
   //   const data = await response.json();
   //   console.log('单词收藏API响应:', data);
-    
+  //   
   //   if (data.code === 1) {
   //     return data;
   //   } else {
@@ -409,9 +403,16 @@ function handleInstalled(details) {
   }
 }
 
-// 统一的消息处理函数
+// 处理消息
 function handleMessage(message, sender, sendResponse) {
   console.log('收到消息:', message.action);
+  
+  // 添加连接状态验证，防止context invalidated错误
+  if (!chrome.runtime.id) {
+    console.error('扩展上下文已失效，无法处理消息');
+    sendResponse({ success: false, error: 'Extension context invalidated' });
+    return false;
+  }
   
   const messageHandlers = {
     // 获取设置
@@ -462,22 +463,35 @@ function handleMessage(message, sender, sendResponse) {
               engine: engine
             });
             
+            // 检查扩展上下文是否还有效
+            if (!chrome.runtime.id) {
+              console.error('扩展上下文已失效，无法发送翻译结果');
+              // 上下文已失效，无法发送响应
+              return;
+            }
+            
             sendResponse(result);
           } catch (error) {
             console.error('批量翻译过程出错:', error);
-            sendResponse({ 
-              success: true, 
-              translations: generateMockTranslations(texts) 
-            });
+            // 确保扩展上下文有效再发送响应
+            if (chrome.runtime.id) {
+              sendResponse({ 
+                success: true, 
+                translations: generateMockTranslations(texts) 
+              });
+            }
           }
         })
         .catch((error) => {
           console.error('获取设置失败:', error);
-          sendResponse({ 
-            success: true, 
-            translations: generateMockTranslations(texts), 
-            error: error.message || '获取设置失败' 
-          });
+          // 确保扩展上下文有效再发送响应
+          if (chrome.runtime.id) {
+            sendResponse({ 
+              success: true, 
+              translations: generateMockTranslations(texts), 
+              error: error.message || '获取设置失败' 
+            });
+          }
         });
       
       return true;
@@ -493,10 +507,18 @@ function handleMessage(message, sender, sendResponse) {
     // 执行OCR识别
     performOCR: () => {
       performOCR(message.imageUrl)
-        .then(text => sendResponse({ success: true, text }))
+        .then(text => {
+          // 检查扩展上下文是否还有效
+          if (chrome.runtime.id) {
+            sendResponse({ success: true, text });
+          }
+        })
         .catch(error => {
           console.error('OCR识别失败:', error);
-          sendResponse({ success: false, error: error.message });
+          // 确保扩展上下文有效再发送响应
+          if (chrome.runtime.id) {
+            sendResponse({ success: false, error: error.message });
+          }
         });
       return true;
     },
@@ -505,18 +527,59 @@ function handleMessage(message, sender, sendResponse) {
     OCR_FROM_IMAGE_URL: () => {
       console.log("收到图片URL的OCR请求: ", message.imageUrl);
       handleImageUrlOCR(message.imageUrl, message.ocrLang || 'auto')
-        .then(result => sendResponse({ success: true, text: result }))
+        .then(result => {
+          // 检查扩展上下文是否还有效
+          if (chrome.runtime.id) {
+            sendResponse({ success: true, text: result });
+          }
+        })
         .catch(error => {
           console.error("OCR处理失败:", error);
-          sendResponse({ success: false, error: error.toString() });
+          // 确保扩展上下文有效再发送响应
+          if (chrome.runtime.id) {
+            sendResponse({ success: false, error: error.toString() });
+          }
         });
       return true;
-    }
+    },
+    
+    // 设置API密钥
+    setApiKey: () => {
+      if (message.type && message.key) {
+        chrome.storage.sync.get(['apiKeys'], (result) => {
+          const apiKeys = result.apiKeys || {};
+          apiKeys[message.type] = message.key;
+          
+          chrome.storage.sync.set({ apiKeys }, () => {
+            console.log(`已更新 ${message.type} API密钥`);
+            
+            // 同步更新TRANSLATION_CONFIG配置
+            if (TRANSLATION_CONFIG.apiKeys) {
+              TRANSLATION_CONFIG.apiKeys[message.type] = message.key;
+            }
+            
+            sendResponse({ success: true });
+          });
+        });
+        return true;
+      }
+      sendResponse({ success: false, error: '无效的API密钥数据' });
+      return true;
+    },
   };
   
-  // 执行对应处理函数或返回false
-  const handler = messageHandlers[message.action];
-  return handler ? handler() : false;
+  try {
+    // 执行对应处理函数或返回false
+    const handler = messageHandlers[message.action];
+    return handler ? handler() : false;
+  } catch (error) {
+    console.error('处理消息时出错:', error);
+    // 确保扩展上下文有效再发送响应
+    if (chrome.runtime.id) {
+      sendResponse({ success: false, error: error.message || '处理消息时出错' });
+    }
+    return false;
+  }
 }
 
 // 批量翻译处理函数
@@ -531,6 +594,13 @@ async function handleBatchTranslation(texts, sourceLanguage, targetLanguage, opt
     const batchSize = options.batchSize || (isSubtitleRequest ? TRANSLATION_CONFIG.batchSize.subtitle : TRANSLATION_CONFIG.batchSize.default);
     
     console.log(`处理批量翻译请求，文本数量: ${texts.length}, 引擎: ${translationEngine}, 是字幕请求: ${isSubtitleRequest}, 批次大小: ${batchSize}`);
+    
+    // 定期检查扩展上下文是否有效
+    const checkExtensionContext = () => {
+      if (!chrome.runtime.id) {
+        throw new Error('Extension context invalidated');
+      }
+    };
     
     // 初始化缓存系统
     if (!self.translationCache) {
@@ -556,8 +626,6 @@ async function handleBatchTranslation(texts, sourceLanguage, targetLanguage, opt
       const cleanText = cleanTextForCaching(text);
       // 对于空文本或极短文本，直接跳过
       if (!cleanText || cleanText.length < TRANSLATION_CONFIG.cache.minTextLength) {
-
-        console.log(cleanText, "cleanText")
         results[index] = text;
         return;
       }
@@ -615,10 +683,16 @@ async function handleBatchTranslation(texts, sourceLanguage, targetLanguage, opt
     let processedCount = 0;
     for (const batch of batches) {
       try {
+        // 检查扩展上下文是否还有效
+        checkExtensionContext();
+        
         console.log(`处理批次 ${Math.floor(processedCount/batchSize) + 1}/${batches.length}, 大小: ${batch.length}`);
         
         // 翻译当前批次
         const batchResults = await translateFunction(batch, sourceLanguage, targetLanguage);
+        
+        // 再次检查扩展上下文
+        checkExtensionContext();
         
         // 更新缓存并填充结果
         batch.forEach((text, i) => {
@@ -651,6 +725,11 @@ async function handleBatchTranslation(texts, sourceLanguage, targetLanguage, opt
       } catch (error) {
         console.error(`批次处理失败:`, error);
         
+        // 如果是扩展上下文失效，直接中断
+        if (error.message === 'Extension context invalidated') {
+          throw error;
+        }
+        
         // 处理错误：对于失败的批次，使用模拟翻译
         const mockTranslations = generateMockTranslations(batch);
         
@@ -676,6 +755,11 @@ async function handleBatchTranslation(texts, sourceLanguage, targetLanguage, opt
     return { success: true, translations: results };
   } catch (error) {
     console.error('批量翻译处理失败:', error);
+    
+    // 如果是扩展上下文失效，直接抛出，不尝试恢复
+    if (error.message === 'Extension context invalidated') {
+      throw error;
+    }
     
     // 使用模拟翻译作为最后的备选方案
     const mockTranslations = generateMockTranslations(texts);
@@ -959,7 +1043,7 @@ async function translateWithMicrosoftAPI(texts, sourceLanguage, targetLanguage) 
   try {
     // 获取设置
     const settings = await getSettings();
-    const apiKey = settings.apiKeys?.microsoftapi || TRANSLATION_CONFIG.apiKeys.microsoft;
+    const apiKey = settings.apiKeys?.microsoftapi || TRANSLATION_CONFIG.apiKeys.microsoftapi;
     
     if (!apiKey) {
       console.error('未配置Microsoft API翻译API密钥');
@@ -1066,53 +1150,280 @@ async function translateWithDeepSeek(texts, sourceLanguage, targetLanguage) {
       return isArray ? [] : '';
     }
     
-    // 处理批量请求
-    const batchResults = [];
+    // 批量优化处理
+    console.log(`DeepSeek翻译开始处理${textArray.length}条文本`);
     
-    // 由于DeepSeek可能不支持大量批量请求，我们这里分批处理
+    // 预处理：过滤空文本，直接加入结果
+    const nonEmptyTexts = [];
+    const nonEmptyIndices = [];
+    const batchResults = new Array(textArray.length); // 预先分配足够空间
+    
+    // 首先过滤出所有非空文本和它们的原始索引
     for (let i = 0; i < textArray.length; i++) {
       const text = textArray[i];
-      
-      // 组装请求数据
-      const requestBody = {
-        model: 'deepseek-translator',
-        source_lang: sourceLanguage === 'auto' ? 'auto-detect' : sourceLanguage,
-        target_lang: targetLanguage,
-        text: text
-      };
-      
-      // 发送请求
-      const response = await fetch(TRANSLATION_CONFIG.endpoints.deepseek, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`DeepSeek翻译API请求失败: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      // 获取翻译结果
-      const translation = data.translation || text;
-      batchResults.push(translation);
-      
-      // 添加延迟，避免频繁请求
-      if (i < textArray.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 300));
+      if (!text || text.trim() === '') {
+        batchResults[i] = text; // 空文本直接保留
+      } else {
+        nonEmptyTexts.push(text);
+        nonEmptyIndices.push(i);
       }
     }
     
-    // 根据输入类型返回结果
+    if (nonEmptyTexts.length === 0) {
+      console.log('没有需要翻译的非空文本');
+      return isArray ? batchResults : batchResults[0] || '';
+    }
+    
+    // 进一步分类：长文本单独处理，短文本合并处理
+    const smallTexts = [];
+    const smallIndices = [];
+    const largeTexts = [];
+    const largeIndices = [];
+    const maxSingleTextChars = 800; // 最大单文本字符数
+    
+    // 分类文本
+    for (let i = 0; i < nonEmptyTexts.length; i++) {
+      const text = nonEmptyTexts[i];
+      const originalIndex = nonEmptyIndices[i];
+      
+      if (text.length > maxSingleTextChars) {
+        largeTexts.push(text);
+        largeIndices.push(originalIndex);
+      } else {
+        smallTexts.push(text);
+        smallIndices.push(originalIndex);
+      }
+    }
+    
+    console.log(`文本分类: ${smallTexts.length}条短文本, ${largeTexts.length}条长文本`);
+    
+    // 处理短文本：合并成更大的批次
+    if (smallTexts.length > 0) {
+      // 使用更加独特复杂的分隔符，确保不会出现在正常文本中
+      const DELIMITER = "\n##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n";
+      
+      // 最大批次大小
+      const maxBatchSize = 15; // 调整为更合理的批次大小，避免过大
+      const maxBatchChars = 2000; // 调整批次字符限制，避免过大请求
+      
+      // 创建批次
+      const batches = [];
+      const batchIndices = [];
+      let currentBatch = [];
+      let currentIndices = [];
+      let currentBatchChars = 0;
+      
+      for (let i = 0; i < smallTexts.length; i++) {
+        const text = smallTexts[i];
+        const originalIndex = smallIndices[i];
+        
+        // 如果添加当前文本会超出批次限制，先保存当前批次
+        if (currentBatch.length >= maxBatchSize || 
+            currentBatchChars + text.length + DELIMITER.length > maxBatchChars) {
+          if (currentBatch.length > 0) {
+            batches.push([...currentBatch]);
+            batchIndices.push([...currentIndices]);
+            currentBatch = [];
+            currentIndices = [];
+            currentBatchChars = 0;
+          }
+        }
+        
+        // 添加到当前批次
+        currentBatch.push(text);
+        currentIndices.push(originalIndex);
+        currentBatchChars += text.length + DELIMITER.length;
+      }
+      
+      // 添加最后一个批次
+      if (currentBatch.length > 0) {
+        batches.push([...currentBatch]);
+        batchIndices.push([...currentIndices]);
+      }
+      
+      console.log(`短文本分为${batches.length}个批次，准备并行处理所有批次`);
+      
+      // 清理分隔符的函数
+      const cleanDelimiters = (text) => {
+        if (!text) return '';
+        // 移除我们的专用分隔符
+        let cleaned = text.replace(/\n?##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n?/g, '');
+        // 移除可能残留的<====TRANSOR_SPLIT====>分隔符
+        cleaned = cleaned.replace(/<====TRANSOR_SPLIT====>\s*/g, '');
+        return cleaned.trim();
+      };
+      
+      // 并行处理所有批次
+      const batchPromises = batches.map(async (batch, batchIndex) => {
+        const indices = batchIndices[batchIndex];
+        console.log(`开始处理短文本批次 ${batchIndex+1}/${batches.length}，条目数: ${batch.length}`);
+        
+        try {
+          // 合并文本并添加分隔符
+          const combinedText = batch.join(DELIMITER);
+          
+          // 翻译合并文本
+          const requestBody = {
+            model: "deepseek-chat",
+            messages: [
+              {
+                role: "user",
+                content: `请将以下${sourceLanguage === 'auto' ? '文本' : sourceLanguage + '文本'}翻译成${targetLanguage}。
+请注意：文本之间用分隔符"##===@@TRANSOR__INTERNAL__DELIMITER@@===##"隔开，这不是文本内容的一部分，请在翻译时保留这些分隔符，但不要翻译分隔符本身。
+这样我可以根据分隔符将翻译结果分割回多段。
+
+原文:
+${combinedText}`,
+              },
+            ],
+            temperature: 0.7, // 适中的温度值，平衡创造性和准确性
+          };
+          
+          const response = await fetch(TRANSLATION_CONFIG.endpoints.deepseek, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(requestBody)
+          });
+          
+          if (!response.ok) {
+            throw new Error(`批量翻译请求失败: ${response.status} ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          
+          // 处理翻译结果
+          if (data && data.choices && data.choices.length > 0 && 
+              data.choices[0].message && data.choices[0].message.content) {
+            const translatedText = data.choices[0].message.content.trim();
+            
+            // 分割翻译结果
+            const translatedParts = translatedText.split(DELIMITER);
+            
+            // 检查翻译结果分段是否与原始文本数量匹配
+            if (translatedParts.length >= batch.length) {
+              // 按索引填充结果，并清理每个结果中可能的分隔符
+              for (let j = 0; j < batch.length; j++) {
+                if (j < translatedParts.length) {
+                  batchResults[indices[j]] = cleanDelimiters(translatedParts[j]);
+                } else {
+                  // 索引超出范围，使用Google翻译单独处理这个文本
+                  try {
+                    const singleResult = await translateWithGoogle([batch[j]], sourceLanguage, targetLanguage);
+                    batchResults[indices[j]] = singleResult[0] || batch[j];
+                  } catch (err) {
+                    batchResults[indices[j]] = batch[j]; // 失败时使用原文
+                  }
+                }
+              }
+              console.log(`批次 ${batchIndex+1} 翻译完成，成功匹配所有分段`);
+            } else {
+              console.warn(`批次 ${batchIndex+1} 翻译分段异常: 预期${batch.length}段，但得到${translatedParts.length}段，尝试回退处理`);
+              
+              // 如果分段数量不匹配，先尝试清理整个翻译结果，看是否能找到我们的分隔符
+              const cleanedFullText = translatedText
+                .replace(/<.*?TRANSOR.*?SPLIT.*?>/gi, DELIMITER) // 替换不同格式的分隔符为我们的标准分隔符
+                .replace(/TRANSOR[_\s]*SPLIT/gi, DELIMITER); // 替换可能的文本形式分隔符
+              
+              // 再次尝试分割
+              const recleanedParts = cleanedFullText.split(DELIMITER);
+              
+              if (recleanedParts.length >= batch.length) {
+                // 如果清理后的分段数量正确，使用这个结果
+                for (let j = 0; j < batch.length; j++) {
+                  batchResults[indices[j]] = cleanDelimiters(recleanedParts[j]);
+                }
+                console.log(`批次 ${batchIndex+1} 经过二次清理后成功匹配分段`);
+              } else {
+                // 仍然失败，逐个翻译
+                console.log(`批次 ${batchIndex+1} 分段失败，转为逐个翻译`);
+                
+                // 回退到Google翻译
+                try {
+                  const fallbackResults = await translateWithGoogle(batch, sourceLanguage, targetLanguage);
+                  for (let j = 0; j < batch.length; j++) {
+                    batchResults[indices[j]] = fallbackResults[j] || batch[j];
+                  }
+                } catch (err) {
+                  // 如果Google翻译也失败，使用原文
+                  for (let j = 0; j < batch.length; j++) {
+                    batchResults[indices[j]] = batch[j];
+                  }
+                }
+              }
+            }
+          } else {
+            throw new Error('翻译返回数据格式异常');
+          }
+        } catch (error) {
+          console.error(`短文本批次 ${batchIndex+1} 处理失败:`, error);
+          
+          // 错误回退：使用Google翻译
+          try {
+            const fallbackResults = await translateWithGoogle(batch, sourceLanguage, targetLanguage);
+            // 填充结果
+            for (let j = 0; j < batch.length; j++) {
+              batchResults[indices[j]] = fallbackResults[j] || batch[j];
+            }
+          } catch (err) {
+            // 如果Google翻译也失败，使用原文
+            for (let j = 0; j < batch.length; j++) {
+              batchResults[indices[j]] = batch[j];
+            }
+          }
+        }
+      });
+      
+      // 并行等待所有批次完成
+      console.log('并行处理所有请求中...');
+      await Promise.all(batchPromises);
+      console.log('所有短文本批次处理完成');
+    }
+    
+    // 处理长文本：并行使用Google翻译
+    if (largeTexts.length > 0) {
+      console.log(`并行处理${largeTexts.length}条长文本，使用Google翻译`);
+      
+      try {
+        const largeResults = await translateWithGoogle(largeTexts, sourceLanguage, targetLanguage);
+        // 填充结果
+        for (let i = 0; i < largeTexts.length; i++) {
+          batchResults[largeIndices[i]] = largeResults[i] || largeTexts[i];
+        }
+      } catch (error) {
+        console.error('长文本翻译失败:', error);
+        // 失败时使用原文
+        for (let i = 0; i < largeTexts.length; i++) {
+          batchResults[largeIndices[i]] = largeTexts[i];
+        }
+      }
+    }
+    
+    // 最终清理所有结果，确保没有分隔符残留
+    for (let i = 0; i < batchResults.length; i++) {
+      if (batchResults[i]) {
+        // 清理各种可能的分隔符格式
+        batchResults[i] = batchResults[i]
+          .replace(/\n?##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n?/g, '')
+          .replace(/<====TRANSOR_SPLIT====>\s*/g, '')
+          .replace(/TRANSOR[_\s]*SPLIT/gi, '')
+          .trim();
+      }
+    }
+    
+    // 返回结果
     return isArray ? batchResults : batchResults[0] || '';
   } catch (error) {
     console.error('DeepSeek翻译出错:', error);
-    // 出错时返回原文
-    return Array.isArray(texts) ? texts : texts;
+    // 全局错误回退：使用Google翻译
+    try {
+      return await translateWithGoogle(texts, sourceLanguage, targetLanguage);
+    } catch (err) {
+      // 如果Google翻译也失败，返回原文
+      return Array.isArray(texts) ? texts : texts;
+    }
   }
 }
 

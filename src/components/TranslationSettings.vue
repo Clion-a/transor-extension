@@ -89,6 +89,20 @@
       </div>
     </div>
 
+    <!-- 新增API密钥设置区域 -->
+    <div class="settings-group" v-if="transEngine === 'deepseek'">
+      <div class="api-key-input">
+        <div class="setting-label">{{ $t('deepseek_api_key') }}</div>
+        <el-input 
+          v-model="deepseekApiKey" 
+          size="large" 
+          :placeholder="$t('enter_deepseek_api_key')"
+          @change="saveDeepseekApiKey"
+          show-password
+        ></el-input>
+      </div>
+    </div>
+
     <div class="settings-group">
       <div class="ai-mode">
         <div class="setting-label">{{ $t('display_type') }}</div>
@@ -161,7 +175,8 @@ export default {
       activeCollapse: [],
       excludedClassesStr: '',
       uiLanguage: localStorage.getItem('transor-ui-language') || 'zh-CN', // 默认使用简体中文
-      i18n: null // 保存i18n实例
+      i18n: null, // 保存i18n实例
+      deepseekApiKey: '' // DeepSeek API密钥
     }
   },
   computed: {
@@ -224,7 +239,8 @@ export default {
     ...mapMutations([
       'setExcludedTags',
       'setExcludedClasses',
-      'setCustomCss'
+      'setCustomCss',
+      'setApiKey' // 添加设置API密钥的mutation
     ]),
     // 处理键盘快捷键
     handleKeyboardShortcut(event) {
@@ -299,6 +315,8 @@ export default {
           'bilingual_above': '双语(原文上方显示译文)',
           'bilingual_below': '双语(原文下方显示译文)',
           'hover': '悬浮(鼠标悬停显示译文)',
+          'deepseek_api_key': 'DeepSeek API密钥',
+          'enter_deepseek_api_key': '请输入你的DeepSeek API密钥',
           // 其他基本翻译...
         },
         'en': {
@@ -316,6 +334,8 @@ export default {
           'bilingual_above': 'Bilingual (Translation Above)',
           'bilingual_below': 'Bilingual (Translation Below)',
           'hover': 'Hover (Show on Mouse Over)',
+          'deepseek_api_key': 'DeepSeek API Key',
+          'enter_deepseek_api_key': 'Enter your DeepSeek API Key',
           // 其他基本翻译...
         }
       };
@@ -405,6 +425,13 @@ export default {
 
       // 强制组件重新渲染
       this.$forceUpdate();
+    },
+    // 保存DeepSeek API密钥
+    saveDeepseekApiKey() {
+      if (this.deepseekApiKey && this.deepseekApiKey.trim() !== '') {
+        this.setApiKey({ type: 'deepseek', key: this.deepseekApiKey.trim() });
+        this.saveSettings();
+      }
     }
   },
   watch: {
@@ -416,7 +443,12 @@ export default {
     }
   },
   created() {
-    this.$store.dispatch('loadSettings');
+    this.$store.dispatch('loadSettings').then(() => {
+      // 加载设置后获取已保存的API密钥
+      if (this.$store.state.apiKeys && this.$store.state.apiKeys.deepseek) {
+        this.deepseekApiKey = this.$store.state.apiKeys.deepseek;
+      }
+    });
 
     // 从localStorage中获取已保存的界面语言设置
     const savedLanguage = localStorage.getItem('transor-ui-language');
@@ -744,5 +776,19 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.api-key-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.api-key-input .setting-label {
+  color: #666;
+  font-size: 14px;
+  white-space: nowrap;
+  min-width: 120px;
 }
 </style>

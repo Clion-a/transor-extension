@@ -162,28 +162,32 @@ function createTranslatorUI(imageUrl) {
       </div>
       
       <div class="translator-body">
-        <div class="image-preview-container">
-          <img src="${imageUrl}" alt="要翻译的图片" id="translated-image-preview" />
-        </div>
-        
-        <div class="translator-section">
-          <div class="section-header">
-            <h4>原文</h4>
-            <div class="section-actions">
-              <button id="copy-original" class="translator-action-btn">复制</button>
+        <div class="translator-content-wrapper">
+          <div class="image-preview-container">
+            <img src="${imageUrl}" alt="要翻译的图片" id="translated-image-preview" />
+          </div>
+          
+          <div class="text-sections-container">
+            <div class="translator-section">
+              <div class="section-header">
+                <h4>原文</h4>
+                <div class="section-actions">
+                  <button id="copy-original" class="translator-action-btn">复制</button>
+                </div>
+              </div>
+              <div id="image-original-text" class="text-content">正在识别中...</div>
+            </div>
+            
+            <div class="translator-section">
+              <div class="section-header">
+                <h4>译文</h4>
+                <div class="section-actions">
+                  <button id="copy-translation" class="translator-action-btn">复制</button>
+                </div>
+              </div>
+              <div id="image-translated-text" class="text-content">等待翻译...</div>
             </div>
           </div>
-          <div id="image-original-text" class="text-content">正在识别中...</div>
-        </div>
-        
-        <div class="translator-section">
-          <div class="section-header">
-            <h4>译文</h4>
-            <div class="section-actions">
-              <button id="copy-translation" class="translator-action-btn">复制</button>
-            </div>
-          </div>
-          <div id="image-translated-text" class="text-content">等待翻译...</div>
         </div>
       </div>
       
@@ -284,8 +288,8 @@ function createTranslatorStyles() {
     }
     
     .transor-image-translator {
-      width: 90%;
-      max-width: 600px;
+      width: 95%;
+      max-width: 1000px;
       background-color: white;
       border-radius: 8px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
@@ -326,32 +330,48 @@ function createTranslatorStyles() {
       padding: 15px 20px;
       flex: 1;
       overflow-y: auto;
-      max-height: 70vh;
+      max-height: 80vh;
+    }
+    
+    .translator-content-wrapper {
+      display: flex;
+      gap: 20px;
+      flex-direction: row;
     }
     
     .image-preview-container {
+      flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      align-items: center;
-      margin-bottom: 15px;
-      text-align: center;
-      overflow: hidden;
       border-radius: 4px;
       border: 1px solid #ddd;
       background-color: #f9f9f9;
+      max-height: 100%;
+      overflow: hidden;
+    }
+    
+    .text-sections-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      overflow-y: auto;
+      max-height: 100%;
     }
     
     #translated-image-preview {
       max-width: 100%;
-      max-height: 200px;
+      max-height: 500px;
       object-fit: contain;
     }
     
     .translator-section {
-      margin-bottom: 15px;
       border: 1px solid #eee;
       border-radius: 4px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
     
     .section-header {
@@ -390,7 +410,8 @@ function createTranslatorStyles() {
     
     .text-content {
       padding: 15px;
-      min-height: 60px;
+      flex: 1;
+      overflow-y: auto;
       line-height: 1.5;
       white-space: pre-wrap;
       word-break: break-word;
@@ -409,6 +430,21 @@ function createTranslatorStyles() {
       font-size: 13px;
       color: #666;
       text-align: center;
+    }
+    
+    /* 响应式布局 */
+    @media (max-width: 768px) {
+      .translator-content-wrapper {
+        flex-direction: column;
+      }
+      
+      .image-preview-container {
+        max-height: 250px;
+      }
+      
+      #translated-image-preview {
+        max-height: 230px;
+      }
     }
   `;
   
