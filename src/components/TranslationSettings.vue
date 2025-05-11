@@ -39,25 +39,21 @@
         <el-select v-model="uiLanguage" size="large" class="dark-select" @change="changeUiLanguage">
           <el-option label="简体中文" value="zh-CN">
             <div class="option-with-icon">
-              <div class="icon-circle">中</div>
               <span>简体中文</span>
             </div>
           </el-option>
           <el-option label="English" value="en">
             <div class="option-with-icon">
-              <div class="icon-circle">En</div>
               <span>English</span>
             </div>
           </el-option>
           <el-option label="日本語" value="ja">
             <div class="option-with-icon">
-              <div class="icon-circle">日</div>
               <span>日本語</span>
             </div>
           </el-option>
           <el-option label="한국어" value="ko">
             <div class="option-with-icon">
-              <div class="icon-circle">한</div>
               <span>한국어</span>
             </div>
           </el-option>
@@ -69,23 +65,24 @@
       <div class="service-selector">
         <div class="setting-label">{{ $t('translation_service') }}</div>
         <el-select v-model="transEngine" size="large" class="dark-select">
-          <el-option label="DeepSeek (Pro)" value="deepseek">
+          <el-option label="Microsoft API" value="microsoftapi">
             <div class="option-with-icon">
-              <div class="icon-circle">D</div>
-              <span>DeepSeek</span>
-              <span class="pro-tag">Pro</span>
+              <span>Microsoft API</span>
+            </div>
+          </el-option>
+          <el-option label="Microsoft Edge" value="microsoft">
+            <div class="option-with-icon">
+              <span>Microsoft Edge</span>
             </div>
           </el-option>
           <el-option label="Google" value="google">
             <div class="option-with-icon">
-              <div class="icon-circle">G</div>
               <span>Google</span>
             </div>
           </el-option>
-          <el-option label="微软" value="microsoft">
+          <el-option label="DeepSeek (Pro)" value="deepseek">
             <div class="option-with-icon">
-              <div class="icon-circle">微</div>
-              <span>微软翻译</span>
+              <span>DeepSeek</span>
             </div>
           </el-option>
         </el-select>
@@ -110,7 +107,7 @@
       <button @click="toggleTranslation">{{ $t('toggle_translation') }} <span class="shortcut-hint">⌥A</span></button>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" style="margin-bottom: 0">
       <div class="toggle-container">
         <span>{{ $t('translation_toggle') }}</span>
         <el-switch v-model="isTranslationEnabled" active-color="#13ce66" inactive-color="#ff4949"
@@ -118,7 +115,7 @@
       </div>
     </div>
 
-    <div class="settings-group" style="margin: 0;">
+    <!-- <div class="settings-group" style="margin: 0;">
       <el-collapse v-model="activeCollapse">
         <el-collapse-item :title="$t('advanced_settings')" name="advanced">
           <div class="advanced-settings">
@@ -148,7 +145,7 @@
           </div>
         </el-collapse-item>
       </el-collapse>
-    </div>
+    </div> -->
 
 
   </div>
@@ -311,7 +308,7 @@ export default {
           'display_type': 'Display Type:',
           'ui_language': 'Interface Language:',
           'translation_toggle': 'Translation Toggle',
-          'toggle_translation': 'Enable/Disable Translation (⌥A)',
+          'toggle_translation': 'Enable/Disable Translation',
           'advanced_settings': 'Advanced Settings',
           'inline': 'Bilingual (Translation after Original)',
           'general': 'Smart Tooltips (For Menus & Small Elements)',
@@ -346,26 +343,52 @@ export default {
     // 新增界面语言切换方法
     changeUiLanguage(language) {
       console.log(`切换界面语言为: ${language}`);
-      // 保存用户的界面语言首选项
+      // 保存用户的界面语言首选项到本地存储
       localStorage.setItem('transor-ui-language', language);
 
-      // 同时保存到chrome.storage.local，使其可以跨页面共享
-      try {
-        chrome.storage.local.set({ 'transor-ui-language': language }, () => {
-          console.log('界面语言设置已保存到chrome.storage');
-        });
-      } catch (e) {
-        console.error('保存界面语言到chrome.storage失败:', e);
-      }
-
+      // 使用更安全的方式保存语言设置
+      const saveLanguageSetting = () => {
+        // 首先直接尝试通过storage API设置
+        try {
+          console.log(`直接保存界面语言到storage: ${language}`);
+          chrome.storage.local.set({ 'transor-ui-language': language }, () => {
+            if (chrome.runtime.lastError) {
+              console.warn('直接设置语言失败:', chrome.runtime.lastError);
+            } else {
+              console.log('界面语言已直接保存到storage');
+            }
+          });
+        } catch (e) {
+          console.error('直接设置语言异常:', e.message);
+        }
+        
+        // 然后也尝试通过background脚本设置
+        try {
+          console.log(`通过background设置界面语言: ${language}`);
+          chrome.runtime.sendMessage({ 
+            action: 'set-language', 
+            language: language 
+          }, response => {
+            if (chrome.runtime.lastError) {
+              console.warn('通过background设置语言失败:', chrome.runtime.lastError);
+            } else if (response && response.success) {
+              console.log('通过background成功设置语言');
+            }
+          });
+        } catch (e) {
+          console.error('发送语言设置消息异常:', e.message);
+        }
+      };
+      
+      // 尝试保存设置
+      saveLanguageSetting();
+      
+      // 立即应用本地语言设置
+      this.uiLanguage = language;
+      this.loadLanguageResources(language);
+      
       // 触发事件通知应用语言已更改
       this.$emit('language-changed', language);
-
-      // 更新当前组件的语言
-      this.uiLanguage = language;
-
-      // 尝试触发页面翻译
-      this.loadLanguageResources(language);
     },
     loadLanguageResources(language) {
       console.log(`正在加载${language}语言资源...`);

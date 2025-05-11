@@ -4,242 +4,275 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>英语学习收藏夹 - Transor</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
+    :root {
+      --theme-color: #ff5588;
+    }
     body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
       margin: 0;
-      padding: 0;
-      font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      background-color: #f5f5f5;
-      color: #333;
-    }
-    
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
       padding: 20px;
+      background-color: #f8f9fa;
     }
-    
     .header {
+      margin-bottom: 30px;
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #e0e0e0;
     }
-    
     .header h1 {
-      margin: 0;
-      color: #42b983;
-      font-size: 24px;
+      color: var(--theme-color);
+      font-size: 28px;
+      margin-bottom: 20px;
+      text-align: center;
     }
-    
     .search-box {
+      width: 100%;
+      max-width: 650px;
+      margin-bottom: 20px;
       display: flex;
-      background: white;
-      border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
-      width: 300px;
     }
-    
     .search-box input {
       flex: 1;
-      padding: 10px 15px;
-      border: none;
-      outline: none;
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px 0 0 4px;
       font-size: 14px;
     }
-    
     .search-box button {
-      background: #42b983;
+      background-color: var(--theme-color);
       color: white;
       border: none;
+      border-radius: 0 4px 4px 0;
       padding: 0 15px;
       cursor: pointer;
+      font-size: 14px;
     }
-    
-    .filters {
+    .filter-buttons {
       display: flex;
-      margin-bottom: 20px;
       flex-wrap: wrap;
       gap: 10px;
+      margin-bottom: 20px;
+      justify-content: center;
     }
-    
-    .filter-btn {
-      background: white;
-      border: 1px solid #e0e0e0;
+    .filter-button {
+      background-color: #fff;
+      border: 1px solid #ddd;
       border-radius: 20px;
       padding: 6px 15px;
+      font-size: 13px;
       cursor: pointer;
-      font-size: 14px;
       transition: all 0.2s;
     }
-    
-    .filter-btn:hover, .filter-btn.active {
-      background: #42b983;
+    .filter-button:hover {
+      border-color: var(--theme-color);
+    }
+    .filter-button.active {
+      background-color: var(--theme-color);
       color: white;
-      border-color: #42b983;
+      border-color: var(--theme-color);
     }
-    
-    .favorites-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
+    .favorites-container {
+      max-width: 800px;
+      margin: 0 auto;
     }
-    
-    .favorite-card {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      padding: 16px;
-      position: relative;
-      transition: transform 0.2s, box-shadow 0.2s;
+    .date-group {
+      margin-bottom: 25px;
     }
-    
-    .favorite-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    }
-    
-    .favorite-original {
+    .date-group-title {
       font-size: 16px;
+      color: #666;
       margin-bottom: 10px;
-      color: #333;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #eee;
     }
-    
+    .favorite-item {
+      background-color: white;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      padding: 15px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .favorite-text {
+      margin-bottom: 10px;
+      line-height: 1.5;
+      font-size: 15px;
+    }
     .favorite-translation {
-      color: #42b983;
-      font-size: 16px;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #f0f0f0;
+      color: var(--theme-color);
+      margin-bottom: 10px;
+      font-size: 14px;
+      line-height: 1.5;
     }
-    
     .favorite-meta {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      color: #999;
       font-size: 12px;
+      color: #999;
     }
-    
-    .favorite-source {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 200px;
+    .favorite-source a {
+      color: #666;
+      text-decoration: none;
     }
-    
+    .favorite-source a:hover {
+      text-decoration: underline;
+    }
     .favorite-actions {
-      position: absolute;
-      top: 10px;
-      right: 10px;
       display: flex;
-      gap: 5px;
-      opacity: 0;
-      transition: opacity 0.2s;
+      gap: 10px;
     }
-    
-    .favorite-card:hover .favorite-actions {
-      opacity: 1;
-    }
-    
-    .action-btn {
+    .action-button {
       background: none;
       border: none;
-      cursor: pointer;
       color: #999;
-      font-size: 16px;
-      padding: 3px;
-      border-radius: 3px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      padding: 0;
     }
-    
-    .action-btn:hover {
-      color: #42b983;
-      background-color: #f5f5f5;
+    .action-button:hover {
+      color: var(--theme-color);
     }
-    
-    .action-btn.delete:hover {
-      color: #e74c3c;
+    .action-button i {
+      margin-right: 3px;
     }
-    
     .empty-state {
       text-align: center;
-      padding: 40px 20px;
-      color: #999;
-    }
-    
-    .empty-state h3 {
-      margin-bottom: 10px;
-      font-size: 18px;
-    }
-    
-    .date-group {
-      margin-bottom: 30px;
-    }
-    
-    .date-group h2 {
-      font-size: 18px;
-      margin-bottom: 15px;
+      padding: 60px 20px;
       color: #666;
-      padding-bottom: 5px;
-      border-bottom: 1px dashed #e0e0e0;
     }
-    
-    /* 加载状态 */
-    .loading {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100px;
+    .empty-state-icon {
+      font-size: 40px;
+      color: #ddd;
+      margin-bottom: 20px;
     }
-    
+    .empty-state-title {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .empty-state-description {
+      font-size: 14px;
+      color: #999;
+      max-width: 400px;
+      margin: 0 auto;
+    }
     .loading-spinner {
-      border: 4px solid rgba(0, 0, 0, 0.1);
+      text-align: center;
+      padding: 30px;
+    }
+    .loading-spinner::after {
+      content: "";
+      display: inline-block;
       width: 30px;
       height: 30px;
+      border: 3px solid #f3f3f3;
       border-radius: 50%;
-      border-left-color: #42b983;
+      border-left: 3px solid var(--theme-color);
       animation: spin 1s linear infinite;
     }
-    
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    .toast-message {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .toast-message.show {
+      opacity: 1;
+    }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+      gap: 5px;
+    }
+    .pagination-button {
+      padding: 5px 10px;
+      border: 1px solid #ddd;
+      background-color: white;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .pagination-button:hover {
+      border-color: var(--theme-color);
+    }
+    .pagination-button.active {
+      background-color: var(--theme-color);
+      color: white;
+      border-color: var(--theme-color);
+    }
+    .pagination-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 15px;
+      }
+      .header h1 {
+        font-size: 24px;
+      }
+      .filter-buttons {
+        gap: 8px;
+      }
+      .filter-button {
+        padding: 4px 10px;
+        font-size: 12px;
+      }
+      .favorite-item {
+        padding: 12px;
+      }
+      .favorite-text {
+        font-size: 14px;
+      }
+      .favorite-translation {
+        font-size: 13px;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>英语学习收藏夹</h1>
-      <div class="search-box">
-        <input type="text" id="search-input" placeholder="搜索收藏内容...">
-        <button id="search-btn">搜索</button>
-      </div>
+  <div class="header">
+    <h1 data-i18n="favorites_heading">英语学习收藏夹</h1>
+    <div class="search-box">
+      <input type="text" id="search-input" data-i18n-placeholder="search_placeholder" placeholder="搜索收藏内容...">
+      <button id="search-button" data-i18n="search_button">搜索</button>
     </div>
-    
-    <div class="filters">
-      <button class="filter-btn active" data-filter="all">全部</button>
-      <button class="filter-btn" data-filter="word">单词</button>
-      <button class="filter-btn" data-filter="sentence">句子</button>
-      <button class="filter-btn" data-filter="paragraph">段落</button>
-      <button class="filter-btn" data-filter="today">今天</button>
-      <button class="filter-btn" data-filter="week">本周</button>
-      <button class="filter-btn" data-filter="month">本月</button>
-    </div>
-    
-    <div id="favorites-container">
-      <div class="loading">
-        <div class="loading-spinner"></div>
-      </div>
+    <div class="filter-buttons">
+      <button class="filter-button active" data-filter="all" data-i18n="filter_all">全部</button>
+      <button class="filter-button" data-filter="word" data-i18n="filter_word">单词</button>
+      <button class="filter-button" data-filter="sentence" data-i18n="filter_sentence">句子</button>
+      <button class="filter-button" data-filter="paragraph" data-i18n="filter_paragraph">段落</button>
+      <button class="filter-button" data-filter="today" data-i18n="filter_today">今天</button>
+      <button class="filter-button" data-filter="week" data-i18n="filter_week">本周</button>
+      <button class="filter-button" data-filter="month" data-i18n="filter_month">本月</button>
     </div>
   </div>
-  
-  <!-- 使用外部脚本文件替代内联脚本 -->
+  <div class="favorites-container" id="favorites-container">
+    <!-- 内容将通过JavaScript动态加载 -->
+    <div class="loading-spinner" id="loading-spinner"></div>
+  </div>
+  <div class="pagination" id="pagination"></div>
+  <div class="toast-message" id="toast-message"></div>
+
+  <!-- 外部脚本引用 -->
+  <script src="i18n-favorites.js"></script>
   <script src="favorites.js"></script>
 </body>
 </html> 

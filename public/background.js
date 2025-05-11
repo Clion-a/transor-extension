@@ -56,20 +56,22 @@ const defaultSettings = {
   enabled: true,
   targetLanguage: 'zh-CN',
   sourceLanguage: 'auto',
-  translationStyle: 'hover',
+  translationStyle: 'tip',
   enabledSelectors: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'span', 'a'],
   excludedClasses: ['no-translate'],
   excludedUrls: [],
   customCss: '',
-  translationEngine: 'google',  // 翻译引擎: google, microsoft, deepseek
+  translationEngine: 'microsoftapi',  // 翻译引擎: google, microsoft, microsoftapi, deepseek
   // API密钥配置
   apiKeys: {
-    microsoft: '',  // 微软翻译API密钥
+    microsoft: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // 微软翻译API密钥
+    microsoftapi: '',  // Microsoft API翻译API密钥
     deepseek: ''    // DeepSeek翻译API密钥
   },
   // 区域配置
   regions: {
-    microsoft: 'global'  // 微软翻译区域
+    microsoft: 'eastasia',  // 微软翻译区域
+    microsoftapi: 'eastasia'  // Microsoft API翻译区域
   }
 };
 
@@ -91,7 +93,8 @@ const TRANSLATION_CONFIG = {
   // API端点
   endpoints: {
     google: 'https://translate.googleapis.com/translate_a/single',
-    microsoft: 'https://api.cognitive.microsofttranslator.com/translate',
+    microsoft: 'https://edge.microsoft.com',
+    microsoftapi: 'https://api.cognitive.microsofttranslator.com/translate',
     deepseek: 'https://api.deepseek.com/v1/translate'
   },
   // 翻译批次大小
@@ -106,12 +109,14 @@ const TRANSLATION_CONFIG = {
   },
   // API密钥配置
   apiKeys: {
-    microsoft: '',  // 微软翻译API密钥
-    deepseek: ''    // DeepSeek翻译API密钥
+    microsoft: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // 微软翻译API密钥
+    deepseek: '',    // DeepSeek翻译API密钥
+    microsoftapi: ''  // Microsoft API翻译API密钥
   },
   // 区域配置
   regions: {
-    microsoft: 'global'  // 微软翻译API区域
+    microsoft: 'eastasia',  // 微软翻译API区域
+    microsoftapi: 'eastasia'  // Microsoft API翻译区域
   }
 };
 
@@ -301,42 +306,42 @@ const UI = {
 
 // 收藏单词到服务器
 async function collectWord(sourceText, sourceLang) {
-  try {
-    // 获取认证令牌
-    const result = await new Promise((resolve) => {
-      chrome.storage.local.get(['authToken'], resolve);
-    });
+  // try {
+  //   // 获取认证令牌
+  //   const result = await new Promise((resolve) => {
+  //     chrome.storage.local.get(['authToken'], resolve);
+  //   });
     
-    const token = result.authToken;
-    if (!token) {
-      throw new Error('未找到访问令牌，无法收藏单词');
-    }
+  //   const token = result.authToken;
+  //   if (!token) {
+  //     throw new Error('未找到访问令牌，无法收藏单词');
+  //   }
     
-    // 调用API收藏单词
-    const response = await fetch('http://api-test.transor.ai/priapi1/collect_my_words', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': token
-      },
-      body: Qs.stringify({
-        source_text: sourceText,
-        source_lang: sourceLang
-      })
-    });
+  //   // 调用API收藏单词
+  //   const response = await fetch('http://api-test.transor.ai/priapi1/collect_my_words', {
+  //     method: 'POST',
+  //     headers: {
+  //       'Content-Type': 'application/x-www-form-urlencoded',
+  //       'Authorization': token
+  //     },
+  //     body: Qs.stringify({
+  //       source_text: sourceText,
+  //       source_lang: sourceLang
+  //     })
+  //   });
     
-    const data = await response.json();
-    console.log('单词收藏API响应:', data);
+  //   const data = await response.json();
+  //   console.log('单词收藏API响应:', data);
     
-    if (data.code === 1) {
-      return data;
-    } else {
-      throw new Error(data.info || '收藏失败');
-    }
-  } catch (error) {
-    console.error('收藏单词时出错:', error);
-    throw error;
-  }
+  //   if (data.code === 1) {
+  //     return data;
+  //   } else {
+  //     throw new Error(data.info || '收藏失败');
+  //   }
+  // } catch (error) {
+  //   console.error('收藏单词时出错:', error);
+  //   throw error;
+  // }
 }
 
 // 初始化
@@ -594,6 +599,9 @@ async function handleBatchTranslation(texts, sourceLanguage, targetLanguage, opt
       case 'microsoft':
         translateFunction = translateWithMicrosoft;
         break;
+      case 'microsoftapi':
+        translateFunction = translateWithMicrosoftAPI;
+        break;
       case 'deepseek':
         translateFunction = translateWithDeepSeek;
         break;
@@ -849,17 +857,113 @@ async function bulkTranslateTexts(texts, sourceLanguage, targetLanguage) {
   }
 }
 
-// 使用微软翻译API
+// 使用微软翻译API (Edge翻译API)
 async function translateWithMicrosoft(texts, sourceLanguage, targetLanguage) {
   try {
-    // 获取配置
+    // 输入验证和规范化
+    const isArray = Array.isArray(texts);
+    const textArray = isArray ? texts : [texts];
+    
+    if (textArray.length === 0) {
+      return isArray ? [] : '';
+    }
+    
+    // 使用Edge翻译API
+    const url = `${TRANSLATION_CONFIG.endpoints.microsoft}/translate/translatetext?to=${targetLanguage}`;
+    
+    // 模拟Edge浏览器的请求头
+    const edgeHeaders = {
+      'accept': '*/*',
+      'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+      'content-type': 'application/json',
+      'priority': 'u=1, i',
+      'sec-ch-ua': '"Chromium";v="124", "Microsoft Edge";v="124", "Not.A/Brand";v="99"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+      'sec-fetch-dest': 'empty',
+      'sec-fetch-mode': 'cors',
+      'sec-fetch-site': 'cross-site',
+      'sec-mesh-client-arch': 'x64',
+      'sec-mesh-client-edge-channel': 'stable',
+      'sec-mesh-client-edge-version': '124.0.2478.51',
+      'sec-mesh-client-os': 'Windows',
+      'sec-mesh-client-os-version': '10.0.22621',
+      'sec-mesh-client-webview': '0',
+      'x-edge-shopping-flag': '0',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0'
+    };
+    
+    const results = [];
+    
+    // 批量处理文本
+    const batchSize = TRANSLATION_CONFIG.batchSize.default;
+    for (let i = 0; i < textArray.length; i += batchSize) {
+      const batch = textArray.slice(i, i + batchSize);
+      
+      try {
+        // 发送请求
+        console.log(`使用Edge翻译API请求批次 ${Math.floor(i/batchSize) + 1}，内容长度: ${batch.length}`);
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: edgeHeaders,
+          body: JSON.stringify(batch)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Edge翻译API请求失败: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // 从响应中提取翻译结果
+        for (const item of data) {
+          if (item.translations && item.translations.length > 0) {
+            results.push(item.translations[0].text);
+          } else {
+            // 如果没有翻译结果，使用原文
+            results.push(batch[data.indexOf(item)]);
+          }
+        }
+        
+        // 添加延迟，避免请求过于频繁
+        if (i + batchSize < textArray.length) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      } catch (error) {
+        console.error(`Edge翻译API批次处理失败:`, error);
+        
+        // 如果这个批次失败，回退到Google翻译
+        const batchResults = await translateWithGoogle(batch, sourceLanguage, targetLanguage);
+        results.push(...batchResults);
+      }
+    }
+    
+    // 返回结果
+    return isArray ? results : results[0] || '';
+  } catch (error) {
+    console.error('Edge翻译API出错:', error);
+    
+    // 出错时尝试回退到Google翻译
+    try {
+      return await translateWithGoogle(texts, sourceLanguage, targetLanguage);
+    } catch (err) {
+      // 如果Google翻译也失败，返回原文
+      return Array.isArray(texts) ? texts : texts;
+    }
+  }
+}
+
+// 使用Microsoft API进行翻译
+async function translateWithMicrosoftAPI(texts, sourceLanguage, targetLanguage) {
+  try {
+    // 获取设置
     const settings = await getSettings();
-    const apiKey = settings.apiKeys?.microsoft || TRANSLATION_CONFIG.apiKeys.microsoft;
-    const region = settings.regions?.microsoft || TRANSLATION_CONFIG.regions.microsoft;
+    const apiKey = settings.apiKeys?.microsoftapi || TRANSLATION_CONFIG.apiKeys.microsoft;
     
     if (!apiKey) {
-      console.error('未配置微软翻译API密钥');
-      throw new Error('未配置微软翻译API密钥');
+      console.error('未配置Microsoft API翻译API密钥');
+      throw new Error('未配置Microsoft API翻译API密钥');
     }
     
     // 输入验证和规范化
@@ -870,54 +974,75 @@ async function translateWithMicrosoft(texts, sourceLanguage, targetLanguage) {
       return isArray ? [] : '';
     }
     
-    // 构建请求参数
-    const url = `${TRANSLATION_CONFIG.endpoints.microsoft}?api-version=3.0`;
-    const params = [];
+    // 准备请求URL
+    const url = `${TRANSLATION_CONFIG.endpoints.microsoftapi}?api-version=3.0&from=${sourceLanguage === 'auto' ? '' : sourceLanguage}&to=${targetLanguage}`;
     
-    // 添加语言参数，'auto'需要特殊处理
-    if (sourceLanguage && sourceLanguage !== 'auto') {
-      params.push(`from=${sourceLanguage}`);
+    const results = [];
+    
+    // 批量处理文本
+    const batchSize = TRANSLATION_CONFIG.batchSize.default;
+    for (let i = 0; i < textArray.length; i += batchSize) {
+      const batch = textArray.slice(i, i + batchSize);
+      
+      try {
+        // 准备请求内容
+        const requestBody = batch.map(text => ({ text }));
+        
+        // 发送请求
+        console.log(`使用Microsoft API翻译请求批次 ${Math.floor(i/batchSize) + 1}，内容长度: ${batch.length}`);
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Ocp-Apim-Subscription-Key': apiKey,
+            'Ocp-Apim-Subscription-Region': 'eastasia'
+          },
+          body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Microsoft API请求失败: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // 从响应中提取翻译结果
+        for (let j = 0; j < data.length; j++) {
+          const item = data[j];
+          if (item.translations && item.translations.length > 0) {
+            results.push(item.translations[0].text);
+          } else {
+            // 如果没有翻译结果，使用原文
+            results.push(batch[j]);
+          }
+        }
+        
+        // 添加延迟，避免请求过于频繁
+        if (i + batchSize < textArray.length) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      } catch (error) {
+        console.error(`Microsoft API批次处理失败:`, error);
+        
+        // 如果这个批次失败，回退到Google翻译
+        const batchResults = await translateWithGoogle(batch, sourceLanguage, targetLanguage);
+        results.push(...batchResults);
+      }
     }
     
-    if (targetLanguage) {
-      params.push(`to=${targetLanguage}`);
-    }
-    
-    const fullUrl = params.length > 0 ? `${url}&${params.join('&')}` : url;
-    
-    // 准备请求数据
-    const body = textArray.map(text => ({ Text: text.trim() }));
-    
-    // 发送请求
-    const response = await fetch(fullUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Ocp-Apim-Subscription-Key': apiKey,
-        'Ocp-Apim-Subscription-Region': region
-      },
-      body: JSON.stringify(body)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`微软翻译API请求失败: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    // 处理响应
-    const translations = data.map(item => 
-      item.translations && item.translations.length > 0 
-        ? item.translations[0].text 
-        : ''
-    );
-    
-    // 根据输入类型返回结果
-    return isArray ? translations : translations[0] || '';
+    // 返回结果
+    return isArray ? results : results[0] || '';
   } catch (error) {
-    console.error('微软翻译出错:', error);
-    // 出错时返回原文
-    return Array.isArray(texts) ? texts : texts;
+    console.error('Microsoft API出错:', error);
+    
+    // 出错时尝试回退到Google翻译
+    try {
+      return await translateWithGoogle(texts, sourceLanguage, targetLanguage);
+    } catch (err) {
+      // 如果Google翻译也失败，返回原文
+      return Array.isArray(texts) ? texts : texts;
+    }
   }
 }
 
@@ -1368,6 +1493,73 @@ async function handleImageUrlOCR(imageUrl, sourceLanguage = 'auto') {
   }
 }
 
+// 监听语言变化，确保跨页面同步
+chrome.storage.onChanged.addListener(function(changes, namespace) {
+  if (namespace === 'local' && changes['transor-ui-language']) {
+    const newLanguage = changes['transor-ui-language'].newValue;
+    console.log('后台脚本检测到界面语言变化:', newLanguage);
+    
+    // 安全地广播消息给所有打开的页面
+    chrome.tabs.query({}, function(tabs) {
+      tabs.forEach(function(tab) {
+        try {
+          // 使用更安全的消息发送模式，添加错误处理
+          chrome.tabs.sendMessage(
+            tab.id, 
+            { action: 'language-changed', language: newLanguage },
+            function() {
+              // 忽略错误，这里不处理任何返回
+              const lastError = chrome.runtime.lastError;
+              if (lastError) {
+                // 这里只需要访问lastError以防止错误显示在控制台
+                // 实际不需要做任何处理
+              }
+            }
+          );
+        } catch (e) {
+          // 忽略错误
+          console.log('向标签页发送消息失败，可能是页面未加载完成:', tab.id);
+        }
+      });
+    });
+    
+    // 尝试向其他扩展页面广播消息
+    try {
+      chrome.runtime.sendMessage(
+        { action: 'language-changed', language: newLanguage },
+        function() {
+          // 忽略错误
+          const lastError = chrome.runtime.lastError;
+          if (lastError) {
+            // 这里只需要访问lastError以防止错误显示在控制台
+          }
+        }
+      );
+    } catch (e) {
+      console.log('广播语言变更消息失败:', e.message);
+    }
+  }
+});
+
+// 监听来自其他页面的语言变更请求
+chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+  if (message.action === 'set-language') {
+    console.log('收到语言设置请求:', message.language);
+    
+    // 保存到本地存储以确保跨页面同步
+    chrome.storage.local.set({ 'transor-ui-language': message.language }, function() {
+      console.log('语言设置已保存到storage:', message.language);
+      try {
+        sendResponse({ success: true });
+      } catch (e) {
+        console.log('发送响应失败，可能连接已关闭:', e.message);
+      }
+    });
+    
+    // 返回true表示将异步发送响应
+    return true;
+  }
+});
+
 // 初始化扩展
-init(); 
 init(); 

@@ -150,7 +150,7 @@ function translatePage() {
 chrome.storage.onChanged.addListener(function(changes, namespace) {
   if (namespace === 'local' && (changes.authToken || changes.userInfo)) {
     console.log('检测到登录状态变化，更新UI');
-    checkLoginStatus();
+    // checkLoginStatus();
   }
   
   // 检测界面语言变化
@@ -162,7 +162,7 @@ chrome.storage.onChanged.addListener(function(changes, namespace) {
       window.i18n.setLanguage(newLanguage);
       translatePage();
       // 语言切换后重新检查登录状态
-      checkLoginStatus();
+      // checkLoginStatus();
     }
   }
   
@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', function() {
       translatePage();
       
       // 翻译完成后检查登录状态
-      checkLoginStatus();
+      // checkLoginStatus();
     } else {
       console.error('i18n脚本未加载，将使用默认语言');
       // 如果i18n尚未加载，设置一个短暂的延迟再次尝试

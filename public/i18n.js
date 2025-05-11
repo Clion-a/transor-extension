@@ -79,7 +79,7 @@ const i18n = {
     'display_type': 'Display Type:',
     'ui_language': 'Interface Language:',
     'translation_toggle': 'Translation Toggle',
-    'toggle_translation': 'Enable/Disable Translation (⌥A)',
+    'toggle_translation': 'Enable/Disable Translation',
     'advanced_settings': 'Advanced Settings',
     
     // Language options
@@ -195,7 +195,7 @@ const i18n = {
     'display_type': '표시 유형:',
     'ui_language': '인터페이스 언어:',
     'translation_toggle': '번역 토글',
-    'toggle_translation': '번역 켜기/끄기 (⌥A)',
+    'toggle_translation': '번역 켜기/끄기',
     'advanced_settings': '고급 설정',
     
     // 언어 옵션
