@@ -158,7 +158,7 @@ function createTranslatorUI(imageUrl) {
     <div class="transor-image-translator">
       <div class="translator-header">
         <h3>图片文字翻译</h3>
-        <button id="close-translator" class="translator-close-btn">×</button>
+        <button id="close-translator" class="translator-close-btn" title="关闭">×</button>
       </div>
       
       <div class="translator-body">
@@ -279,30 +279,36 @@ function createTranslatorStyles() {
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: rgba(0, 0, 0, 0.6);
+      background-color: rgba(0, 0, 0, 0.7);
       z-index: 9999999;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-family: 'Arial', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
     
     .transor-image-translator {
       width: 95%;
       max-width: 1000px;
       background-color: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.25);
       overflow: hidden;
       display: flex;
       flex-direction: column;
       max-height: 90vh;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     
     .translator-header {
       padding: 15px 20px;
-      background-color: #f5f5f5;
-      border-bottom: 1px solid #ddd;
+      background-color: #3498db;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -311,23 +317,26 @@ function createTranslatorStyles() {
     .translator-header h3 {
       margin: 0;
       font-size: 16px;
-      color: #333;
+      color: white;
+      font-weight: 500;
     }
     
     .translator-close-btn {
       background: none;
       border: none;
-      font-size: 24px;
-      color: #888;
+      font-size: 22px;
+      color: white;
       cursor: pointer;
+      opacity: 0.8;
+      transition: opacity 0.2s;
     }
     
     .translator-close-btn:hover {
-      color: #333;
+      opacity: 1;
     }
     
     .translator-body {
-      padding: 15px 20px;
+      padding: 20px;
       flex: 1;
       overflow-y: auto;
       max-height: 80vh;
@@ -344,11 +353,16 @@ function createTranslatorStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 4px;
-      border: 1px solid #ddd;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
       background-color: #f9f9f9;
       max-height: 100%;
       overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    
+    .image-preview-container:hover {
+      border-color: #3498db;
     }
     
     .text-sections-container {
@@ -367,26 +381,35 @@ function createTranslatorStyles() {
     }
     
     .translator-section {
-      border: 1px solid #eee;
-      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
       flex: 1;
       display: flex;
       flex-direction: column;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    
+    .translator-section:hover {
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+      border-color: #bbb;
     }
     
     .section-header {
-      padding: 10px 15px;
-      background-color: #f8f8f8;
-      border-bottom: 1px solid #eee;
+      padding: 12px 16px;
+      background-color: #f5f7f9;
+      border-bottom: 1px solid #e0e0e0;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-radius: 6px 6px 0 0;
     }
     
     .section-header h4 {
       margin: 0;
       font-size: 14px;
       color: #555;
+      font-weight: 500;
     }
     
     .section-actions {
@@ -395,17 +418,20 @@ function createTranslatorStyles() {
     }
     
     .translator-action-btn {
-      background-color: #f0f0f0;
-      border: 1px solid #ddd;
-      border-radius: 3px;
-      padding: 3px 8px;
+      background-color: #f5f5f5;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 5px 10px;
       font-size: 12px;
       cursor: pointer;
-      color: #666;
+      color: #555;
+      transition: all 0.2s;
     }
     
     .translator-action-btn:hover {
-      background-color: #e5e5e5;
+      background-color: #3498db;
+      border-color: #3498db;
+      color: white;
     }
     
     .text-content {
@@ -418,18 +444,19 @@ function createTranslatorStyles() {
       overflow-wrap: break-word;
       color: #333;
       font-size: 14px;
+      margin: 0;
     }
     
     .translator-footer {
-      padding: 10px 20px;
-      background-color: #f9f9f9;
-      border-top: 1px solid #eee;
+      padding: 12px 20px;
+      background-color: #f5f7f9;
+      border-top: 1px solid #e0e0e0;
+      text-align: center;
     }
     
     .status-message {
       font-size: 13px;
       color: #666;
-      text-align: center;
     }
     
     /* 响应式布局 */

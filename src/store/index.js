@@ -14,10 +14,13 @@ export default new Vuex.Store({
     excludedClasses: ['no-translate'],
     excludedUrls: [],
     customCss: '',
+    openaiModel: 'gpt-3.5-turbo',
+    enableInputSpaceTranslation: true,
     apiKeys: {
       microsoftapi: '',
       microsoft: '',
-      deepseek: ''
+      deepseek: '',
+      openai: ''
     }
   },
   mutations: {
@@ -48,6 +51,12 @@ export default new Vuex.Store({
     setCustomCss(state, css) {
       state.customCss = css
     },
+    setOpenaiModel(state, model) {
+      state.openaiModel = model
+    },
+    setEnableInputSpaceTranslation(state, enabled) {
+      state.enableInputSpaceTranslation = enabled
+    },
     setApiKey(state, { type, key }) {
       if (!state.apiKeys) {
         state.apiKeys = {}
@@ -71,6 +80,8 @@ export default new Vuex.Store({
           if (result.excludedClasses) commit('setExcludedClasses', result.excludedClasses)
           if (result.excludedUrls) commit('setExcludedUrls', result.excludedUrls)
           if (result.customCss) commit('setCustomCss', result.customCss)
+          if (result.openaiModel) commit('setOpenaiModel', result.openaiModel)
+          if (result.enableInputSpaceTranslation !== undefined) commit('setEnableInputSpaceTranslation', result.enableInputSpaceTranslation)
           if (result.apiKeys) commit('setApiKeys', result.apiKeys)
           resolve()
         })
@@ -87,6 +98,8 @@ export default new Vuex.Store({
         excludedClasses: state.excludedClasses,
         excludedUrls: state.excludedUrls,
         customCss: state.customCss,
+        openaiModel: state.openaiModel,
+        enableInputSpaceTranslation: state.enableInputSpaceTranslation,
         apiKeys: state.apiKeys
       })
       
@@ -106,6 +119,15 @@ export default new Vuex.Store({
           action: 'setApiKey',
           type: 'deepseek',
           key: state.apiKeys.deepseek
+        })
+      }
+      
+      // 向background.js发送OpenAI API密钥更新消息
+      if (state.apiKeys && state.apiKeys.openai) {
+        chrome.runtime.sendMessage({
+          action: 'setApiKey',
+          type: 'openai',
+          key: state.apiKeys.openai
         })
       }
     },

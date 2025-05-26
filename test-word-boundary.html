@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单词边界高亮测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        .test-section h3 {
+            color: #ff5588;
+            margin-top: 0;
+        }
+        .test-text {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        .control-panel {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .test-button {
+            background: #ff5588;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #369870;
+        }
+        .expected {
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+        }
+        .word-example {
+            display: inline-block;
+            margin: 5px;
+            padding: 3px 8px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 3px;
+        }
+        .should-highlight {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .should-not-highlight {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>单词边界高亮测试</h1>
+        
+        <div class="control-panel">
+            <h3>测试控制</h3>
+            <p>点击下面的按钮来测试不同单词的高亮效果：</p>
+            <button class="test-button" onclick="testWord('trade')">测试 "trade"</button>
+            <button class="test-button" onclick="testWord('cat')">测试 "cat"</button>
+            <button class="test-button" onclick="testWord('test')">测试 "test"</button>
+            <button class="test-button" onclick="testWord('run')">测试 "run"</button>
+            <button class="test-button" onclick="clearAllHighlights()">清除高亮</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Trade 相关测试</h3>
+            <div class="expected">
+                <strong>预期结果：</strong>
+                <span class="word-example should-highlight">trade</span> 应该被高亮，
+                <span class="word-example should-not-highlight">trading</span>、
+                <span class="word-example should-not-highlight">traded</span>、
+                <span class="word-example should-not-highlight">trader</span> 不应该被高亮
+            </div>
+            <div class="test-text">
+                <p>I want to trade my old car for a new one.</p>
+                <p>He is trading stocks on the market.</p>
+                <p>She traded her bicycle yesterday.</p>
+                <p>The trader made a good profit.</p>
+                <p>International trade is important for the economy.</p>
+                <p>They are involved in the trading business.</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Cat 相关测试</h3>
+            <div class="expected">
+                <strong>预期结果：</strong>
+                <span class="word-example should-highlight">cat</span> 应该被高亮，
+                <span class="word-example should-not-highlight">catch</span>、
+                <span class="word-example should-not-highlight">category</span>、
+                <span class="word-example should-not-highlight">catalog</span> 不应该被高亮
+            </div>
+            <div class="test-text">
+                <p>The cat is sleeping on the sofa.</p>
+                <p>I need to catch the bus.</p>
+                <p>This belongs to the sports category.</p>
+                <p>Please check the product catalog.</p>
+                <p>My cat loves to play with toys.</p>
+                <p>The catalog contains many items.</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 相关测试</h3>
+            <div class="expected">
+                <strong>预期结果：</strong>
+                <span class="word-example should-highlight">test</span> 应该被高亮，
+                <span class="word-example should-not-highlight">testing</span>、
+                <span class="word-example should-not-highlight">tested</span>、
+                <span class="word-example should-not-highlight">contest</span> 不应该被高亮
+            </div>
+            <div class="test-text">
+                <p>This is a simple test for the feature.</p>
+                <p>We are testing the new system.</p>
+                <p>The software was tested thoroughly.</p>
+                <p>She won the singing contest.</p>
+                <p>The test results were positive.</p>
+                <p>Testing is an important part of development.</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Run 相关测试</h3>
+            <div class="expected">
+                <strong>预期结果：</strong>
+                <span class="word-example should-highlight">run</span> 应该被高亮，
+                <span class="word-example should-not-highlight">running</span>、
+                <span class="word-example should-not-highlight">runner</span>、
+                <span class="word-example should-not-highlight">runtime</span> 不应该被高亮
+            </div>
+            <div class="test-text">
+                <p>I like to run in the morning.</p>
+                <p>She is running a marathon.</p>
+                <p>The runner crossed the finish line.</p>
+                <p>The runtime error needs to be fixed.</p>
+                <p>Let's run this program.</p>
+                <p>Running is good exercise.</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>混合测试</h3>
+            <div class="test-text">
+                <p>The cat likes to run and play. We can test this by trading some toys.</p>
+                <p>Trading cats is not allowed, but testing cat behavior is interesting.</p>
+                <p>A runner might trade their running shoes for better ones.</p>
+                <p>The test showed that the cat can run very fast.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function testWord(word) {
+            console.log(`测试单词: ${word}`);
+            
+            // 首先清除现有高亮
+            clearAllHighlights();
+            
+            // 等待一下再添加新的高亮
+            setTimeout(() => {
+                if (window.TransorHighlighter) {
+                    try {
+                        window.TransorHighlighter.highlightNew(word);
+                        console.log(`已触发 "${word}" 的高亮`);
+                        
+                        // 显示测试结果
+                        showTestResult(word);
+                    } catch (error) {
+                        console.error(`测试 "${word}" 高亮失败:`, error);
+                        alert(`测试失败: ${error.message}`);
+                    }
+                } else {
+                    alert('TransorHighlighter 不可用，请确保扩展已正确加载');
+                }
+            }, 100);
+        }
+
+        function clearAllHighlights() {
+            const instance = window.TransorHighlighter?.getInstance();
+            if (instance && typeof instance.clearAllHighlights === 'function') {
+                try {
+                    instance.clearAllHighlights();
+                    console.log('已清除所有高亮');
+                } catch (error) {
+                    console.error('清除高亮失败:', error);
+                }
+            }
+        }
+
+        function showTestResult(word) {
+            // 检查高亮结果
+            setTimeout(() => {
+                const highlightedElements = document.querySelectorAll('.transor-favorite-highlight');
+                console.log(`找到 ${highlightedElements.length} 个高亮元素`);
+                
+                const highlightedTexts = Array.from(highlightedElements).map(el => el.textContent);
+                console.log('高亮的文本:', highlightedTexts);
+                
+                // 验证是否只高亮了完整单词
+                const isCorrect = highlightedTexts.every(text => text.toLowerCase() === word.toLowerCase());
+                
+                if (isCorrect) {
+                    console.log(`✅ 测试通过: 只有完整单词 "${word}" 被高亮`);
+                } else {
+                    console.log(`❌ 测试失败: 发现了部分匹配的高亮`);
+                }
+            }, 500);
+        }
+
+        // 页面加载完成后的初始化
+        setTimeout(() => {
+            if (typeof window.TransorHighlighter !== 'undefined') {
+                console.log('✅ TransorHighlighter 已加载');
+            } else {
+                console.log('❌ TransorHighlighter 未加载');
+                alert('扩展未正确加载，请刷新页面或检查扩展状态');
+            }
+        }, 2000);
+
+        console.log('单词边界测试页面已加载');
+    </script>
+</body>
+</html> 

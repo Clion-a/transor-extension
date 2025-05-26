@@ -22,6 +22,13 @@ const i18n = {
     'translation_toggle': '翻译开关',
     'toggle_translation': '开启/关闭翻译',
     'advanced_settings': '高级设置',
+    'openai_api_key': 'OpenAI API密钥',
+    'enter_openai_api_key': '请输入你的OpenAI API密钥',
+    'openai_model': 'OpenAI模型',
+    'deepseek_api_key': 'DeepSeek API密钥',
+    'enter_deepseek_api_key': '请输入你的DeepSeek API密钥',
+    'input_triple_space_tip': '小技巧：在任意输入框中输入文本后，连续敲击三个空格可以立即翻译文本。按ESC键可取消翻译。',
+    'input_space_translation_toggle': '输入框空格翻译',
     
     // 语言选项
     'auto_detect': '自动检测',
@@ -39,6 +46,7 @@ const i18n = {
     'replace': '替换(直接替换原文)',
     'bilingual_above': '双语(原文上方显示译文)',
     'bilingual_below': '双语(原文下方显示译文)',
+    'inline': '双语(原文后方显示译文)',
     'hover': '悬浮(鼠标悬停显示译文)',
     'tip': '导航提示(适合菜单和小元素)',
     
@@ -81,6 +89,13 @@ const i18n = {
     'translation_toggle': 'Translation Toggle',
     'toggle_translation': 'Enable/Disable Translation',
     'advanced_settings': 'Advanced Settings',
+    'openai_api_key': 'OpenAI API Key',
+    'enter_openai_api_key': 'Enter your OpenAI API Key',
+    'openai_model': 'OpenAI Model',
+    'deepseek_api_key': 'DeepSeek API Key',
+    'enter_deepseek_api_key': 'Enter your DeepSeek API Key',
+    'input_triple_space_tip': 'Tip: In any input field, after typing text, press space three times in a row to instantly translate the text. Press ESC to cancel translation.',
+    'input_space_translation_toggle': 'Input Space Translation',
     
     // Language options
     'auto_detect': 'Auto Detect',
@@ -98,6 +113,7 @@ const i18n = {
     'replace': 'Replace (Direct Replacement)',
     'bilingual_above': 'Bilingual (Translation Above)',
     'bilingual_below': 'Bilingual (Translation Below)',
+    'inline': 'Bilingual (Translation after Original)',
     'hover': 'Hover (Show on Mouse Over)',
     'tip': 'Navigation Tip (For Menus)',
     
@@ -128,6 +144,7 @@ const i18n = {
     },
     
     // 主な機能
+    'favorites_label': '単語帳',
     'open_favorites': '英語学習のお気に入りを開く',
     
     // 翻訳設定
@@ -139,6 +156,13 @@ const i18n = {
     'translation_toggle': '翻訳切り替え',
     'toggle_translation': '翻訳のオン/オフ（⌥A）',
     'advanced_settings': '詳細設定',
+    'openai_api_key': 'OpenAI APIキー',
+    'enter_openai_api_key': 'OpenAI APIキーを入力してください',
+    'openai_model': 'OpenAIモデル',
+    'deepseek_api_key': 'DeepSeek APIキー',
+    'enter_deepseek_api_key': 'DeepSeek APIキーを入力してください',
+    'input_triple_space_tip': 'ヒント：任意の入力フィールドでテキストを入力した後、スペースを3回連続で押すと即座にテキストが翻訳されます。ESCキーを押すとキャンセルできます。',
+    'input_space_translation_toggle': '入力スペース翻訳',
     
     // 言語オプション
     'auto_detect': '自動検出',
@@ -156,6 +180,7 @@ const i18n = {
     'replace': '置換（直接置換）',
     'bilingual_above': '二言語（翻訳を上に表示）',
     'bilingual_below': '二言語（翻訳を下に表示）',
+    'inline': '二言語（原文の後に翻訳を表示）',
     'hover': 'ホバー（マウスオーバーで表示）',
     'tip': 'ナビゲーションヒント（メニュー用）',
     
@@ -186,6 +211,7 @@ const i18n = {
     },
     
     // 주요 기능
+    'favorites_label': '단어장',
     'open_favorites': '영어 학습 즐겨찾기 열기',
     
     // 번역 설정
@@ -197,6 +223,13 @@ const i18n = {
     'translation_toggle': '번역 토글',
     'toggle_translation': '번역 켜기/끄기',
     'advanced_settings': '고급 설정',
+    'openai_api_key': 'OpenAI API 키',
+    'enter_openai_api_key': 'OpenAI API 키를 입력하세요',
+    'openai_model': 'OpenAI 모델',
+    'deepseek_api_key': 'DeepSeek API 키',
+    'enter_deepseek_api_key': 'DeepSeek API 키를 입력하세요',
+    'input_triple_space_tip': '팁: 텍스트 입력 후 스페이스 키를 연속 세 번 누르면 즉시 번역됩니다. ESC 키를 누르면 번역이 취소됩니다.',
+    'input_space_translation_toggle': '입력 공간 번역',
     
     // 언어 옵션
     'auto_detect': '자동 감지',
@@ -214,6 +247,7 @@ const i18n = {
     'replace': '대체 (직접 대체)',
     'bilingual_above': '이중 언어 (번역문 위)',
     'bilingual_below': '이중 언어 (번역문 아래)',
+    'inline': '이중 언어 (원문 뒤에 번역문)',
     'hover': '호버 (마우스 오버시 표시)',
     'tip': '내비게이션 팁 (메뉴용)',
     

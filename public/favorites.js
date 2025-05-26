@@ -25,11 +25,34 @@ document.addEventListener('DOMContentLoaded', function() {
   // 加载收藏数据
   function loadFavorites() {
     console.log('开始加载收藏数据...');
+    
+    if (window.TransorStorageManager) {
+      // 使用新的存储管理器
+      window.TransorStorageManager.loadFavorites()
+        .then(favorites => {
+          allFavorites = favorites.sort((a, b) => b.timestamp - a.timestamp);
+          console.log(`✅ 通过存储管理器加载了 ${allFavorites.length} 条收藏数据`);
+          renderFavorites();
+        })
+        .catch(error => {
+          console.error('加载收藏数据失败:', error);
+          // 降级到原有方式
+          loadFavoritesLegacy();
+        });
+    } else {
+      // 降级到原有方式
+      console.warn('存储管理器不可用，使用原有方式');
+      loadFavoritesLegacy();
+    }
+  }
+  
+  // 原有的加载方式（作为降级方案）
+  function loadFavoritesLegacy() {
     chrome.storage.sync.get('transorFavorites', function(result) {
       console.log('收藏数据:', result);
       const favorites = result.transorFavorites || [];
       allFavorites = favorites.sort((a, b) => b.timestamp - a.timestamp);
-      console.log('排序后的收藏数据:', allFavorites.length, '条');
+      console.log('通过原有方式加载收藏数据:', allFavorites.length, '条');
       renderFavorites();
     });
   }
@@ -235,16 +258,44 @@ document.addEventListener('DOMContentLoaded', function() {
   function deleteFavorite(id) {
     const confirmMessage = window.i18n ? window.i18n.t('confirm_delete') : '确定要删除这条收藏吗？';
     if (confirm(confirmMessage)) {
-      chrome.storage.sync.get('transorFavorites', function(result) {
-        let favorites = result.transorFavorites || [];
-        favorites = favorites.filter(f => f.timestamp != id);
-        
-        chrome.storage.sync.set({ transorFavorites: favorites }, function() {
-          allFavorites = favorites;
-          renderFavorites();
-        });
-      });
+      if (window.TransorStorageManager) {
+        // 使用新的存储管理器
+        window.TransorStorageManager.deleteFavorite(parseInt(id))
+          .then(result => {
+            if (result.success) {
+              console.log('✅ 删除收藏成功');
+              // 重新加载数据
+              loadFavorites();
+            } else {
+              console.error('删除收藏失败:', result.error);
+              // 降级到原有方式
+              deleteFavoriteLegacy(id);
+            }
+          })
+          .catch(error => {
+            console.error('删除收藏异常:', error);
+            // 降级到原有方式
+            deleteFavoriteLegacy(id);
+          });
+      } else {
+        // 降级到原有方式
+        console.warn('存储管理器不可用，使用原有方式');
+        deleteFavoriteLegacy(id);
+      }
     }
+  }
+  
+  // 原有的删除方式（作为降级方案）
+  function deleteFavoriteLegacy(id) {
+    chrome.storage.sync.get('transorFavorites', function(result) {
+      let favorites = result.transorFavorites || [];
+      favorites = favorites.filter(f => f.timestamp != id);
+      
+      chrome.storage.sync.set({ transorFavorites: favorites }, function() {
+        allFavorites = favorites;
+        renderFavorites();
+      });
+    });
   }
   
   // HTML转义函数

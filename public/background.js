@@ -54,12 +54,14 @@ const defaultSettings = {
   excludedClasses: ['no-translate'],
   excludedUrls: [],
   customCss: '',
-  translationEngine: 'microsoftapi',  // 翻译引擎: google, microsoft, microsoftapi, deepseek
+  translationEngine: 'microsoftapi',  // 翻译引擎: google, microsoft, microsoftapi, deepseek, openai
+  openaiModel: 'gpt-3.5-turbo', // OpenAI模型选择
   // API密钥配置
   apiKeys: {
     // microsoft: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // 微软翻译API密钥
     microsoftapi: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // Microsoft API翻译API密钥
-    deepseek: ''    // DeepSeek翻译API密钥
+    deepseek: '',    // DeepSeek翻译API密钥
+    openai: ''       // OpenAI翻译API密钥
   },
   // 区域配置
   regions: {
@@ -88,7 +90,8 @@ const TRANSLATION_CONFIG = {
     google: 'https://translate.googleapis.com/translate_a/single',
     microsoft: 'https://edge.microsoft.com',
     microsoftapi: 'https://api.cognitive.microsofttranslator.com/translate',
-    deepseek: 'https://api.deepseek.com/chat/completions'
+    deepseek: 'https://api.deepseek.com/chat/completions',
+    openai: 'https://api.openai.com/v1/chat/completions'
   },
   // 翻译批次大小
   batchSize: {
@@ -105,6 +108,7 @@ const TRANSLATION_CONFIG = {
     // microsoft: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // 微软翻译API密钥
     microsoftapi: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // Microsoft API翻译API密钥
     deepseek: '',    // DeepSeek翻译API密钥
+    openai: '',      // OpenAI翻译API密钥
   },
   // 区域配置
   regions: {
@@ -298,44 +302,10 @@ const UI = {
 };
 
 // 收藏单词到服务器
-async function collectWord( sourceText, sourceLang ) {
-  // 注意：此功能当前已被注释掉，等待后续实现
-  // try {
-  //   // 获取认证令牌
-  //   const result = await new Promise((resolve) => {
-  //     chrome.storage.local.get(['authToken'], resolve);
-  //   });
-  //   
-  //   const token = result.authToken;
-  //   if (!token) {
-  //     throw new Error('未找到访问令牌，无法收藏单词');
-  //   }
-  //   
-  //   // 调用API收藏单词
-  //   const response = await fetch('http://api-test.transor.ai/priapi1/collect_my_words', {
-  //     method: 'POST',
-  //     headers: {
-  //       'Content-Type': 'application/x-www-form-urlencoded',
-  //       'Authorization': token
-  //     },
-  //     body: Qs.stringify({
-  //       source_text: sourceText,
-  //       source_lang: sourceLang
-  //     })
-  //   });
-  //   
-  //   const data = await response.json();
-  //   console.log('单词收藏API响应:', data);
-  //   
-  //   if (data.code === 1) {
-  //     return data;
-  //   } else {
-  //     throw new Error(data.info || '收藏失败');
-  //   }
-  // } catch (error) {
-  //   console.error('收藏单词时出错:', error);
-  //   throw error;
-  // }
+async function collectWord() {
+  // 暂未实现，未来版本将添加此功能
+  console.log('收藏单词功能尚未实现');
+  return { success: false, message: '功能尚未实现' };
 }
 
 // 初始化
@@ -442,6 +412,41 @@ function handleMessage(message, sender, sendResponse) {
       collectWord(message.source_text, message.source_lang)
         .then(result => sendResponse({ success: true, data: result }))
         .catch(error => sendResponse({ success: false, error: error.message }));
+      return true;
+    },
+    
+    // 获取词典数据
+    fetchDictionary: () => {
+      const word = message.word;
+      const sourceLang = message.sourceLang || 'auto';
+      const targetLang = message.targetLang || 'zh-CN';
+      const timestamp = message.timestamp || Date.now(); // 获取时间戳，用于避免缓存
+      
+      console.log(`获取词典数据: ${word}, 源语言: ${sourceLang}, 目标语言: ${targetLang}, 时间戳: ${timestamp}`);
+      
+      // 将时间戳传递给fetchDictionaryData
+      fetchDictionaryData(word, sourceLang, targetLang, timestamp)
+        .then(result => {
+          // 确保扩展上下文有效再发送响应
+          if (chrome.runtime.id) {
+            // 添加时间戳和单词到响应中，便于调试
+            result.timestamp = timestamp;
+            result.queriedWord = word;
+            sendResponse(result);
+          }
+        })
+        .catch(error => {
+          console.error('获取词典数据失败:', error);
+          // 确保扩展上下文有效再发送响应
+          if (chrome.runtime.id) {
+            sendResponse({ 
+              success: false, 
+              error: error.message || '获取词典数据失败',
+              timestamp: timestamp,
+              queriedWord: word
+            });
+          }
+        });
       return true;
     },
     
@@ -672,6 +677,9 @@ async function handleBatchTranslation(texts, sourceLanguage, targetLanguage, opt
         break;
       case 'deepseek':
         translateFunction = translateWithDeepSeek;
+        break;
+      case 'openai':
+        translateFunction = translateWithOpenAI;
         break;
       case 'google':
       default:
@@ -1872,5 +1880,879 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   }
 });
 
+// 添加使用OpenAI进行翻译的函数
+// 使用OpenAI API进行翻译
+async function translateWithOpenAI(texts, sourceLanguage, targetLanguage) {
+  try {
+    // 获取配置
+    const settings = await getSettings();
+    const apiKey = settings.apiKeys?.openai || TRANSLATION_CONFIG.apiKeys.openai;
+    const modelName = settings.openaiModel || 'gpt-3.5-turbo';
+    
+    if (!apiKey) {
+      console.error('未配置OpenAI翻译API密钥');
+      throw new Error('未配置OpenAI翻译API密钥');
+    }
+    
+    // 输入验证和规范化
+    const isArray = Array.isArray(texts);
+    const textArray = isArray ? texts : [texts];
+    
+    if (textArray.length === 0) {
+      return isArray ? [] : '';
+    }
+    
+    // 批量优化处理
+    console.log(`OpenAI翻译开始处理${textArray.length}条文本，使用模型: ${modelName}`);
+    
+    // 预处理：过滤空文本，直接加入结果
+    const nonEmptyTexts = [];
+    const nonEmptyIndices = [];
+    const batchResults = new Array(textArray.length); // 预先分配足够空间
+    
+    // 首先过滤出所有非空文本和它们的原始索引
+    for (let i = 0; i < textArray.length; i++) {
+      const text = textArray[i];
+      if (!text || text.trim() === '') {
+        batchResults[i] = text; // 空文本直接保留
+      } else {
+        nonEmptyTexts.push(text);
+        nonEmptyIndices.push(i);
+      }
+    }
+    
+    if (nonEmptyTexts.length === 0) {
+      console.log('没有需要翻译的非空文本');
+      return isArray ? batchResults : batchResults[0] || '';
+    }
+    
+    // 进一步分类：长文本单独处理，短文本合并处理
+    const smallTexts = [];
+    const smallIndices = [];
+    const largeTexts = [];
+    const largeIndices = [];
+    const maxSingleTextChars = 800; // 最大单文本字符数
+    
+    // 分类文本
+    for (let i = 0; i < nonEmptyTexts.length; i++) {
+      const text = nonEmptyTexts[i];
+      const originalIndex = nonEmptyIndices[i];
+      
+      if (text.length > maxSingleTextChars) {
+        largeTexts.push(text);
+        largeIndices.push(originalIndex);
+      } else {
+        smallTexts.push(text);
+        smallIndices.push(originalIndex);
+      }
+    }
+    
+    console.log(`文本分类: ${smallTexts.length}条短文本, ${largeTexts.length}条长文本`);
+    
+    // 处理短文本：合并成更大的批次
+    if (smallTexts.length > 0) {
+      // 使用更加独特复杂的分隔符，确保不会出现在正常文本中
+      const DELIMITER = "\n##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n";
+      
+      // 最大批次大小
+      const maxBatchSize = 15; // 调整为更合理的批次大小，避免过大
+      const maxBatchChars = 2000; // 调整批次字符限制，避免过大请求
+      
+      // 创建批次
+      const batches = [];
+      const batchIndices = [];
+      let currentBatch = [];
+      let currentIndices = [];
+      let currentBatchChars = 0;
+      
+      for (let i = 0; i < smallTexts.length; i++) {
+        const text = smallTexts[i];
+        const originalIndex = smallIndices[i];
+        
+        // 如果添加当前文本会超出批次限制，先保存当前批次
+        if (currentBatch.length >= maxBatchSize || 
+            currentBatchChars + text.length + DELIMITER.length > maxBatchChars) {
+          if (currentBatch.length > 0) {
+            batches.push([...currentBatch]);
+            batchIndices.push([...currentIndices]);
+            currentBatch = [];
+            currentIndices = [];
+            currentBatchChars = 0;
+          }
+        }
+        
+        // 添加到当前批次
+        currentBatch.push(text);
+        currentIndices.push(originalIndex);
+        currentBatchChars += text.length + DELIMITER.length;
+      }
+      
+      // 添加最后一个批次
+      if (currentBatch.length > 0) {
+        batches.push([...currentBatch]);
+        batchIndices.push([...currentIndices]);
+      }
+      
+      console.log(`短文本分为${batches.length}个批次，准备并行处理所有批次`);
+      
+      // 清理分隔符的函数
+      const cleanDelimiters = (text) => {
+        if (!text) return '';
+        // 移除我们的专用分隔符
+        let cleaned = text.replace(/\n?##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n?/g, '');
+        // 移除可能残留的<====TRANSOR_SPLIT====>分隔符
+        cleaned = cleaned.replace(/<====TRANSOR_SPLIT====>\s*/g, '');
+        return cleaned.trim();
+      };
+      
+      // 并行处理所有批次
+      const batchPromises = batches.map(async (batch, batchIndex) => {
+        const indices = batchIndices[batchIndex];
+        console.log(`开始处理短文本批次 ${batchIndex+1}/${batches.length}，条目数: ${batch.length}`);
+        
+        try {
+          // 合并文本并添加分隔符
+          const combinedText = batch.join(DELIMITER);
+          
+          // 翻译合并文本
+          const requestBody = {
+            model: modelName,
+            messages: [
+              {
+                role: "system",
+                content: "你是一个专业的翻译助手，请将提供的文本准确翻译，保留原始分隔符。不要添加任何解释或评论。"
+              },
+              {
+                role: "user",
+                content: `请将以下${sourceLanguage === 'auto' ? '文本' : sourceLanguage + '文本'}翻译成${targetLanguage}。
+请注意：文本之间用分隔符"##===@@TRANSOR__INTERNAL__DELIMITER@@===##"隔开，这不是文本内容的一部分，请在翻译时保留这些分隔符，但不要翻译分隔符本身。
+这样我可以根据分隔符将翻译结果分割回多段。
+
+原文:
+${combinedText}`,
+              },
+            ],
+            temperature: 0.3, // 较低的温度值，保证翻译准确性
+          };
+          
+          const response = await fetch(TRANSLATION_CONFIG.endpoints.openai, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(requestBody)
+          });
+          
+          if (!response.ok) {
+            throw new Error(`批量翻译请求失败: ${response.status} ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          
+          // 处理翻译结果
+          if (data && data.choices && data.choices.length > 0 && 
+              data.choices[0].message && data.choices[0].message.content) {
+            const translatedText = data.choices[0].message.content.trim();
+            
+            // 分割翻译结果
+            const translatedParts = translatedText.split(DELIMITER);
+            
+            // 检查翻译结果分段是否与原始文本数量匹配
+            if (translatedParts.length >= batch.length) {
+              // 按索引填充结果，并清理每个结果中可能的分隔符
+              for (let j = 0; j < batch.length; j++) {
+                if (j < translatedParts.length) {
+                  batchResults[indices[j]] = cleanDelimiters(translatedParts[j]);
+                } else {
+                  // 索引超出范围，使用Google翻译单独处理这个文本
+                  try {
+                    const singleResult = await translateWithGoogle([batch[j]], sourceLanguage, targetLanguage);
+                    batchResults[indices[j]] = singleResult[0] || batch[j];
+                  } catch (err) {
+                    batchResults[indices[j]] = batch[j]; // 失败时使用原文
+                  }
+                }
+              }
+              console.log(`批次 ${batchIndex+1} 翻译完成，成功匹配所有分段`);
+            } else {
+              console.warn(`批次 ${batchIndex+1} 翻译分段异常: 预期${batch.length}段，但得到${translatedParts.length}段，尝试回退处理`);
+              
+              // 如果分段数量不匹配，先尝试清理整个翻译结果，看是否能找到我们的分隔符
+              const cleanedFullText = translatedText
+                .replace(/<.*?TRANSOR.*?SPLIT.*?>/gi, DELIMITER) // 替换不同格式的分隔符为我们的标准分隔符
+                .replace(/TRANSOR[_\s]*SPLIT/gi, DELIMITER); // 替换可能的文本形式分隔符
+              
+              // 再次尝试分割
+              const recleanedParts = cleanedFullText.split(DELIMITER);
+              
+              if (recleanedParts.length >= batch.length) {
+                // 如果清理后的分段数量正确，使用这个结果
+                for (let j = 0; j < batch.length; j++) {
+                  batchResults[indices[j]] = cleanDelimiters(recleanedParts[j]);
+                }
+                console.log(`批次 ${batchIndex+1} 经过二次清理后成功匹配分段`);
+              } else {
+                // 仍然失败，逐个翻译
+                console.log(`批次 ${batchIndex+1} 分段失败，转为逐个翻译`);
+                
+                // 回退到Google翻译
+                try {
+                  const fallbackResults = await translateWithGoogle(batch, sourceLanguage, targetLanguage);
+                  for (let j = 0; j < batch.length; j++) {
+                    batchResults[indices[j]] = fallbackResults[j] || batch[j];
+                  }
+                } catch (err) {
+                  // 如果Google翻译也失败，使用原文
+                  for (let j = 0; j < batch.length; j++) {
+                    batchResults[indices[j]] = batch[j];
+                  }
+                }
+              }
+            }
+          } else {
+            throw new Error('OpenAI翻译返回数据格式异常');
+          }
+        } catch (error) {
+          console.error(`短文本批次 ${batchIndex+1} 处理失败:`, error);
+          
+          // 错误回退：使用Google翻译
+          try {
+            const fallbackResults = await translateWithGoogle(batch, sourceLanguage, targetLanguage);
+            // 填充结果
+            for (let j = 0; j < batch.length; j++) {
+              batchResults[indices[j]] = fallbackResults[j] || batch[j];
+            }
+          } catch (err) {
+            // 如果Google翻译也失败，使用原文
+            for (let j = 0; j < batch.length; j++) {
+              batchResults[indices[j]] = batch[j];
+            }
+          }
+        }
+      });
+      
+      // 并行等待所有批次完成
+      console.log('并行处理所有请求中...');
+      await Promise.all(batchPromises);
+      console.log('所有短文本批次处理完成');
+    }
+    
+    // 处理长文本：并行使用Google翻译
+    if (largeTexts.length > 0) {
+      console.log(`并行处理${largeTexts.length}条长文本，使用Google翻译`);
+      
+      try {
+        const largeResults = await translateWithGoogle(largeTexts, sourceLanguage, targetLanguage);
+        // 填充结果
+        for (let i = 0; i < largeTexts.length; i++) {
+          batchResults[largeIndices[i]] = largeResults[i] || largeTexts[i];
+        }
+      } catch (error) {
+        console.error('长文本翻译失败:', error);
+        // 失败时使用原文
+        for (let i = 0; i < largeTexts.length; i++) {
+          batchResults[largeIndices[i]] = largeTexts[i];
+        }
+      }
+    }
+    
+    // 最终清理所有结果，确保没有分隔符残留
+    for (let i = 0; i < batchResults.length; i++) {
+      if (batchResults[i]) {
+        // 清理各种可能的分隔符格式
+        batchResults[i] = batchResults[i]
+          .replace(/\n?##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n?/g, '')
+          .replace(/<====TRANSOR_SPLIT====>\s*/g, '')
+          .replace(/TRANSOR[_\s]*SPLIT/gi, '')
+          .trim();
+      }
+    }
+    
+    // 返回结果
+    return isArray ? batchResults : batchResults[0] || '';
+  } catch (error) {
+    console.error('OpenAI翻译出错:', error);
+    // 全局错误回退：使用Google翻译
+    try {
+      return await translateWithGoogle(texts, sourceLanguage, targetLanguage);
+    } catch (err) {
+      // 如果Google翻译也失败，返回原文
+      return Array.isArray(texts) ? texts : texts;
+    }
+  }
+}
+
 // 初始化扩展
-init(); 
+init();
+
+// 监听来自content-script的消息
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // 支持简易的翻译请求格式
+  if (message.action === 'translate') {
+    console.log('收到简易翻译请求:', message);
+    
+    const text = message.text;
+    const sourceLanguage = message.from || 'auto';
+    const targetLanguage = message.to || 'zh-CN';
+    
+    // 获取存储的设置
+    chrome.storage.sync.get(['translationEngine', 'openaiApiKey', 'openaiModel'], (settings) => {
+      const engine = settings.translationEngine || 'google';
+      console.log('使用翻译引擎:', engine);
+      
+      // 调用已有的翻译方法
+      translateWithGoogle(text, sourceLanguage, targetLanguage)
+        .then(translation => {
+          console.log('翻译成功:', translation);
+          sendResponse({
+            success: true,
+            translation: translation,
+            originalText: text,
+            source: 'google'
+          });
+        })
+        .catch(error => {
+          console.error('翻译失败:', error);
+          sendResponse({
+            success: false,
+            error: error.message || '翻译失败',
+            originalText: text
+          });
+        });
+      
+      // 返回true表示sendResponse将被异步调用
+      return true;
+    });
+    
+    // 返回true以保持消息通道开放，允许异步响应
+    return true;
+  } else if (message.action === 'translateTexts') {
+    // 处理现有的批量翻译请求
+    // (已有的代码会处理这种情况)
+    return handleMessage(message, sender, sendResponse);
+  } else {
+    // 其他消息类型
+    return handleMessage(message, sender, sendResponse);
+  }
+}); 
+
+// 字典API配置
+const DICTIONARY_CONFIG = {
+  // 免费词典API配置
+  endpoints: {
+    freeDictionary: 'https://api.dictionaryapi.dev/api/v2/entries',
+    ultimateDictionary: 'http://116.202.96.240:8080/translation',
+    lexicala: 'https://lexicala-api.p.rapidapi.com/search'
+  },
+  // 语言映射 - 将常见语言代码映射到API所需格式
+  languageMap: {
+    'zh': 'zh',     // 中文
+    'zh-CN': 'zh',  // 简体中文
+    'zh-TW': 'zh',  // 繁体中文
+    'en': 'en',     // 英语
+    'ja': 'ja',     // 日语
+    'ko': 'ko',     // 韩语
+    'fr': 'fr',     // 法语
+    'de': 'de',     // 德语
+    'es': 'es',     // 西班牙语
+    'it': 'it',     // 意大利语
+    'ru': 'ru',     // 俄语
+    'pt': 'pt',     // 葡萄牙语
+    'vi': 'vi',     // 越南语
+    'auto': 'auto'  // 自动检测
+  },
+  // 备用MOCK数据
+  mockData: {
+    enabled: true
+  },
+  // RapidAPI密钥 (如果使用)
+  rapidApiKey: '',
+  // 请求超时时间(毫秒)
+  timeout: 5000,
+  // 缓存时间(毫秒) - 默认1小时
+  cacheTime: 3600000
+};
+
+// 词典缓存
+const dictionaryCache = {};
+
+// 获取词典数据
+async function fetchDictionaryData(word, sourceLang = 'auto', targetLang = 'zh-CN', timestamp = null) {
+  try {
+    console.log(`获取词典数据: ${word}, 源语言: ${sourceLang}, 目标语言: ${targetLang}, 时间戳: ${timestamp || 'none'}`);
+    
+    // 使用时间戳作为请求ID，确保不使用缓存的结果
+    const requestId = timestamp || Date.now();
+    
+    // 清理输入
+    const cleanWord = word.trim();
+    if (!cleanWord) {
+      return { 
+        success: false, 
+        error: '词语不能为空', 
+        requestId: requestId,
+        queriedWord: word
+      };
+    }
+    
+    // 检测语言类型
+    let detectedSourceLang = sourceLang;
+    
+    // 如果源语言是auto，尝试自动检测
+    if (sourceLang === 'auto') {
+      detectedSourceLang = detectLanguage(cleanWord);
+      console.log(`自动检测语言: ${detectedSourceLang} (原词: ${cleanWord})`);
+    }
+    
+    // 映射语言代码到API所需格式
+    const mappedSourceLang = DICTIONARY_CONFIG.languageMap[detectedSourceLang] || detectedSourceLang;
+    const mappedTargetLang = DICTIONARY_CONFIG.languageMap[targetLang] || targetLang;
+    
+    // 生成缓存键
+    const cacheKey = `${cleanWord}:${mappedSourceLang}:${mappedTargetLang}`;
+    
+    // 检查缓存 - 仅在没有提供时间戳时使用缓存
+    if (!timestamp && dictionaryCache[cacheKey] && 
+        Date.now() - dictionaryCache[cacheKey].timestamp < DICTIONARY_CONFIG.cacheTime) {
+      console.log(`使用缓存的词典数据: ${cacheKey}`);
+      const cachedResult = dictionaryCache[cacheKey].data;
+      cachedResult.requestId = requestId;
+      cachedResult.queriedWord = word;
+      cachedResult.fromCache = true;
+      return cachedResult;
+    }
+    
+    // 尝试获取词典数据
+    let result = null;
+    
+    // 英语查询使用Free Dictionary API
+    if (mappedSourceLang === 'en') {
+      try {
+        result = await fetchFromFreeDictionary(cleanWord, requestId, mappedTargetLang);
+      } catch (error) {
+        console.error('Free Dictionary API failed:', error);
+        // 失败时尝试Ultimate Dictionary API
+        try {
+          result = await fetchFromUltimateDictionary(cleanWord, mappedSourceLang, mappedTargetLang, requestId);
+        } catch (ultimateError) {
+          console.error('Ultimate Dictionary API failed:', ultimateError);
+          // 两个API都失败，使用Mock数据
+          if (DICTIONARY_CONFIG.mockData.enabled) {
+            result = { 
+              success: true, 
+              data: generateMockDictionaryData(word), 
+              requestId: requestId,
+              queriedWord: word,
+              fromMock: true
+            };
+          } else {
+            throw new Error('所有词典API请求失败');
+          }
+        }
+      }
+    } else {
+      // 非英语查询使用Ultimate Dictionary API
+      try {
+        result = await fetchFromUltimateDictionary(cleanWord, mappedSourceLang, mappedTargetLang, requestId);
+      } catch (error) {
+        console.error('Ultimate Dictionary API failed:', error);
+        // 失败时使用Mock数据
+        if (DICTIONARY_CONFIG.mockData.enabled) {
+          result = { 
+            success: true, 
+            data: generateMockDictionaryData(word), 
+            requestId: requestId,
+            queriedWord: word,
+            fromMock: true
+          };
+        } else {
+          throw new Error('所有词典API请求失败');
+        }
+      }
+    }
+    
+    // 添加请求信息
+    result.requestId = requestId;
+    result.queriedWord = word;
+    
+    // 缓存结果
+    if (result.success) {
+      dictionaryCache[cacheKey] = {
+        timestamp: Date.now(),
+        data: result
+      };
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('获取词典数据失败:', error);
+    return { 
+      success: false, 
+      error: error.message || '获取词典数据失败', 
+      requestId: timestamp || Date.now(),
+      queriedWord: word
+    };
+  }
+}
+
+// 检测语言
+function detectLanguage(text) {
+  // 简单的语言检测逻辑
+  // 英文检测
+  if (/^[a-zA-Z\s\-',.!?]+$/.test(text)) {
+    return 'en';
+  }
+  
+  // 中文检测
+  if (/[\u4e00-\u9fa5]/.test(text)) {
+    return 'zh';
+  }
+  
+  // 日文检测 (包括平假名、片假名)
+  if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/.test(text)) {
+    return 'ja';
+  }
+  
+  // 韩文检测
+  if (/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f\ua960-\ua97f\ud7b0-\ud7ff]/.test(text)) {
+    return 'ko';
+  }
+  
+  // 俄文检测
+  if (/[\u0400-\u04FF]/.test(text)) {
+    return 'ru';
+  }
+  
+  // 默认返回英文
+  return 'en';
+}
+
+// 简洁词典数据映射
+const CONCISE_DICTIONARY = {
+  'time': {
+    phonetic: 'taɪm',
+    definitions: [
+      { pos: 'n.', meanings: ['时间', '时候', '次', '倍'] },
+      { pos: 'v.', meanings: ['计时', '为…安排时间', '选择…的时机'] },
+      { pos: 'web.', meanings: ['时代周刊(Time magazine)', '时代杂志', '时光'] }
+    ]
+  },
+  'love': {
+    phonetic: 'lʌv',
+    definitions: [
+      { pos: 'n.', meanings: ['爱', '爱情', '喜爱'] },
+      { pos: 'v.', meanings: ['爱', '喜欢', '热爱'] }
+    ]
+  },
+  'book': {
+    phonetic: 'bʊk',
+    definitions: [
+      { pos: 'n.', meanings: ['书', '书籍', '著作'] },
+      { pos: 'v.', meanings: ['预订', '预约', '登记'] }
+    ]
+  },
+  'work': {
+    phonetic: 'wɜːk',
+    definitions: [
+      { pos: 'n.', meanings: ['工作', '职业', '作品'] },
+      { pos: 'v.', meanings: ['工作', '运转', '起作用'] }
+    ]
+  },
+  'good': {
+    phonetic: 'ɡʊd',
+    definitions: [
+      { pos: 'adj.', meanings: ['好的', '优秀的', '善良的'] },
+      { pos: 'n.', meanings: ['好处', '利益', '善行'] }
+    ]
+  },
+  'make': {
+    phonetic: 'meɪk',
+    definitions: [
+      { pos: 'v.', meanings: ['制作', '使得', '产生'] },
+      { pos: 'n.', meanings: ['制造', '品牌', '款式'] }
+    ]
+  },
+  'get': {
+    phonetic: 'ɡet',
+    definitions: [
+      { pos: 'v.', meanings: ['得到', '获得', '变得'] }
+    ]
+  },
+  'go': {
+    phonetic: 'ɡoʊ',
+    definitions: [
+      { pos: 'v.', meanings: ['去', '走', '离开'] },
+      { pos: 'n.', meanings: ['尝试', '轮到', '活力'] }
+    ]
+  },
+  'take': {
+    phonetic: 'teɪk',
+    definitions: [
+      { pos: 'v.', meanings: ['拿', '取', '带走'] },
+      { pos: 'n.', meanings: ['镜头', '收入', '理解'] }
+    ]
+  },
+  'come': {
+    phonetic: 'kʌm',
+    definitions: [
+      { pos: 'v.', meanings: ['来', '来到', '到达'] }
+    ]
+  }
+};
+
+// 从Free Dictionary API获取数据
+async function fetchFromFreeDictionary(word, requestId, targetLang = 'zh-CN') {
+  // 首先检查是否有简洁词典数据
+  const cleanWord = word.trim().toLowerCase();
+  if (CONCISE_DICTIONARY[cleanWord] && targetLang !== 'en') {
+    console.log(`使用简洁词典数据: ${cleanWord}`);
+    return { 
+      success: true, 
+      data: {
+        word: word,
+        phonetic: CONCISE_DICTIONARY[cleanWord].phonetic,
+        definitions: CONCISE_DICTIONARY[cleanWord].definitions,
+        examples: []
+      }
+    };
+  }
+  
+  const url = `${DICTIONARY_CONFIG.endpoints.freeDictionary}/en/${encodeURIComponent(word)}?_=${requestId}`;
+  
+  // 使用AbortController控制超时
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DICTIONARY_CONFIG.timeout);
+  
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`API返回错误: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('API返回的数据格式无效');
+    }
+    
+    // 处理API返回数据
+    const entry = data[0];
+    const result = {
+      word: entry.word,
+      phonetic: entry.phonetic || entry.phonetics?.find(p => p.text)?.text || '',
+      definitions: [],
+      examples: []
+    };
+    
+    // 处理不同词性和释义
+    if (entry.meanings && Array.isArray(entry.meanings)) {
+      for (const meaning of entry.meanings) {
+        const def = {
+          pos: meaning.partOfSpeech || '',
+          meanings: []
+        };
+        
+        // 收集英文释义
+        const englishMeanings = [];
+        if (meaning.definitions && Array.isArray(meaning.definitions)) {
+          meaning.definitions.forEach(definition => {
+            englishMeanings.push(definition.definition);
+            
+            // 添加例句
+            if (definition.example) {
+              result.examples.push(definition.example);
+            }
+          });
+        }
+        
+        // 对于中文目标语言，尝试提供简洁释义
+        if (targetLang !== 'en' && englishMeanings.length > 0) {
+          // 生成简洁的中文释义而非详细翻译
+          def.meanings = generateConciseMeanings(cleanWord, def.pos);
+          
+          // 如果没有简洁释义，则回退到翻译
+          if (def.meanings.length === 0) {
+            try {
+              const translatedMeanings = await bulkTranslateTexts(
+                englishMeanings.slice(0, 3), // 只翻译前3个释义
+                'en', 
+                targetLang
+              );
+              
+              if (translatedMeanings && translatedMeanings.length > 0) {
+                def.meanings = translatedMeanings;
+              } else {
+                def.meanings = englishMeanings.slice(0, 3);
+              }
+            } catch (error) {
+              console.warn('词典释义翻译失败，使用原英文释义:', error);
+              def.meanings = englishMeanings.slice(0, 3);
+            }
+          }
+        } else {
+          // 目标语言是英语，直接使用英文释义
+          def.meanings = englishMeanings.slice(0, 3);
+        }
+        
+        if (def.meanings.length > 0) {
+          result.definitions.push(def);
+        }
+      }
+    }
+    
+    return { success: true, data: result };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error(`Free Dictionary API请求失败: ${error.message}`);
+    throw error;
+  }
+}
+
+// 生成简洁的中文释义
+function generateConciseMeanings(word, pos) {
+  // 如果有简洁词典数据，使用它
+  if (CONCISE_DICTIONARY[word]) {
+    const matchingDef = CONCISE_DICTIONARY[word].definitions.find(def => 
+      def.pos.toLowerCase().includes(pos.toLowerCase()) || 
+      pos.toLowerCase().includes(def.pos.toLowerCase().replace('.', ''))
+    );
+    if (matchingDef) {
+      return matchingDef.meanings;
+    }
+  }
+  
+  // 返回空数组，让系统回退到翻译
+  return [];
+}
+
+// 从Ultimate Dictionary API获取数据
+async function fetchFromUltimateDictionary(word, sourceLang, targetLang, requestId) {
+  const url = `${DICTIONARY_CONFIG.endpoints.ultimateDictionary}/${sourceLang}/${targetLang}/${encodeURIComponent(word)}?_=${requestId}`;
+  
+  // 使用AbortController控制超时
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DICTIONARY_CONFIG.timeout);
+  
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`API返回错误: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // 转换Ultimate Dictionary格式到我们的标准格式
+    const result = {
+      word: word,
+      phonetic: '',
+      definitions: [],
+      examples: []
+    };
+    
+    // 处理词条数据
+    if (data.entries && data.entries.length > 0) {
+      // 获取音标
+      if (data.entries[0].ipas && data.entries[0].ipas.length > 0) {
+        result.phonetic = data.entries[0].ipas[0];
+      }
+      
+      // 处理释义
+      data.entries.forEach(entry => {
+        if (entry.pos && entry.senses) {
+          const def = {
+            pos: entry.pos,
+            meanings: []
+          };
+          
+          // 添加释义
+          entry.senses.forEach(sense => {
+            if (sense.glosses && sense.glosses.length > 0) {
+              def.meanings = def.meanings.concat(sense.glosses);
+            }
+            
+            // 添加例句
+            if (sense.examples && sense.examples.length > 0) {
+              result.examples = result.examples.concat(sense.examples);
+            }
+          });
+          
+          if (def.meanings.length > 0) {
+            result.definitions.push(def);
+          }
+        }
+      });
+    }
+    
+    // 处理翻译数据
+    if (data.translations && data.translations.length > 0) {
+      // 如果没有定义数据，创建一个
+      if (result.definitions.length === 0) {
+        result.definitions.push({
+          pos: '翻译',
+          meanings: data.translations
+        });
+      }
+    }
+    
+    return { success: true, data: result };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error(`Ultimate Dictionary API请求失败: ${error.message}`);
+    throw error;
+  }
+}
+
+// 生成Mock词典数据
+function generateMockDictionaryData(word) {
+  console.log(`生成Mock词典数据: ${word}`);
+  
+  // 检测是否是英语查询
+  const isEnglishQuery = /^[a-zA-Z\s\-',.!?]+$/.test(word.trim());
+  
+  if (isEnglishQuery) {
+    // 英语词 -> 中文
+    return {
+      word: word,
+      phonetic: 'kəˈmɪt',
+      definitions: [
+        {
+          pos: 'v.',
+          meanings: ['承诺', '自杀', '做出（错事）']
+        },
+        {
+          pos: 'web.',
+          meanings: ['提交', '提交完成', '干']
+        }
+      ],
+      examples: [
+        'He committed himself to helping the poor.',
+        'She was committed to a mental hospital.'
+      ]
+    };
+  } else {
+    // 中文词 -> 英语
+    return {
+      word: word,
+      phonetic: '',
+      definitions: [
+        {
+          pos: '动词',
+          meanings: ['commit', 'submit', 'make']
+        },
+        {
+          pos: '名词',
+          meanings: ['commitment', 'submission']
+        }
+      ],
+      examples: [
+        '他提交了一份报告。(He submitted a report.)',
+        '她承诺会按时完成工作。(She committed to finishing the work on time.)'
+      ]
+    };
+  }
+} 

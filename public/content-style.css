@@ -6,25 +6,25 @@
 }
 
 .transor-inline {
-  border-bottom: 1px dashed #42b983 !important;
+  border-bottom: 1px dashed #ff5588 !important;
   padding: 0 2px !important;
   margin: 0 2px !important;
-  color: #42b983 !important;
+  color: #ff5588 !important;
 }
 
 .transor-bilingual {
   display: block !important;
-  color: #42b983 !important;
+  color: #ff5588 !important;
   margin-top: 3px !important;
   padding-left: 10px !important;
-  border-left: 2px solid #42b983 !important;
+  border-left: 2px solid #ff5588 !important;
 }
 
 .transor-hover {
   position: relative !important;
   text-decoration: underline !important;
   text-decoration-style: dotted !important;
-  text-decoration-color: #42b983 !important;
+  text-decoration-color: #ff5588 !important;
 }
 
 .transor-hover-content {

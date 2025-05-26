@@ -13,7 +13,8 @@ let translationSettings = {
   excludedTags: ['code', 'pre', 'script', 'style'],
   excludedClasses: ['no-translate'],
   customCss: '',
-  enableSelectionTranslator: true
+  enableSelectionTranslator: true,
+  enableInputSpaceTranslation: true
 };
 
 // 翻译缓存
@@ -36,12 +37,18 @@ const translationQueue = {
 
   // 添加文本到翻译队列
   add(text, callback) {
-    if (!text || text.length <= 1) return;
+    console.log('[翻译队列] 添加文本到队列:', text.length > 30 ? text.substring(0, 30) + '...' : text);
+    
+    if (!text || text.length <= 1) {
+      console.log('[翻译队列] 文本太短，忽略');
+      return;
+    }
     
     // 检查缓存
     const cacheKey = `${translationSettings.targetLanguage}:${translationSettings.translationEngine}:${text}`;
     if (translationCache[cacheKey] !== undefined) {
       // 缓存命中，直接回调
+      console.log('[翻译队列] 缓存命中，直接返回结果');
       callback(translationCache[cacheKey]);
       return;
     }
@@ -52,7 +59,10 @@ const translationQueue = {
     }
     this.pendingTexts.get(text).push(callback);
     
+    console.log('[翻译队列] 当前队列大小:', this.pendingTexts.size);
+    
     // 设置防抖处理，避免频繁请求
+    console.log('[翻译队列] 设置处理延迟:', this.debounceTime, 'ms');
     clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => {
       this.process();
@@ -61,14 +71,20 @@ const translationQueue = {
   
   // 处理翻译队列
   async process() {
-    if (this.isProcessing || this.pendingTexts.size === 0) return;
+    console.log('[翻译队列] 开始处理队列');
+    
+    if (this.isProcessing || this.pendingTexts.size === 0) {
+      console.log('[翻译队列] 队列为空或正在处理中，跳过');
+      return;
+    }
     
     this.isProcessing = true;
+    console.log('[翻译队列] 标记为正在处理');
     
     try {
       // 从队列中提取待翻译文本
       const textsToTranslate = Array.from(this.pendingTexts.keys());
-      console.log(`处理翻译队列: ${textsToTranslate.length} 条唯一文本`);
+      console.log(`[翻译队列] 处理翻译队列: ${textsToTranslate.length} 条唯一文本`);
       
       // 过滤掉看起来像代码的文本
       const filteredTexts = [];
@@ -76,12 +92,14 @@ const translationQueue = {
       
       textsToTranslate.forEach(text => {
         if (looksLikeCode(text)) {
-          console.log('跳过代码翻译:', text);
+          console.log('[翻译队列] 跳过代码翻译:', text.substring(0, 30) + '...');
           codeTexts.push(text);
         } else {
           filteredTexts.push(text);
         }
       });
+      
+      console.log(`[翻译队列] 过滤后待翻译文本: ${filteredTexts.length} 条`);
       
       // 处理源语言检测
       let sourceLanguage = translationSettings.sourceLanguage;
@@ -90,9 +108,16 @@ const translationQueue = {
       for (let i = 0; i < filteredTexts.length; i += this.batchSize) {
         const batch = filteredTexts.slice(i, i + this.batchSize);
         
-        console.log(batch, "batch")
+        console.log(`[翻译队列] 处理批次 ${i/this.batchSize + 1}, 批次大小: ${batch.length}`);
         // 发送批量翻译请求
         try {
+          console.log('[翻译队列] 发送翻译请求到后台脚本:', {
+            engine: translationSettings.translationEngine || 'google',
+            sourceLanguage,
+            targetLanguage: translationSettings.targetLanguage,
+            textsLength: batch.length
+          });
+          
           const translations = await new Promise((resolve) => {
             chrome.runtime.sendMessage({
               action: 'translateTexts',
@@ -101,31 +126,41 @@ const translationQueue = {
               targetLanguage: translationSettings.targetLanguage,
               engine: translationSettings.translationEngine || 'google'
             }, response => {
+              console.log('[翻译队列] 收到后台响应:', response ? '成功' : '失败');
+              
               if (response && response.success && response.translations) {
-
-                console.log(response, "responseresponse")
+                console.log('[翻译队列] 成功获取翻译结果，数量:', response.translations.length);
                 resolve(response.translations);
               } else {
-                console.warn('批量翻译失败:', response?.error);
+                console.warn('[翻译队列] 批量翻译失败:', response?.error);
                 resolve(batch); // 失败时返回原文
               }
             });
           });
           
+          console.log('[翻译队列] 翻译响应完成，开始处理结果');
+          
           // 更新缓存并执行回调
           batch.forEach((text, index) => {
             const translation = translations[index] || text;
-            const cacheKey = `${sourceLanguage}:${translationSettings.targetLanguage}:${translationSettings.translationEngine}:${text}`;
+            const cacheKey = `${translationSettings.targetLanguage}:${translationSettings.translationEngine}:${text}`;
             
             // 输出日志以便调试
-            console.log(`翻译结果 - 原文: [${text}], 译文: [${translation}]`);
+            console.log(`[翻译队列] 翻译结果 - 原文: [${text.length > 30 ? text.substring(0, 30) + '...' : text}], 译文: [${translation.length > 30 ? translation.substring(0, 30) + '...' : translation}]`);
             
             // 更新缓存
             translationCache[cacheKey] = translation;
             
             // 执行所有关联的回调
             const callbacks = this.pendingTexts.get(text) || [];
-            callbacks.forEach(callback => callback(translation));
+            console.log(`[翻译队列] 执行回调，数量: ${callbacks.length}`);
+            callbacks.forEach(callback => {
+              try {
+                callback(translation);
+              } catch (callbackError) {
+                console.error('[翻译队列] 执行回调时出错:', callbackError);
+              }
+            });
             
             // 从队列中移除已处理文本
             this.pendingTexts.delete(text);
@@ -133,68 +168,185 @@ const translationQueue = {
           
           // 控制请求速率
           if (i + this.batchSize < filteredTexts.length) {
+            console.log('[翻译队列] 等待下一批处理');
             await new Promise(resolve => setTimeout(resolve, 300));
           }
         } catch (error) {
-          console.error('批次翻译出错:', error);
+          console.error('[翻译队列] 批次翻译出错:', error);
           
           // 出错时用原文作为翻译结果
           batch.forEach(text => {
+            console.log('[翻译队列] 翻译出错，使用原文:', text.substring(0, 30) + '...');
             const callbacks = this.pendingTexts.get(text) || [];
-            callbacks.forEach(callback => callback(text));
+            callbacks.forEach(callback => {
+              try {
+                callback(text);
+              } catch (callbackError) {
+                console.error('[翻译队列] 执行错误回调时出错:', callbackError);
+              }
+            });
             this.pendingTexts.delete(text);
           });
         }
       }
       
       // 处理代码文本
-      codeTexts.forEach(text => {
-        const callbacks = this.pendingTexts.get(text) || [];
-        callbacks.forEach(callback => callback(text)); // 代码返回原文作为结果
-        this.pendingTexts.delete(text);
-      });
+      if (codeTexts.length > 0) {
+        console.log(`[翻译队列] 处理 ${codeTexts.length} 条代码文本`);
+        codeTexts.forEach(text => {
+          const callbacks = this.pendingTexts.get(text) || [];
+          callbacks.forEach(callback => {
+            try {
+              callback(text);
+            } catch (callbackError) {
+              console.error('[翻译队列] 执行代码文本回调时出错:', callbackError);
+            }
+          }); // 代码返回原文作为结果
+          this.pendingTexts.delete(text);
+        });
+      }
+      
+      console.log('[翻译队列] 队列处理完成');
+    } catch (error) {
+      console.error('[翻译队列] 处理队列主流程出错:', error);
     } finally {
       this.isProcessing = false;
+      console.log('[翻译队列] 重置处理状态');
       
       // 检查队列是否仍有文本待处理
       if (this.pendingTexts.size > 0) {
-        console.log(`队列中还有 ${this.pendingTexts.size} 条文本待处理，继续处理...`);
+        console.log(`[翻译队列] 队列中还有 ${this.pendingTexts.size} 条文本待处理，继续处理...`);
         setTimeout(() => this.process(), 100);
       }
     }
   }
 };
 
+// 初始化功能诊断，用于排查问题
+function diagnoseFunctionality() {
+  console.log('========== 功能诊断开始 ==========');
+  
+  try {
+    // 检查存储API是否可用
+    console.log('1. 检查存储API:');
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+      console.log('   ✅ 存储API可用');
+      
+      // 尝试读取设置
+      chrome.storage.sync.get(['enableInputSpaceTranslation'], (result) => {
+        console.log('   直接读取设置结果:', result);
+      });
+    } else {
+      console.error('   ❌ 存储API不可用');
+    }
+    
+    // 检查设置状态
+    console.log('2. 检查当前设置状态:');
+    console.log('   - enableInputSpaceTranslation:', translationSettings.enableInputSpaceTranslation, typeof translationSettings.enableInputSpaceTranslation);
+    
+    // 检查DOM事件监听
+    console.log('3. 检查DOM事件监听:');
+    const testInput = document.createElement('input');
+    testInput.type = 'text';
+    testInput.value = 'test';
+    console.log('   测试输入元素创建成功');
+    console.log('   输入元素有效性检查:', testInput.tagName === 'INPUT' || testInput.tagName === 'TEXTAREA' || testInput.getAttribute('contenteditable') === 'true');
+    
+    // 检查事件传播
+    console.log('4. 检查事件传播:');
+    console.log('   已创建测试键盘事件');
+    
+    // 检查功能是否启用的条件
+    console.log('5. 功能启用条件评估:');
+    const isFeatureEnabled = translationSettings.enableInputSpaceTranslation;
+    console.log('   空格翻译功能状态:', isFeatureEnabled);
+    console.log('   条件分析:');
+    if (!translationSettings.enableInputSpaceTranslation) console.log('   - 空格翻译功能未启用');
+    if (isFeatureEnabled) console.log('   - 功能已启用，应当正常工作');
+  } catch (error) {
+    console.error('诊断过程中出错:', error);
+  }
+  
+  console.log('========== 功能诊断结束 ==========');
+}
+
 // 初始化
 async function init() {
   console.log('Transor 内容脚本已加载');
   
-  // 初始化全局tip系统
-  setupGlobalTipSystem();
-  
-  // 加载设置
-  await loadSettings();
-  
-  // 注入样式
-  injectStyles();
-  
-  // 初始化Intersection Observer
-  initIntersectionObserver();
-  
-  // 初始化滑词翻译功能
-  initSelectionTranslator();
-  
-  // 添加消息监听器处理快捷键
-  setupMessageListeners();
-  
-  // 添加对全局切换事件的监听
-  setupGlobalEventListeners();
-  
-  // 自动翻译（如果启用）
-  if (translationSettings.isEnabled) {
-    setTimeout(() => {
-      translateVisibleContent();
-    }, 1000); // 延迟1秒，等待页面完全加载
+  try {
+    // 初始化全局tip系统
+    console.log('初始化全局提示系统');
+    setupGlobalTipSystem();
+    
+    // 加载设置
+    console.log('加载设置');
+    await loadSettings();
+    
+    // 运行功能诊断
+    diagnoseFunctionality();
+    
+    // 添加调试面板 - 开发环境或手动启用时
+    if (window.location.hostname.includes('localhost') || 
+        window.location.hostname.includes('127.0.0.1') ||
+        window.location.search.includes('transorDebug=true')) {
+      console.log('开发环境或调试模式，添加调试面板');
+      addDebugControls();
+    }
+    
+    // 注入样式
+    console.log('注入样式');
+    injectStyles();
+    
+    // 初始化Intersection Observer
+    console.log('初始化视图观察器');
+    initIntersectionObserver();
+    
+    // 初始化滑词翻译功能
+    console.log('初始化滑词翻译');
+    initSelectionTranslator();
+    
+    // 初始化收藏高亮功能
+    console.log('初始化收藏高亮功能');
+    try {
+      if (typeof window.TransorHighlighter !== 'undefined') {
+        window.TransorHighlighter.init();
+        console.log('收藏高亮功能初始化成功');
+      } else {
+        console.warn('TransorHighlighter 未找到，跳过高亮功能初始化');
+      }
+    } catch (highlightError) {
+      console.error('初始化收藏高亮功能失败:', highlightError);
+    }
+    
+    // 添加消息监听器处理快捷键
+    console.log('设置消息监听器');
+    setupMessageListeners();
+    
+    // 添加对全局切换事件的监听
+    console.log('设置全局事件监听器');
+    setupGlobalEventListeners();
+    
+    // 初始化输入框内容翻译功能 - 新增
+    console.log('初始化输入框空格翻译功能');
+    try {
+      initInputTranslation();
+      console.log('输入框空格翻译功能初始化成功');
+    } catch (inputTransError) {
+      console.error('初始化输入框空格翻译功能失败:', inputTransError);
+    }
+    
+    // 自动翻译（如果启用）
+    if (translationSettings.isEnabled) {
+      console.log('翻译功能已启用，将在延迟后开始翻译');
+      setTimeout(() => {
+        translateVisibleContent();
+      }, 1000); // 延迟1秒，等待页面完全加载
+    }
+    
+    console.log('Transor 内容脚本初始化完成');
+  } catch (error) {
+    console.error('Transor 内容脚本初始化失败:', error);
   }
 }
 
@@ -220,8 +372,15 @@ function initIntersectionObserver() {
 
 // 加载设置
 async function loadSettings() {
+  console.log('开始从存储中加载设置...');
+  
   return new Promise((resolve) => {
     chrome.storage.sync.get(null, (result) => {
+      console.log('从存储中获取的原始设置:', result);
+      
+      // 记录设置更新前的状态
+      const prevSettings = { ...translationSettings };
+      
       if (result.isEnabled !== undefined) translationSettings.isEnabled = result.isEnabled;
       if (result.targetLanguage) translationSettings.targetLanguage = result.targetLanguage;
       if (result.sourceLanguage) translationSettings.sourceLanguage = result.sourceLanguage;
@@ -231,7 +390,21 @@ async function loadSettings() {
       if (result.excludedClasses) translationSettings.excludedClasses = result.excludedClasses;
       if (result.customCss) translationSettings.customCss = result.customCss;
       
-      console.log('已加载翻译设置:', translationSettings);
+      // 特别注意这个设置
+      if (result.enableInputSpaceTranslation !== undefined) {
+        console.log('发现空格翻译功能设置:', result.enableInputSpaceTranslation);
+        translationSettings.enableInputSpaceTranslation = result.enableInputSpaceTranslation;
+      } else {
+        console.log('未找到空格翻译功能设置，使用默认值:', translationSettings.enableInputSpaceTranslation);
+      }
+      
+      // 记录设置变化
+      console.log('设置已更新，关键设置变化:');
+      console.log('- 翻译开关(isEnabled):', prevSettings.isEnabled, '->', translationSettings.isEnabled);
+      console.log('- 空格翻译(enableInputSpaceTranslation):', prevSettings.enableInputSpaceTranslation, 
+                  '->', translationSettings.enableInputSpaceTranslation);
+      
+      console.log('所有设置已加载完成:', translationSettings);
       resolve();
     });
   });
@@ -468,6 +641,16 @@ function shouldTranslateElement(element) {
   
   // 检查是否在tip弹出框内部
   if (element.closest && element.closest('.transor-tip-popup')) {
+    return false;
+  }
+  
+  // 检查是否是滑词翻译弹窗或在滑词翻译弹窗内部
+  if (element.classList && element.classList.contains('transor-selection-translator')) {
+    return false;
+  }
+  
+  // 检查是否在滑词翻译弹窗内部
+  if (element.closest && element.closest('.transor-selection-translator')) {
     return false;
   }
   
@@ -884,6 +1067,16 @@ function getTextNodesIn(element) {
             }
           }
           
+          // 检查是否是滑词翻译弹窗内的内容
+          if (parent.closest && (
+              parent.closest('.transor-selection-translator') || 
+              parent.closest('.transor-selection-content') || 
+              parent.closest('.transor-selection-header') ||
+              parent.closest('.no-translate')
+          )) {
+            shouldExclude = true;
+          }
+          
           // 检查是否已经翻译过
           const isAlreadyTranslated = parent.classList.contains('transor-translation') || 
                                    parent.closest('.transor-translation');
@@ -914,6 +1107,24 @@ function getTextNodesIn(element) {
             return;
           }
         }
+      }
+      
+      // 跳过滑词翻译弹窗内的内容
+      if (node.classList && (
+          node.classList.contains('transor-selection-translator') ||
+          node.classList.contains('transor-selection-content') ||
+          node.classList.contains('transor-selection-header') ||
+          node.classList.contains('no-translate')
+      )) {
+        return;
+      }
+      
+      // 跳过在滑词翻译弹窗内的元素
+      if (node.closest && (
+          node.closest('.transor-selection-translator') ||
+          node.closest('.no-translate')
+      )) {
+        return;
       }
       
       // 跳过代码元素
@@ -1486,7 +1697,7 @@ function setupScrollListener() {
           }
         });
       }
-    }, 150);
+    }, 1500);
   }, { passive: true });
   
   // 窗口大小变化时重新绑定
@@ -1585,9 +1796,56 @@ function createSelectionTranslator() {
   popup.className = 'transor-selection-translator no-translate'; // 添加no-translate类
   popup.style.display = 'none';
   
+  // 创建标题栏
+  const header = document.createElement('div');
+  header.className = 'transor-selection-header no-translate';
+  
+  // 创建logo
+  const logo = document.createElement('div');
+  logo.className = 'transor-selection-logo no-translate';
+  logo.textContent = 'T';
+  
+  // 创建操作按钮容器
+  const actions = document.createElement('div');
+  actions.className = 'transor-selection-actions no-translate';
+  
+  // 添加操作按钮：播放、复制、收藏、关闭
+  const playBtn = document.createElement('button');
+  playBtn.className = 'transor-selection-action-btn transor-play-btn no-translate';
+  playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>';
+  playBtn.title = '朗读原文';
+  
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'transor-selection-action-btn transor-copy-btn no-translate';
+  copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>';
+  copyBtn.title = '复制翻译结果';
+  
+  const favoriteBtn = document.createElement('button');
+  favoriteBtn.className = 'transor-selection-action-btn transor-favorite-btn no-translate';
+  favoriteBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
+  favoriteBtn.title = '收藏到词典';
+  
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'transor-selection-action-btn transor-close-btn no-translate';
+  closeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>';
+  closeBtn.title = '关闭';
+  
+  // 添加按钮到操作容器
+  actions.appendChild(playBtn);
+  actions.appendChild(copyBtn);
+  actions.appendChild(favoriteBtn);
+  actions.appendChild(closeBtn);
+  
+  // 组装标题栏
+  header.appendChild(logo);
+  header.appendChild(actions);
+  
   // 创建内容容器
   const content = document.createElement('div');
   content.className = 'transor-selection-content no-translate'; // 添加no-translate类
+  
+  // 将所有元素添加到弹窗
+  popup.appendChild(header);
   popup.appendChild(content);
   
   // 添加到文档
@@ -1600,74 +1858,439 @@ function createSelectionTranslator() {
     .transor-selection-translator {
       position: absolute;
       background: #fff;
-      border-radius: 5px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-      padding: 10px 15px;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
       z-index: 99999;
-      max-width: 300px;
+      width: 320px;
       pointer-events: auto;
       user-select: text;
       font-size: 14px;
       line-height: 1.5;
       color: #333;
+      overflow: hidden;
+      transition: opacity 0.2s, transform 0.2s;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 0, 0, 0.05);
     }
     
-    .transor-selection-content {
-      width: 100%;
+    /* 确保滑词翻译弹窗中的所有元素不被翻译 */
+    .transor-selection-translator * {
+      translate: none !important;
     }
     
-    .transor-selection-original {
-      color: #333;
-      margin-bottom: 8px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #eee;
-      display: block;
-      font-size: 14px;
-    }
-    
-    .transor-selection-translation {
-      color: #42b983;
-      font-weight: 500;
-      display: block;
-      margin-top: 8px;
-      font-size: 15px;
-    }
-    
-    /* 收藏按钮样式 */
-    .transor-selection-favorite {
+    .transor-selection-header {
       display: flex;
-      justify-content: flex-end;
-      margin-top: 10px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(250, 250, 250, 0.8);
     }
     
-    .transor-selection-favorite-btn {
+    .transor-selection-logo {
+      font-weight: bold;
+      color: #42b983;
+      font-size: 16px;
+      letter-spacing: -0.5px;
+    }
+    
+    .transor-selection-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .transor-selection-action-btn {
       background: none;
       border: none;
       cursor: pointer;
-      color: #999;
-      font-size: 18px;
-      padding: 3px 8px;
-      border-radius: 3px;
+      color: #666;
+      border-radius: 4px;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
       transition: all 0.2s;
     }
     
-    .transor-selection-favorite-btn:hover {
-      background-color: #f5f5f5;
+    .transor-selection-action-btn:hover {
+      background-color: rgba(0, 0, 0, 0.05);
       color: #42b983;
     }
     
-    .transor-selection-favorite-btn.active {
+    .transor-favorite-btn.active {
       color: #ff9500;
     }
     
-    /* 防止选中翻译器内容引起新的翻译 */
-    .transor-selection-translator * {
-      pointer-events: auto;
-      user-select: text;
+    .transor-selection-content {
+      padding: 12px 16px;
+      max-height: 400px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+    
+    .transor-selection-content::-webkit-scrollbar {
+      width: 4px;
+    }
+    
+    .transor-selection-content::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+    
+    .transor-selection-word {
+      margin-bottom: 5px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .transor-selection-phonetic {
+      color: #ff6b6b;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    
+    .transor-selection-word-details {
+      margin-bottom: 15px;
+    }
+    
+    .transor-selection-pos {
+      color: #6c5ce7;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 6px;
+      display: inline-block;
+      background-color: rgba(108, 92, 231, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    
+    .transor-selection-pos-block {
+      margin-bottom: 16px;
+    }
+    
+    .transor-selection-pos-block .transor-selection-pos {
+      margin-bottom: 6px;
+      display: block;
+      margin-right: 0;
+    }
+    
+    .transor-selection-meanings {
+      line-height: 1.6;
+      font-size: 14px;
+      color: #333;
+      margin-left: 0;
+    }
+    
+    .transor-selection-pos-meaning {
+      margin-bottom: 12px;
+      line-height: 1.6;
+      font-size: 14px;
+      color: #333;
+    }
+    
+    .transor-selection-pos-meaning .transor-selection-pos {
+      margin-bottom: 0;
+      margin-right: 8px;
+    }
+    
+    .transor-selection-definition {
+      margin-bottom: 16px;
+    }
+    
+    .transor-selection-definition-item {
+      margin-bottom: 6px;
+      display: flex;
+      line-height: 1.5;
+    }
+    
+    .transor-selection-definition-item:before {
+      content: "•";
+      margin-right: 8px;
+      color: #42b983;
+      font-weight: bold;
+    }
+    
+    .transor-selection-sentence {
+      border-left: 2px solid #42b983;
+      padding-left: 10px;
+      margin: 10px 0;
+      font-style: italic;
+      color: #666;
+    }
+    
+    .transor-selection-original {
+      color: #666;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+      display: block;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    
+    .transor-selection-translation {
+      color: #333;
+      font-weight: 500;
+      display: block;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    
+    .transor-loading-dots {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 16px;
+    }
+    
+    .transor-loading-dots span {
+      width: 4px;
+      height: 4px;
+      background-color: #42b983;
+      border-radius: 50%;
+      display: inline-block;
+      animation: transorDotPulse 1.4s infinite ease-in-out both;
+    }
+    
+    .transor-loading-dots span:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+    
+    .transor-loading-dots span:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+    
+    .transor-section-title {
+      font-weight: 600;
+      margin: 15px 0 8px;
+      color: #333;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .transor-section-title:before {
+      content: "";
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background-color: #42b983;
+      margin-right: 6px;
+      border-radius: 2px;
+    }
+    
+    .transor-tabs {
+      display: flex;
+      margin-top: 15px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      margin-bottom: 12px;
+    }
+    
+    .transor-tab {
+      padding: 6px 12px;
+      cursor: pointer;
+      color: #666;
+      border-bottom: 2px solid transparent;
+      margin-right: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    
+    .transor-tab.active {
+      color: #42b983;
+      border-bottom: 2px solid #42b983;
+    }
+    
+    .transor-panel {
+      display: none;
+      padding-top: 10px;
+    }
+    
+    .transor-panel.active {
+      display: block;
+    }
+    
+    @keyframes transorDotPulse {
+      0%, 80%, 100% { 
+        transform: scale(0);
+      } 40% { 
+        transform: scale(1);
+      }
+    }
+    
+    /* 暗色主题支持 */
+    @media (prefers-color-scheme: dark) {
+      .transor-selection-translator {
+        background: #282c34;
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #eee;
+      }
+      
+      .transor-selection-header {
+        background: rgba(40, 44, 52, 0.8);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      .transor-selection-original {
+        color: #bbb;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+      .transor-selection-word {
+        color: #eee;
+      }
+      
+      .transor-selection-translation {
+        color: #eee;
+      }
+      
+      .transor-selection-action-btn {
+        color: #aaa;
+      }
+      
+      .transor-selection-action-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      .transor-section-title {
+        color: #eee;
+      }
+      
+      .transor-selection-sentence {
+        color: #aaa;
+      }
+      
+      .transor-selection-definition-item {
+        color: #ddd;
+      }
+      
+      .transor-tab {
+        color: #aaa;
+      }
+      
+      .transor-tabs {
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      .transor-selection-pos {
+        background-color: rgba(108, 92, 231, 0.2);
+      }
+      
+      .transor-selection-pos-meaning {
+        color: #eee;
+      }
+      
+      .transor-selection-meanings {
+        color: #eee;
+      }
+    }
+    
+    /* 平滑进场动画 */
+    @keyframes transorFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .transor-fade-in {
+      animation: transorFadeIn 0.2s ease-out forwards;
     }
   `;
   
   document.head.appendChild(style);
+  
+  // 事件处理
+  
+  // 关闭按钮
+  closeBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    popup.style.display = 'none';
+  });
+  
+  // 复制按钮
+  copyBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const translation = popup.querySelector('.transor-selection-translation');
+    if (translation) {
+      const text = translation.textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        // 显示复制成功提示
+        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"></path></svg>';
+        copyBtn.style.color = '#42b983';
+        
+        setTimeout(() => {
+          copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>';
+          copyBtn.style.color = '';
+        }, 1500);
+      });
+    }
+  });
+  
+  // 朗读按钮
+  playBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const original = popup.querySelector('.transor-selection-original');
+    if (original && original.textContent) {
+      // 使用浏览器内置的语音合成API
+      const utterance = new SpeechSynthesisUtterance(original.textContent);
+      
+      // 根据源语言设置语音
+      const sourceLang = translationSettings.sourceLanguage;
+      if (sourceLang && sourceLang !== 'auto') {
+        utterance.lang = sourceLang;
+      }
+      
+      // 播放语音
+      window.speechSynthesis.speak(utterance);
+      
+      // 更新按钮状态
+      playBtn.classList.add('active');
+      playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>';
+      
+      // 监听语音结束
+      utterance.onend = function() {
+        playBtn.classList.remove('active');
+        playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>';
+      };
+    }
+  });
+  
+  // 处理标签页切换
+  popup.addEventListener('click', function(e) {
+    if (e.target.classList.contains('transor-tab')) {
+      const tabs = popup.querySelectorAll('.transor-tab');
+      const panels = popup.querySelectorAll('.transor-panel');
+      const targetId = e.target.getAttribute('data-target');
+      
+      // 更新标签和面板的活动状态
+      tabs.forEach(tab => tab.classList.remove('active'));
+      e.target.classList.add('active');
+      
+      panels.forEach(panel => {
+        panel.classList.remove('active');
+        if (panel.id === targetId) {
+          panel.classList.add('active');
+        }
+      });
+    }
+  });
+  
+  // 在文档中创建一个全局引用，以便可以从其他地方访问
+  window.transorSelectionPopup = popup;
   
   return popup;
 }
@@ -1682,128 +2305,501 @@ function initSelectionTranslator() {
   const popupContent = popup.querySelector('.transor-selection-content');
   
   // 定义变量存储选中文本信息
-  let selectedText = '';
+  let currentPopupWord = ''; // 词典弹窗当前对应的单词
+  let lastMouseUpText = '';  // 最近一次 mouseup 事件的原始文本
   let selectionTimer = null;
+  let lastDictRequestTime = 0; // 记录上一次词典请求的时间
+  let lastMousePosition = { x: 0, y: 0 }; // 确保 lastMousePosition 已定义
+  
+  // 监听鼠标按下事件，记录位置
+  document.addEventListener('mousedown', function(e) {
+    lastMousePosition = { x: e.clientX, y: e.clientY };
+  }, { passive: true });
+  
+  // 监听鼠标移动，更新最后位置
+  document.addEventListener('mousemove', function(e) {
+    lastMousePosition = { x: e.clientX, y: e.clientY };
+  }, { passive: true });
   
   // 监听选中事件
   document.addEventListener('mouseup', async function(e) {
     // 获取选中文本
     const selection = window.getSelection();
-    const text = selection.toString().trim();
+    const rawSelectedText = selection.toString().trim();
     
-    // 如果没有选中文本或选中的是翻译器内容，则隐藏翻译器
-    if (!text || e.target.closest('.transor-selection-translator')) {
-      popup.style.display = 'none';
+    // 如果没有选中文本或选中的是翻译器内容，则不处理
+    if (!rawSelectedText || e.target.closest('.transor-selection-translator')) {
       return;
     }
     
-    // 如果选中的文本不变，并且翻译器已显示，不进行重复翻译
-    if (text === selectedText && popup.style.display !== 'none') {
-      return;
-    }
-    
-    // 更新选中文本
-    selectedText = text;
+    // 存储最近一次的原始选择文本，供setTimeout使用
+    lastMouseUpText = rawSelectedText;
     
     // 防抖处理，避免频繁翻译
     clearTimeout(selectionTimer);
     selectionTimer = setTimeout(async () => {
+      const textToProcess = lastMouseUpText; // 使用最近一次mouseup的文本
+
+      // 判断对于弹窗来说，这是否是一个新的单词
+      const isNewWordForPopup = textToProcess !== currentPopupWord;
+      
       try {
-        // 检查是否是代码
-        if (looksLikeCode(text)) {
-          // 如果是代码，不进行翻译
-          popupContent.innerHTML = `
-            <div class="transor-selection-original no-translate">${escapeHtml(text)}</div>
-            <div class="transor-selection-translation no-translate">代码不翻译</div>
-            <div class="transor-selection-favorite no-translate">
-              <button class="transor-selection-favorite-btn" title="收藏" disabled>★</button>
-            </div>
-          `;
-        } else {
-          // 显示加载中
-          popupContent.innerHTML = `
-            <div class="transor-selection-original no-translate">${escapeHtml(text)}</div>
-            <div class="transor-selection-translation no-translate">翻译中...</div>
-          `;
+        // 检查文本长度，如果太长，可能是段落，先确认是否需要翻译
+        if (textToProcess.length > 300) {
+          // 使用动画显示翻译窗口
+          popup.classList.add('transor-fade-in');
+          popup.style.display = 'block';
           
-          // 使用后台脚本进行翻译
-          let translation = text;
-          try {
-            translation = await new Promise((resolve) => {
-              // 添加到翻译队列
-              translationQueue.add(text, result => {
-                resolve(result);
-              });
-            });
-          } catch (translationError) {
-            console.error('翻译过程出错:', translationError);
-            translation = `[翻译失败] ${text}`;
-          }
+          // 定位翻译窗口
+          positionPopup();
           
-          // 清理翻译结果，移除可能的语言标记
-          const cleanTranslation = typeof translation === 'string' ? 
-                                  translation.replace(/,\s*(en|zh-CN|zh|auto)$/i, '') : 
-                                  translation;
-          
-          // 显示翻译结果
+          // 询问是否需要翻译
           popupContent.innerHTML = `
-            <div class="transor-selection-original no-translate">${escapeHtml(text)}</div>
-            <div class="transor-selection-translation no-translate">${escapeHtml(cleanTranslation)}</div>
-            <div class="transor-selection-favorite no-translate">
-              <button class="transor-selection-favorite-btn" title="收藏到学习词典">★</button>
+            <div class="transor-selection-original no-translate">${escapeHtml(textToProcess.substring(0, 100) + '...')}</div>
+            <div class="transor-selection-translation no-translate">
+              <p>所选文本较长 (${textToProcess.length} 字符)，是否翻译？</p>
+              <div style="display: flex; gap: 10px; margin-top: 12px;">
+                <button class="transor-confirm-btn" style="background: #42b983; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">翻译</button>
+                <button class="transor-cancel-btn" style="background: #f5f5f5; color: #666; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">取消</button>
+              </div>
             </div>
           `;
           
-          // 添加收藏按钮点击事件
-          const favoriteBtn = popupContent.querySelector('.transor-selection-favorite-btn');
-          if (favoriteBtn) {
-            favoriteBtn.addEventListener('click', function(e) {
-              e.preventDefault();
-              e.stopPropagation();
-              
-              // 显示加载状态
-              this.textContent = '⌛';
-              this.title = '正在收藏...';
-              this.disabled = true;
-              
-              // 保存收藏
-              saveFavorite(text, cleanTranslation);
-              
-              // 显示已收藏状态
-              setTimeout(() => {
-                this.classList.add('active');
-                this.textContent = '★';
-                this.title = '已收藏';
-                this.disabled = false;
-              }, 500);
-            });
+          // 添加按钮事件
+          const confirmBtn = popupContent.querySelector('.transor-confirm-btn');
+          const cancelBtn = popupContent.querySelector('.transor-cancel-btn');
+          
+          // 确保移除旧的事件监听器
+          if (confirmBtn._clickHandler) {
+            confirmBtn.removeEventListener('click', confirmBtn._clickHandler);
           }
+          if (cancelBtn._clickHandler) {
+            cancelBtn.removeEventListener('click', cancelBtn._clickHandler);
+          }
+          
+          // 添加新的事件监听器并保存引用
+          confirmBtn._clickHandler = function() {
+            currentPopupWord = textToProcess; // 确认后，更新弹窗对应的单词
+            translateSelectedText(textToProcess, true); // 长文本确认翻译时，强制刷新
+          };
+          cancelBtn._clickHandler = function() {
+            popup.style.display = 'none';
+          };
+          
+          confirmBtn.addEventListener('click', confirmBtn._clickHandler);
+          cancelBtn.addEventListener('click', cancelBtn._clickHandler);
+          
+          return;
         }
         
-        // 定位翻译窗口位置
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        
-        popup.style.display = 'block';
-        popup.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth + window.scrollX - popup.offsetWidth - 20)}px`;
-        popup.style.top = `${rect.bottom + window.scrollY + 10}px`;
-        
-        // 如果底部空间不足，则显示在选中文本上方
-        if (rect.bottom + popup.offsetHeight + 30 > window.innerHeight) {
-          popup.style.top = `${rect.top + window.scrollY - popup.offsetHeight - 10}px`;
-        }
+        // 短文本直接翻译
+        // isNewWordForPopup 会传递给 translateSelectedText
+        translateSelectedText(textToProcess, isNewWordForPopup);
+
       } catch (error) {
         console.error('Selection translation error:', error);
         popupContent.innerHTML = `
-          <div class="transor-selection-original no-translate">${escapeHtml(text)}</div>
+          <div class="transor-selection-original no-translate">${escapeHtml(textToProcess)}</div>
           <div class="transor-selection-translation no-translate">翻译失败: ${error.message}</div>
         `;
       }
-    }, 300);
+    }, 200);
   });
   
-  // 保存收藏到Chrome存储
-  function saveFavorite(originalText, translatedText) {
+  // 翻译选中的文本
+  async function translateSelectedText(text, isNewWordForPopupContext = false) {
+    // 更新当前弹窗正在处理的单词
+    currentPopupWord = text;
+
+    // 使用动画显示翻译窗口
+    popup.classList.add('transor-fade-in');
+    popup.style.display = 'block';
+    
+    // 定位翻译窗口 - 使用最后的鼠标位置
+    positionPopup();
+    
+    // 检查是否是代码
+    if (looksLikeCode(text)) {
+      // 如果是代码，不进行翻译
+      popupContent.innerHTML = `
+        <div class="transor-selection-original no-translate">${escapeHtml(text)}</div>
+        <div class="transor-selection-translation no-translate">代码内容无需翻译</div>
+      `;
+      
+      // 将收藏按钮设为禁用
+      const favoriteBtn = popup.querySelector('.transor-favorite-btn');
+      if (favoriteBtn) {
+        favoriteBtn.classList.add('disabled');
+        favoriteBtn.title = '代码不可收藏';
+      }
+    } else {
+      // 显示加载中
+      popupContent.innerHTML = `
+        <div class="transor-selection-original no-translate">${escapeHtml(text)}</div>
+        <div class="transor-selection-translation no-translate">
+          <div class="transor-loading-dots no-translate"><span></span><span></span><span></span></div>
+        </div>
+      `;
+      
+      // 恢复收藏按钮状态
+      let favoriteBtn = popup.querySelector('.transor-favorite-btn');
+      if (favoriteBtn) {
+        favoriteBtn.classList.remove('disabled');
+        favoriteBtn.title = '收藏到词典';
+      }
+      
+      // 使用后台脚本进行翻译
+      let translation = text;
+      let dictResult = null;
+      
+      // 检查是否是单个单词 - 只对纯英文单词使用词典
+      const isJustOneWord = /^[a-zA-Z]+$/.test(text.trim());
+      const isEnglish = /^[a-zA-Z\s\-',.!?]+$/.test(text.trim());
+
+      try {
+        const currentTime = Date.now();
+        // 词典API是否强制刷新：如果是弹窗的新单词，或者距离上次词典请求超过10秒
+        const forceRefreshDictApi = isNewWordForPopupContext || (currentTime - lastDictRequestTime > 10000);
+        if (forceRefreshDictApi) {
+          lastDictRequestTime = currentTime; // 更新最近一次词典请求时间
+        }
+        
+        const [translationResult, dictResponse] = await Promise.all([
+          new Promise((resolve) => {
+            translationQueue.add(text, result => {
+              resolve(result);
+            });
+          }),
+          // 只有单个单词时才请求词典数据
+          isJustOneWord ? fetchDictionaryData(text, forceRefreshDictApi) : Promise.resolve(null)
+        ]);
+        
+        translation = translationResult;
+        dictResult = dictResponse;
+        
+        // 增强日志记录
+        console.log(`[Transor] Selected text: "${text}"`);
+        if (dictResult) {
+          console.log(`[Transor] Dict API response success: ${dictResult.success}`);
+          if (dictResult.success && dictResult.data) {
+            console.log(`[Transor] Dict API queried for (from background): "${dictResult.queriedWord}", API returned word: "${dictResult.data.word}", RequestID: ${dictResult.requestId}`);
+            console.log('[Transor] Dict full data:', JSON.parse(JSON.stringify(dictResult.data)));
+          } else if (!dictResult.success) {
+            console.log(`[Transor] Dict API call failed for "${text}". Queried for (from background): "${dictResult.queriedWord}". Error: ${dictResult.error}, RequestID: ${dictResult.requestId}`);
+          }
+        } else {
+          console.log(`[Transor] No dictionary result for "${text}" (not a single word or forced sentence translation).`);
+        }
+
+      } catch (translationError) {
+        console.error('翻译过程出错:', translationError);
+        translation = `[翻译失败] ${text}`;
+      }
+      
+      const cleanTranslation = typeof translation === 'string' ? 
+                             translation.replace(/,\s*(en|zh-CN|zh|auto)$/i, '') : 
+                             translation;
+      
+      let contentHTML = '';
+      let useDictionaryLayout = false;
+      
+      if (isJustOneWord && dictResult && dictResult.success && dictResult.data) {
+        // 数据一致性校验
+        const dictDataWord = dictResult.data.word;
+        const queriedWordByBg = dictResult.queriedWord;
+
+        if (queriedWordByBg && queriedWordByBg.toLowerCase() === text.toLowerCase() &&
+            dictDataWord && dictDataWord.toLowerCase() === text.toLowerCase()) {
+          useDictionaryLayout = true;
+        } else {
+          console.warn(`[Transor] Mismatched dictionary data. Selected: "${text}", Queried by BG: "${queriedWordByBg}", API returned word: "${dictDataWord}". Falling back to simple translation display.`);
+        }
+      }
+
+      if (useDictionaryLayout) {
+        const dict = dictResult.data;
+        contentHTML += `<div class="transor-selection-word no-translate">${escapeHtml(dict.word || text)}</div>`;
+        if (dict.phonetic) {
+          contentHTML += `<div class="transor-selection-phonetic no-translate">/${escapeHtml(dict.phonetic)}/</div>`;
+        }
+        contentHTML += `
+          <div class="transor-tabs no-translate">
+            <div class="transor-tab active no-translate" data-target="transor-dict-panel">词典</div>
+            <div class="transor-tab no-translate" data-target="transor-trans-panel">翻译</div>
+          </div>
+          <div id="transor-dict-panel" class="transor-panel active no-translate">
+            <div class="transor-selection-word-details no-translate">
+        `;
+        if (dict.definitions && dict.definitions.length > 0) {
+          dict.definitions.forEach(def => {
+            if (def.pos && (def.meanings || def.meaning)) {
+              // 每个词性单独一行，释义在下一行
+              let meanings = [];
+              if (def.meanings && def.meanings.length > 0) {
+                meanings = def.meanings;
+              } else if (def.meaning) {
+                meanings = [def.meaning];
+              }
+              
+              // 将多个意思用分号连接
+              const combinedMeanings = meanings.join('；');
+              contentHTML += `<div class="transor-selection-pos-block no-translate">
+                <div class="transor-selection-pos no-translate">${escapeHtml(def.pos)}</div>
+                <div class="transor-selection-meanings no-translate">${escapeHtml(combinedMeanings)}</div>
+              </div>`;
+            }
+          });
+        } else {
+          contentHTML += `
+            <div class="transor-selection-pos-block no-translate">
+              <div class="transor-selection-pos no-translate">${isEnglish ? 'n.' : '词义'}</div>
+              <div class="transor-selection-meanings no-translate">${escapeHtml(cleanTranslation)}</div>
+            </div>
+          `;
+        }
+        contentHTML += `</div>`; // word-details
+        // 移除例句部分，不再显示
+        contentHTML += `</div>`; // dict-panel
+        contentHTML += `
+          <div id="transor-trans-panel" class="transor-panel no-translate">
+            <div class="transor-selection-translation no-translate">${escapeHtml(cleanTranslation)}</div>
+          </div>
+        `;
+      } else {
+        // 使用简单翻译显示
+        contentHTML = `
+            <div class="transor-selection-original no-translate">${escapeHtml(text)}</div>
+            <div class="transor-selection-translation no-translate">${escapeHtml(cleanTranslation)}</div>
+        `;
+      }
+      
+      popupContent.innerHTML = contentHTML;
+      
+      // 确保所有动态创建的元素都有no-translate类
+      popupContent.querySelectorAll('*').forEach(el => {
+        if (!el.classList.contains('no-translate')) {
+          el.classList.add('no-translate');
+        }
+      });
+      
+      favoriteBtn = popup.querySelector('.transor-favorite-btn');
+      if (favoriteBtn) {
+        const oldClone = favoriteBtn.cloneNode(true);
+        favoriteBtn.parentNode.replaceChild(oldClone, favoriteBtn);
+        oldClone.addEventListener('click', function() {
+          this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></path></svg>';
+          this.title = '正在收藏...';
+          saveFavorite(text, cleanTranslation).then(success => {
+            if (success) {
+              this.classList.add('active');
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
+              this.title = '已收藏';
+            } else {
+              this.classList.remove('active');
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
+              this.title = '收藏到词典';
+            }
+          });
+        });
+      }
+      
+      const playBtn = popup.querySelector('.transor-play-btn');
+      if (playBtn) {
+        const oldPlayBtn = playBtn.cloneNode(true);
+        playBtn.parentNode.replaceChild(oldPlayBtn, playBtn);
+        oldPlayBtn.addEventListener('click', function() {
+          const contentToRead = text;
+          if (contentToRead) {
+            const utterance = new SpeechSynthesisUtterance(contentToRead);
+            if (isEnglish) {
+              utterance.lang = 'en-US';
+            } else {
+              const sourceLang = translationSettings.sourceLanguage;
+              if (sourceLang && sourceLang !== 'auto') {
+                utterance.lang = sourceLang;
+              }
+            }
+            window.speechSynthesis.speak(utterance);
+            this.classList.add('active');
+            this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>';
+            utterance.onend = () => {
+              this.classList.remove('active');
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>';
+            };
+            utterance.onerror = () => {
+              this.classList.remove('active');
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>';
+              console.error('语音合成出错');
+            };
+          }
+        });
+      }
+    }
+      
+    setTimeout(() => popup.classList.remove('transor-fade-in'), 300);
+  }
+  
+  // 定位弹窗函数
+  function positionPopup() {
+    // 获取当前选中范围
+    const selection = window.getSelection();
+    
+    // 优先使用选中文本的位置
+    if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        
+      // 使用智能定位算法
+      smartPositionPopup(rect);
+    } else {
+      // 使用鼠标位置作为备选
+      const mouseRect = {
+        left: lastMousePosition.x,
+        right: lastMousePosition.x,
+        top: lastMousePosition.y,
+        bottom: lastMousePosition.y,
+        width: 0,
+        height: 0
+      };
+      
+      smartPositionPopup(mouseRect);
+    }
+  }
+  
+  // 智能定位弹窗
+  function smartPositionPopup(rect) {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // 获取弹窗尺寸
+    const popupWidth = 320; // 弹窗固定宽度
+    const popupHeight = Math.min(popup.offsetHeight || 300, 400); // 弹窗高度，设置最大值
+    
+    // 默认弹窗位置（居中）
+    let left = rect.left + (rect.width / 2) - (popupWidth / 2) + scrollX;
+    let top = rect.bottom + 10 + scrollY;
+    
+    // 检查右侧空间
+    if (left + popupWidth > viewportWidth + scrollX) {
+      left = viewportWidth + scrollX - popupWidth - 10;
+    }
+    
+    // 检查左侧空间
+    if (left < scrollX) {
+      left = scrollX + 10;
+    }
+    
+    // 检查底部空间 - 如果底部空间不足，则显示在上方
+    if (rect.bottom + popupHeight + 10 > viewportHeight + scrollY) {
+      // 判断顶部空间是否足够
+      if (rect.top - popupHeight - 10 > scrollY) {
+        // 在上方显示
+        top = rect.top - popupHeight - 10 + scrollY;
+      } else {
+        // 空间都不足，则选择较大的空间显示
+        const topSpace = rect.top - scrollY;
+        const bottomSpace = viewportHeight - rect.bottom;
+        
+        if (topSpace > bottomSpace) {
+          // 在上方显示，但可能会被截断
+          top = rect.top - popupHeight - 10 + scrollY;
+        } else {
+          // 在下方显示，但可能会被截断
+          top = rect.bottom + 10 + scrollY;
+        }
+      }
+    }
+    
+    // 应用最终位置
+    popup.style.left = `${left}px`;
+    popup.style.top = `${top}px`;
+  }
+  
+  // 点击其他区域隐藏翻译窗口
+  document.addEventListener('mousedown', function(e) {
+    // 如果点击的不是弹窗内容，且弹窗正在显示
+    if (popup.style.display === 'block' && !popup.contains(e.target)) {
+      // 添加淡出动画
+      popup.style.opacity = '0';
+      popup.style.transform = 'translateY(10px)';
+      
+      // 延迟后隐藏
+      setTimeout(() => {
+        popup.style.display = 'none';
+        popup.style.opacity = '1';
+        popup.style.transform = 'translateY(0)';
+      }, 200);
+    }
+  });
+  
+  // 监听鼠标滚动，智能更新翻译窗口位置
+  document.addEventListener('scroll', function() {
+    // 如果翻译窗口已显示
+    if (popup.style.display === 'block') {
+      // 获取当前选中范围
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        if (range) {
+          const rect = range.getBoundingClientRect();
+          
+          // 只有选中区域还在视口内才更新位置
+          if (rect.top > -50 && 
+              rect.bottom < window.innerHeight + 50 && 
+              rect.left > -50 && 
+              rect.right < window.innerWidth + 50) {
+            
+            // 使用智能定位更新位置
+            const rect = range.getBoundingClientRect();
+            
+            // 使用智能定位算法
+            smartPositionPopup(rect);
+            
+            return; // 已更新位置，不隐藏
+          }
+        }
+      }
+      
+      // 如果选中范围无效或不可见，则淡出并隐藏翻译窗口
+      popup.style.opacity = '0';
+      popup.style.transform = 'translateY(10px)';
+      
+      setTimeout(() => {
+        popup.style.display = 'none';
+        popup.style.opacity = '1';
+        popup.style.transform = 'translateY(0)';
+      }, 200);
+    }
+  }, { passive: true });
+  
+  // 添加窗口大小变化事件监听
+  window.addEventListener('resize', function() {
+    // 如果翻译窗口已显示，使用相同的逻辑更新位置
+    if (popup.style.display === 'block') {
+      const scrollEvent = new Event('scroll');
+      document.dispatchEvent(scrollEvent);
+    }
+  }, { passive: true });
+  
+  // 添加键盘事件 - ESC关闭窗口
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && popup.style.display === 'block') {
+      popup.style.opacity = '0';
+      popup.style.transform = 'translateY(10px)';
+      
+      setTimeout(() => {
+        popup.style.display = 'none';
+        popup.style.opacity = '1';
+        popup.style.transform = 'translateY(0)';
+      }, 200);
+    }
+  });
+  
+  // 使Promise化的saveFavorite函数
+  async function saveFavorite(originalText, translatedText) {
+    return new Promise((resolve) => {
     // 创建收藏项
     const favorite = {
       original: originalText,
@@ -1828,91 +2824,115 @@ function initSelectionTranslator() {
       }
     });
     
-    // 读取现有收藏
-    chrome.storage.sync.get('transorFavorites', function(result) {
-      const favorites = result.transorFavorites || [];
-      console.log('已有收藏数量:', favorites.length);
-      
-      // 检查是否已经收藏
-      const exists = favorites.some(item => 
-        item.original === originalText && item.translation === translatedText
-      );
-      
-      if (!exists) {
-        // 添加到收藏列表
-        favorites.push(favorite);
-        
-        // 保存回存储
-        chrome.storage.sync.set({
-          transorFavorites: favorites
-        }, function() {
-          if (chrome.runtime.lastError) {
-            console.error('保存收藏失败:', chrome.runtime.lastError);
+    // 使用新的存储管理器保存收藏
+    if (window.TransorStorageManager) {
+      window.TransorStorageManager.addFavorite(favorite)
+        .then(result => {
+          if (result.success) {
+            console.log(`✅ 成功保存收藏到${result.storageType}存储，总数: ${result.totalCount}`);
+            
+            // 触发新收藏项的高亮
+            if (window.TransorHighlighter && typeof window.TransorHighlighter.highlightNew === 'function') {
+              try {
+                window.TransorHighlighter.highlightNew(originalText);
+                console.log('已触发新收藏项高亮:', originalText);
+              } catch (highlightError) {
+                console.error('触发新收藏项高亮失败:', highlightError);
+              }
+            }
+              
+              resolve(true);
           } else {
-            console.log('成功保存收藏，总数:', favorites.length);
+            if (result.reason === 'already_exists') {
+              console.log('该内容已被收藏，跳过');
+                resolve(true); // 已存在也算成功
+            } else if (result.isQuotaError) {
+              console.error('❌ 存储配额不足:', result.error);
+              // 尝试清理旧收藏
+              window.TransorStorageManager.cleanupOldFavorites(50)
+                .then(cleanupResult => {
+                  if (cleanupResult.success) {
+                    console.log(`已清理 ${cleanupResult.cleaned} 条旧收藏，请重试`);
+                    // 递归重试一次
+                    return window.TransorStorageManager.addFavorite(favorite);
+                  }
+                })
+                .then(retryResult => {
+                  if (retryResult && retryResult.success) {
+                    console.log('✅ 清理后重试保存成功');
+                    // 触发高亮
+                    if (window.TransorHighlighter && typeof window.TransorHighlighter.highlightNew === 'function') {
+                      window.TransorHighlighter.highlightNew(originalText);
+                    }
+                      resolve(true);
+                  } else {
+                    console.error('❌ 清理后重试仍然失败');
+                      resolve(false);
+                  }
+                })
+                .catch(error => {
+                  console.error('❌ 清理旧收藏失败:', error);
+                    resolve(false);
+                });
+            } else {
+              console.error('❌ 保存收藏失败:', result.error);
+                resolve(false);
+            }
           }
+        })
+        .catch(error => {
+          console.error('❌ 保存收藏异常:', error);
+            resolve(false);
         });
-      } else {
-        console.log('该内容已被收藏，跳过');
-      }
-    });
-  }
-  
-  // 点击其他区域隐藏翻译窗口
-  document.addEventListener('mousedown', function(e) {
-    if (!popup.contains(e.target) && e.target !== popup) {
-      popup.style.display = 'none';
-    }
-  });
-  
-  // 监听鼠标滚动，更新翻译窗口位置而不是隐藏
-  document.addEventListener('scroll', function() {
-    // 如果翻译窗口已显示并有内容，则更新位置而不是隐藏
-    if (popup.style.display === 'block' && selectedText) {
-      // 获取当前选中范围
-      const selection = window.getSelection();
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        if (range) {
-          const rect = range.getBoundingClientRect();
+    } else {
+      // 降级到原有的存储方式
+      console.warn('存储管理器不可用，使用原有方式');
+      
+      // 读取现有收藏
+      chrome.storage.sync.get('transorFavorites', function(result) {
+        const favorites = result.transorFavorites || [];
+        console.log('已有收藏数量:', favorites.length);
+        
+        // 检查是否已经收藏
+        const exists = favorites.some(item => 
+          item.original === originalText && item.translation === translatedText
+        );
+        
+        if (!exists) {
+          // 添加到收藏列表
+          favorites.push(favorite);
           
-          // 只有选中区域还在视口内才更新位置
-          if (rect.top > 0 && 
-              rect.bottom < window.innerHeight && 
-              rect.left > 0 && 
-              rect.right < window.innerWidth) {
-            
-            popup.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth + window.scrollX - popup.offsetWidth - 20)}px`;
-            popup.style.top = `${rect.bottom + window.scrollY + 10}px`;
-            
-            // 如果底部空间不足，则显示在选中文本上方
-            if (rect.bottom + popup.offsetHeight + 30 > window.innerHeight) {
-              popup.style.top = `${rect.top + window.scrollY - popup.offsetHeight - 10}px`;
+          // 保存回存储
+          chrome.storage.sync.set({
+            transorFavorites: favorites
+          }, function() {
+            if (chrome.runtime.lastError) {
+              console.error('保存收藏失败:', chrome.runtime.lastError);
+                resolve(false);
+            } else {
+              console.log('成功保存收藏，总数:', favorites.length);
+              
+              // 触发新收藏项的高亮
+              if (window.TransorHighlighter && typeof window.TransorHighlighter.highlightNew === 'function') {
+                try {
+                  window.TransorHighlighter.highlightNew(originalText);
+                  console.log('已触发新收藏项高亮:', originalText);
+                } catch (highlightError) {
+                  console.error('触发新收藏项高亮失败:', highlightError);
+                }
+              }
+                
+                resolve(true);
             }
-            
-            // 如果左侧空间不足，改为从左侧显示
-            if (rect.left + popup.offsetWidth > window.innerWidth) {
-              popup.style.left = `${window.innerWidth + window.scrollX - popup.offsetWidth - 20}px`;
-            }
-            
-            return; // 已更新位置，不隐藏
-          }
+          });
+        } else {
+          console.log('该内容已被收藏，跳过');
+            resolve(true); // 已存在也算成功
         }
-      }
+      });
     }
-    
-    // 如果选中范围无效或不可见，则隐藏翻译窗口
-    popup.style.display = 'none';
-  }, { passive: true });
-  
-  // 添加窗口大小变化事件监听，更新翻译窗口位置
-  window.addEventListener('resize', function() {
-    // 触发一次滚动事件处理函数，使用相同的逻辑更新位置
-    if (popup.style.display === 'block') {
-      const scrollEvent = new Event('scroll');
-      document.dispatchEvent(scrollEvent);
+    });
     }
-  }, { passive: true });
   
   // 转义HTML特殊字符，防止XSS
   function escapeHtml(text) {
@@ -1930,6 +2950,26 @@ function initSelectionTranslator() {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+  
+  // 获取词典数据
+  async function fetchDictionaryData(word, forceRefresh = false) { // forceRefresh parameter is used here
+    return new Promise((resolve) => {
+      // 根据forceRefresh决定是否使用新的时间戳
+      const timestamp = forceRefresh ? new Date().getTime() : null; 
+      console.log('[Transor FetchDict] Word:', word, 'ForceRefresh:', forceRefresh, 'Timestamp:', timestamp);
+      
+      chrome.runtime.sendMessage({
+        action: 'fetchDictionary',
+        word: word,
+        sourceLang: translationSettings.sourceLanguage,
+        targetLang: translationSettings.targetLanguage,
+        timestamp: timestamp // Pass the potentially null timestamp
+      }, response => {
+        console.log('[Transor FetchDict] Response Rcvd - Success:', response?.success, 'For Word:', response?.queriedWord, 'API Word:', response?.data?.word, 'ReqID:', response?.requestId);
+        resolve(response || null);
+      });
+    });
   }
 }
 
@@ -2277,6 +3317,448 @@ function setupGlobalTipSystem() {
       });
     }
   }, { passive: true });
+}
+
+// 输入框内容翻译功能 - 用于检测三个连续空格并触发翻译
+function initInputTranslation() {
+  console.log('初始化输入框翻译功能');
+  console.log('空格翻译功能状态: ', translationSettings.enableInputSpaceTranslation ? '已启用' : '未启用');
+  
+  let consecutiveSpaces = 0;
+  let currentInputElement = null;
+  let originalContent = '';
+  let isTranslating = false;
+  let preventInput = false; // 用于阻止input事件导致的内容重置
+  
+  // 检查当前功能是否启用 - 移除isEnabled依赖
+  const isFeatureEnabled = () => {
+    return translationSettings.enableInputSpaceTranslation;
+  };
+  
+  // 检查输入元素是否有效
+  const isValidInput = (element) => {
+    if (!element) return false;
+    return (
+      (element.tagName === 'INPUT' && (element.type === 'text' || element.type === 'search')) || 
+      element.tagName === 'TEXTAREA' || 
+      element.getAttribute('contenteditable') === 'true'
+    );
+  };
+  
+  // 获取输入元素的内容
+  const getInputContent = (element) => {
+    if (!element) return '';
+    
+    try {
+      if (element.getAttribute('contenteditable') === 'true') {
+        return element.innerText || element.textContent || '';
+      }
+      
+      // 对于常规输入框和文本区域
+      if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+        return element.value || '';
+      }
+      
+      // 最后尝试读取内容
+      return element.value || element.innerText || element.textContent || '';
+    } catch (error) {
+      console.error('获取输入内容时出错:', error);
+      return '';
+    }
+  };
+  
+  // 设置输入元素的内容
+  const setInputContent = (element, content) => {
+    if (!element) return;
+    try {
+      preventInput = true; // 设置标记，阻止input事件处理
+      
+      if (element.getAttribute('contenteditable') === 'true') {
+        element.innerText = content;
+      } else {
+        element.value = content;
+      }
+      
+      // 触发input事件，确保其他可能的监听器能感知变化
+      const inputEvent = new Event('input', { bubbles: true });
+      element.dispatchEvent(inputEvent);
+      
+      // 立即恢复标记
+      setTimeout(() => {
+        preventInput = false;
+      }, 100);
+    } catch (error) {
+      console.error('设置输入内容时出错:', error);
+      preventInput = false;
+    }
+  };
+  
+  // 重置状态
+  const resetState = () => {
+    console.log('重置空格计数状态');
+    consecutiveSpaces = 0;
+    currentInputElement = null;
+    originalContent = '';
+    isTranslating = false;
+    preventInput = false;
+  };
+
+  // 处理输入事件，防止内容被意外重置
+  document.addEventListener('input', (event) => {
+    if (preventInput) {
+      // 如果是我们自己触发的事件，忽略处理
+      console.log('检测到设置内容后的input事件，忽略');
+      return;
+    }
+    
+    // 如果正在翻译中，并且事件目标是当前输入元素
+    if (isTranslating && event.target === currentInputElement) {
+      console.log('翻译过程中检测到输入，可能会导致内容重置');
+      // 不重置状态，允许继续翻译
+    }
+  }, true);
+  
+  // 使用键盘事件监听空格键，而不是依赖input事件
+  document.addEventListener('keydown', (event) => {
+    // 检查功能是否启用
+    if (!isFeatureEnabled()) {
+      if (consecutiveSpaces > 0) {
+        console.log('功能已禁用，重置空格计数');
+        resetState();
+      }
+      return;
+    }
+  
+    // 只处理空格键
+    if (event.key === ' ' || event.code === 'Space') {
+      // 获取当前焦点元素
+      const activeElement = document.activeElement;
+      
+      // 检查是否是有效的输入元素
+      if (isValidInput(activeElement)) {
+        // 记录元素和内容
+        if (currentInputElement !== activeElement) {
+          currentInputElement = activeElement;
+          originalContent = getInputContent(activeElement);
+          consecutiveSpaces = 0;
+        }
+        
+        // 递增空格计数
+        consecutiveSpaces++;
+        console.log('键盘空格计数:', consecutiveSpaces, '当前元素:', activeElement.tagName);
+        
+        // 如果检测到三个连续空格，触发翻译
+        if (consecutiveSpaces === 3) {
+          console.log('检测到三个连续空格，准备翻译输入内容');
+          // 获取内容（去掉空格）
+          let content = getInputContent(activeElement).trim();
+          
+          if (content) {
+            // 去掉末尾的空格（可能有1-2个空格）
+            content = content.replace(/\s+$/, '');
+            console.log('将翻译内容:', content);
+            isTranslating = true;
+            
+            // 设置一个加载状态
+            setInputContent(currentInputElement, content + ' (翻译中...)');
+            
+            // 翻译文本
+            chrome.runtime.sendMessage(
+              {
+                action: 'translate',
+                text: content,
+                from: translationSettings.sourceLanguage,
+                to: translationSettings.targetLanguage
+              },
+              (response) => {
+                if (response && response.success) {
+                  console.log('翻译成功:', response.translation);
+                  // 替换输入框内容为翻译结果
+                  setInputContent(currentInputElement, response.translation);
+                  // 保持翻译状态一段时间，防止输入事件覆盖结果
+                  setTimeout(() => {
+                    isTranslating = false;
+                  }, 1000);
+                } else {
+                  console.error('翻译失败:', response?.error || '未知错误');
+                  // 恢复原始内容
+                  setInputContent(currentInputElement, originalContent);
+                  isTranslating = false;
+                }
+              }
+            );
+          } else {
+            console.log('无内容可翻译');
+          }
+          
+          // 重置空格计数
+          consecutiveSpaces = 0;
+        }
+      } else {
+        // 不是有效的输入元素，重置状态
+        if (consecutiveSpaces > 0) {
+          console.log('不是有效的输入元素，重置空格计数');
+          resetState();
+        }
+      }
+    } else if (event.key !== ' ' && event.code !== 'Space') {
+      // 如果不是空格键，重置计数
+      if (consecutiveSpaces > 0) {
+        console.log('检测到非空格键，重置空格计数');
+        consecutiveSpaces = 0;
+      }
+    }
+  });
+  
+  // ESC键监听 - 取消翻译
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && isTranslating && currentInputElement) {
+      console.log('ESC键被按下，取消翻译');
+      try {
+        // 恢复原始内容
+        setInputContent(currentInputElement, originalContent);
+        console.log('已恢复原始内容');
+      } catch (error) {
+        console.error('恢复原始内容时出错:', error);
+      }
+      resetState();
+    }
+  });
+  
+  // 使用MutationObserver监听新添加的元素
+  const observer = new MutationObserver((mutations) => {
+    if (!isFeatureEnabled()) return;
+    
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // 检查新添加的元素是否是输入元素
+            if (isValidInput(node)) {
+              console.log('检测到新的输入元素:', node);
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  // 开始观察文档变化
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  console.log('输入框翻译功能初始化完成');
+}
+
+// 添加调试按钮，方便切换功能
+function addDebugControls() {
+  // 检查是否已经存在调试控制面板
+  const existingPanel = document.getElementById('transor-debug-panel');
+  if (existingPanel) {
+    existingPanel.remove();
+  }
+  
+  // 创建一个位于页面右下角的浮动面板
+  const panel = document.createElement('div');
+  panel.id = 'transor-debug-panel';
+  panel.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 9999999;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  `;
+  
+  // 添加标题
+  const title = document.createElement('div');
+  title.textContent = 'Transor 调试面板';
+  title.style.cssText = `
+    font-weight: bold;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+  `;
+  panel.appendChild(title);
+  
+  // 创建开关按钮
+  function createToggle(label, initialState, onChange) {
+    const container = document.createElement('div');
+    container.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    `;
+    
+    const labelEl = document.createElement('span');
+    labelEl.textContent = label;
+    
+    const toggle = document.createElement('button');
+    toggle.style.cssText = `
+      background-color: ${initialState ? '#4CAF50' : '#F44336'};
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      min-width: 60px;
+    `;
+    toggle.textContent = initialState ? '开启' : '关闭';
+    
+    toggle.addEventListener('click', () => {
+      const newState = toggle.textContent === '关闭';
+      toggle.textContent = newState ? '开启' : '关闭';
+      toggle.style.backgroundColor = newState ? '#4CAF50' : '#F44336';
+      if (onChange) onChange(newState);
+    });
+    
+    container.appendChild(labelEl);
+    container.appendChild(toggle);
+    
+    return container;
+  }
+  
+  // 只添加空格翻译功能开关
+  const spaceToggle = createToggle(
+    '空格翻译功能', 
+    translationSettings.enableInputSpaceTranslation,
+    (state) => {
+      translationSettings.enableInputSpaceTranslation = state;
+      chrome.storage.sync.set({ enableInputSpaceTranslation: state }, () => {
+        console.log('空格翻译功能已设置为:', state);
+      });
+      diagnoseFunctionality();
+    }
+  );
+  panel.appendChild(spaceToggle);
+  
+  // 添加按钮：运行诊断
+  const diagButton = document.createElement('button');
+  diagButton.textContent = '运行诊断';
+  diagButton.style.cssText = `
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    margin-top: 5px;
+    cursor: pointer;
+  `;
+  diagButton.addEventListener('click', () => {
+    console.log('手动运行诊断程序');
+    diagnoseFunctionality();
+  });
+  panel.appendChild(diagButton);
+  
+  // 添加按钮：测试翻译
+  const testButton = document.createElement('button');
+  testButton.textContent = '测试输入框翻译';
+  testButton.style.cssText = `
+    background-color: #FF9800;
+    color: white;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+  `;
+  testButton.addEventListener('click', () => {
+    // 创建一个临时输入框进行测试
+    const testInput = document.createElement('textarea');
+    testInput.value = '这是一个测试文本，将被翻译成英文。';
+    testInput.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10000;
+      padding: 10px;
+      width: 300px;
+      height: 100px;
+      border: 2px solid #2196F3;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    `;
+    
+    document.body.appendChild(testInput);
+    testInput.focus();
+    
+    // 添加一个关闭按钮
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '关闭测试';
+    closeButton.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, 80px);
+      z-index: 10000;
+      padding: 5px 10px;
+      background-color: #F44336;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+    closeButton.addEventListener('click', () => {
+      testInput.remove();
+      closeButton.remove();
+      closeInfo.remove();
+    });
+    
+    // 添加提示信息
+    const closeInfo = document.createElement('div');
+    closeInfo.textContent = '在文本框中输入三个连续空格测试翻译功能';
+    closeInfo.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -100px);
+      z-index: 10000;
+      padding: 5px 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+    `;
+    
+    document.body.appendChild(closeButton);
+    document.body.appendChild(closeInfo);
+  });
+  panel.appendChild(testButton);
+  
+  // 添加按钮：显示设置
+  const settingsButton = document.createElement('button');
+  settingsButton.textContent = '显示当前设置';
+  settingsButton.style.cssText = `
+    background-color: #607D8B;
+    color: white;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+  `;
+  settingsButton.addEventListener('click', () => {
+    chrome.storage.sync.get(null, (settings) => {
+      console.log('当前所有设置:', settings);
+      alert('当前设置已在控制台输出');
+    });
+  });
+  panel.appendChild(settingsButton);
+  
+  // 添加到页面
+  document.body.appendChild(panel);
 }
 
 // 初始化

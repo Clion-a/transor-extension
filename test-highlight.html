@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收藏高亮功能测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        .test-section h2 {
+            color: #ff5588;
+            margin-top: 0;
+        }
+        .instructions {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .sample-text {
+            font-size: 16px;
+            line-height: 1.8;
+            margin: 15px 0;
+        }
+        .highlight-demo {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Transor 收藏高亮功能测试页面</h1>
+        
+        <div class="instructions">
+            <h3>测试说明：</h3>
+            <ol>
+                <li>确保已安装并启用 Transor 扩展</li>
+                <li>选中下面的英文文本进行翻译</li>
+                <li>点击收藏按钮将翻译结果保存到收藏夹</li>
+                <li>观察文本是否被高亮显示</li>
+                <li>刷新页面，检查高亮是否持续存在</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>基础英文测试文本</h2>
+            <div class="sample-text">
+                <p>Hello world! This is a simple test for the translation feature.</p>
+                <p>The quick brown fox jumps over the lazy dog.</p>
+                <p>Artificial intelligence is transforming the way we work and live.</p>
+                <p>Machine learning algorithms can process vast amounts of data.</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>常用短语测试</h2>
+            <div class="sample-text">
+                <p>Good morning! How are you today?</p>
+                <p>Thank you very much for your help.</p>
+                <p>I would like to order a cup of coffee.</p>
+                <p>What time is it now?</p>
+                <p>Have a nice day!</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>技术词汇测试</h2>
+            <div class="sample-text">
+                <p>JavaScript is a programming language.</p>
+                <p>Database management systems store and retrieve data.</p>
+                <p>Cloud computing provides scalable resources.</p>
+                <p>User interface design focuses on user experience.</p>
+                <p>API stands for Application Programming Interface.</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>长句子测试</h2>
+            <div class="sample-text">
+                <p>The development of modern web applications requires a deep understanding of both frontend and backend technologies, including HTML, CSS, JavaScript, and various server-side programming languages.</p>
+                <p>In today's digital age, cybersecurity has become increasingly important as organizations rely more heavily on technology to conduct their business operations and store sensitive information.</p>
+            </div>
+        </div>
+
+        <div class="highlight-demo">
+            <h3>预期效果示例：</h3>
+            <p>收藏的文本应该显示为：<span style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 2px 4px; border-radius: 3px;">highlighted text</span></p>
+            <p>鼠标悬停时应该显示翻译内容的工具提示。</p>
+        </div>
+
+        <div class="test-section">
+            <h2>测试步骤记录</h2>
+            <div class="sample-text">
+                <p>✅ 1. 扩展已加载</p>
+                <p>⏳ 2. 选中文本并翻译</p>
+                <p>⏳ 3. 点击收藏按钮</p>
+                <p>⏳ 4. 检查文本是否高亮</p>
+                <p>⏳ 5. 刷新页面验证持久性</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 简单的测试脚本，用于验证扩展是否正常加载
+        console.log('测试页面已加载');
+        
+        // 检查扩展是否注入了相关脚本
+        setTimeout(() => {
+            if (typeof FavoritesHighlighter !== 'undefined') {
+                console.log('✅ FavoritesHighlighter 类已加载');
+            } else {
+                console.log('❌ FavoritesHighlighter 类未找到');
+            }
+            
+            if (window.favoritesHighlighter) {
+                console.log('✅ 收藏高亮实例已创建');
+            } else {
+                console.log('❌ 收藏高亮实例未找到');
+            }
+        }, 2000);
+    </script>
+</body>
+</html> 

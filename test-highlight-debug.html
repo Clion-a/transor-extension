@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收藏高亮功能调试测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .debug-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .debug-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .debug-button:hover {
+            background: #0056b3;
+        }
+        .test-text {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>收藏高亮功能调试测试</h1>
+        
+        <div class="debug-panel">
+            <h3>调试控制面板</h3>
+            <button class="debug-button" onclick="checkHighlighter()">检查高亮器状态</button>
+            <button class="debug-button" onclick="testHighlight()">测试高亮功能</button>
+            <button class="debug-button" onclick="clearHighlights()">清除所有高亮</button>
+            <button class="debug-button" onclick="addTestFavorite()">添加测试收藏</button>
+            <button class="debug-button" onclick="showFavorites()">显示收藏数据</button>
+        </div>
+
+        <div id="status-area"></div>
+
+        <div class="test-text">
+            <h3>测试文本区域</h3>
+            <p>Hello world! This is a simple test for the translation feature.</p>
+            <p>The quick brown fox jumps over the lazy dog.</p>
+            <p>JavaScript is a programming language used for web development.</p>
+            <p>Machine learning algorithms can process vast amounts of data efficiently.</p>
+            <p>Thank you very much for your help and support.</p>
+        </div>
+
+        <div class="test-text">
+            <h3>中文测试文本</h3>
+            <p>你好世界！这是一个简单的测试。</p>
+            <p>人工智能正在改变我们的工作和生活方式。</p>
+            <p>机器学习算法可以处理大量数据。</p>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const statusArea = document.getElementById('status-area');
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusArea.appendChild(statusDiv);
+            
+            // 5秒后自动移除
+            setTimeout(() => {
+                if (statusDiv.parentNode) {
+                    statusDiv.remove();
+                }
+            }, 5000);
+        }
+
+        function checkHighlighter() {
+            console.log('检查高亮器状态...');
+            
+            if (typeof window.TransorHighlighter !== 'undefined') {
+                showStatus('✅ TransorHighlighter 全局对象存在', 'success');
+                
+                const instance = window.TransorHighlighter.getInstance();
+                if (instance) {
+                    showStatus('✅ 高亮器实例已创建', 'success');
+                    console.log('高亮器实例:', instance);
+                } else {
+                    showStatus('❌ 高亮器实例未创建', 'error');
+                }
+            } else {
+                showStatus('❌ TransorHighlighter 全局对象不存在', 'error');
+            }
+        }
+
+        function testHighlight() {
+            console.log('测试高亮功能...');
+            
+            if (window.TransorHighlighter) {
+                try {
+                    // 测试高亮一些常见单词
+                    window.TransorHighlighter.highlightNew('Hello');
+                    window.TransorHighlighter.highlightNew('world');
+                    window.TransorHighlighter.highlightNew('JavaScript');
+                    
+                    showStatus('✅ 测试高亮已触发', 'success');
+                } catch (error) {
+                    showStatus('❌ 测试高亮失败: ' + error.message, 'error');
+                    console.error('测试高亮失败:', error);
+                }
+            } else {
+                showStatus('❌ TransorHighlighter 不可用', 'error');
+            }
+        }
+
+        function clearHighlights() {
+            console.log('清除所有高亮...');
+            
+            const instance = window.TransorHighlighter?.getInstance();
+            if (instance && typeof instance.clearAllHighlights === 'function') {
+                try {
+                    instance.clearAllHighlights();
+                    showStatus('✅ 已清除所有高亮', 'success');
+                } catch (error) {
+                    showStatus('❌ 清除高亮失败: ' + error.message, 'error');
+                    console.error('清除高亮失败:', error);
+                }
+            } else {
+                showStatus('❌ 无法访问清除高亮功能', 'error');
+            }
+        }
+
+        function addTestFavorite() {
+            console.log('添加测试收藏...');
+            
+            const testFavorite = {
+                original: 'Hello world',
+                translation: '你好世界',
+                timestamp: Date.now(),
+                source: window.location.href,
+                title: document.title
+            };
+
+            chrome.storage.sync.get('transorFavorites', function(result) {
+                const favorites = result.transorFavorites || [];
+                
+                // 检查是否已存在
+                const exists = favorites.some(item => 
+                    item.original === testFavorite.original
+                );
+                
+                if (!exists) {
+                    favorites.push(testFavorite);
+                    
+                    chrome.storage.sync.set({
+                        transorFavorites: favorites
+                    }, function() {
+                        if (chrome.runtime.lastError) {
+                            showStatus('❌ 保存测试收藏失败', 'error');
+                        } else {
+                            showStatus('✅ 已添加测试收藏: ' + testFavorite.original, 'success');
+                        }
+                    });
+                } else {
+                    showStatus('ℹ️ 测试收藏已存在', 'info');
+                }
+            });
+        }
+
+        function showFavorites() {
+            console.log('显示收藏数据...');
+            
+            chrome.storage.sync.get('transorFavorites', function(result) {
+                const favorites = result.transorFavorites || [];
+                console.log('收藏数据:', favorites);
+                
+                if (favorites.length > 0) {
+                    const favoritesText = favorites.map(f => f.original).join(', ');
+                    showStatus(`📚 共有 ${favorites.length} 条收藏: ${favoritesText}`, 'info');
+                } else {
+                    showStatus('📚 暂无收藏数据', 'info');
+                }
+            });
+        }
+
+        // 页面加载完成后自动检查状态
+        setTimeout(() => {
+            checkHighlighter();
+            showFavorites();
+        }, 2000);
+
+        // 监听扩展加载状态
+        console.log('调试页面已加载');
+        
+        // 检查Chrome扩展API是否可用
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            showStatus('✅ Chrome 扩展 API 可用', 'success');
+        } else {
+            showStatus('❌ Chrome 扩展 API 不可用', 'error');
+        }
+    </script>
+</body>
+</html> 

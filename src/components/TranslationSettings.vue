@@ -80,6 +80,11 @@
               <span>Google</span>
             </div>
           </el-option>
+          <el-option label="OpenAI (Pro)" value="openai">
+            <div class="option-with-icon">
+              <span>OpenAI</span>
+            </div>
+          </el-option>
           <el-option label="DeepSeek (Pro)" value="deepseek">
             <div class="option-with-icon">
               <span>DeepSeek</span>
@@ -103,6 +108,28 @@
       </div>
     </div>
 
+    <!-- 新增OpenAI API密钥设置区域 -->
+    <div class="settings-group" v-if="transEngine === 'openai'">
+      <div class="api-key-input">
+        <div class="setting-label">{{ $t('openai_api_key') }}</div>
+        <el-input 
+          v-model="openaiApiKey" 
+          size="large" 
+          :placeholder="$t('enter_openai_api_key')"
+          @change="saveOpenaiApiKey"
+          show-password
+        ></el-input>
+      </div>
+      <div class="api-key-input">
+        <div class="setting-label">{{ $t('openai_model') }}</div>
+        <el-select v-model="openaiModel" size="large" class="dark-select" @change="saveOpenaiModel">
+          <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo"></el-option>
+          <el-option label="gpt-4" value="gpt-4"></el-option>
+          <el-option label="gpt-4-turbo" value="gpt-4-turbo"></el-option>
+        </el-select>
+      </div>
+    </div>
+
     <div class="settings-group">
       <div class="ai-mode">
         <div class="setting-label">{{ $t('display_type') }}</div>
@@ -121,11 +148,23 @@
       <button @click="toggleTranslation">{{ $t('toggle_translation') }} <span class="shortcut-hint">⌥A</span></button>
     </div>
 
+    <div class="translate-tips">
+      <div class="tip-item">
+        <div class="tip-icon">💡</div>
+        <div class="tip-text">{{ $t('input_triple_space_tip') }}</div>
+      </div>
+    </div>
+
     <div class="settings-group" style="margin-bottom: 0">
       <div class="toggle-container">
         <span>{{ $t('translation_toggle') }}</span>
         <el-switch v-model="isTranslationEnabled" active-color="#13ce66" inactive-color="#ff4949"
           @change="toggleTranslation"></el-switch>
+      </div>
+      <div class="toggle-container">
+        <span>{{ $t('input_space_translation_toggle') }}</span>
+        <el-switch v-model="enableInputSpaceTranslation" active-color="#13ce66" inactive-color="#ff4949"
+          @change="toggleInputSpaceTranslation"></el-switch>
       </div>
     </div>
 
@@ -176,7 +215,9 @@ export default {
       excludedClassesStr: '',
       uiLanguage: localStorage.getItem('transor-ui-language') || 'zh-CN', // 默认使用简体中文
       i18n: null, // 保存i18n实例
-      deepseekApiKey: '' // DeepSeek API密钥
+      deepseekApiKey: '', // DeepSeek API密钥
+      openaiApiKey: '', // OpenAI API密钥
+      openaiModel: 'gpt-3.5-turbo' // OpenAI 模型
     }
   },
   computed: {
@@ -227,6 +268,15 @@ export default {
       },
       set(value) {
         this.$store.commit('setTranslationStyle', value);
+        this.saveSettings();
+      }
+    },
+    enableInputSpaceTranslation: {
+      get() {
+        return this.$store.state.enableInputSpaceTranslation;
+      },
+      set(value) {
+        this.$store.commit('setEnableInputSpaceTranslation', value);
         this.saveSettings();
       }
     }
@@ -317,6 +367,11 @@ export default {
           'hover': '悬浮(鼠标悬停显示译文)',
           'deepseek_api_key': 'DeepSeek API密钥',
           'enter_deepseek_api_key': '请输入你的DeepSeek API密钥',
+          'openai_api_key': 'OpenAI API密钥',
+          'enter_openai_api_key': '请输入你的OpenAI API密钥',
+          'openai_model': 'OpenAI模型',
+          'input_triple_space_tip': '小技巧：在任意输入框中输入文本后，连续敲击三个空格可以立即翻译文本。按ESC键可取消翻译。',
+          'input_space_translation_toggle': '输入框空格翻译',
           // 其他基本翻译...
         },
         'en': {
@@ -336,6 +391,11 @@ export default {
           'hover': 'Hover (Show on Mouse Over)',
           'deepseek_api_key': 'DeepSeek API Key',
           'enter_deepseek_api_key': 'Enter your DeepSeek API Key',
+          'openai_api_key': 'OpenAI API Key',
+          'enter_openai_api_key': 'Enter your OpenAI API Key',
+          'openai_model': 'OpenAI Model',
+          'input_triple_space_tip': 'Tip: In any input field, after typing text, press space three times in a row to instantly translate the text. Press ESC to cancel translation.',
+          'input_space_translation_toggle': 'Input Space Translation',
           // 其他基本翻译...
         }
       };
@@ -432,6 +492,23 @@ export default {
         this.setApiKey({ type: 'deepseek', key: this.deepseekApiKey.trim() });
         this.saveSettings();
       }
+    },
+    // 保存OpenAI API密钥
+    saveOpenaiApiKey() {
+      if (this.openaiApiKey && this.openaiApiKey.trim() !== '') {
+        this.setApiKey({ type: 'openai', key: this.openaiApiKey.trim() });
+        this.saveSettings();
+      }
+    },
+    // 保存OpenAI模型
+    saveOpenaiModel() {
+      if (this.openaiModel) {
+        this.$store.commit('setOpenaiModel', this.openaiModel);
+        this.saveSettings();
+      }
+    },
+    toggleInputSpaceTranslation() {
+      this.saveSettings();
     }
   },
   watch: {
@@ -447,6 +524,14 @@ export default {
       // 加载设置后获取已保存的API密钥
       if (this.$store.state.apiKeys && this.$store.state.apiKeys.deepseek) {
         this.deepseekApiKey = this.$store.state.apiKeys.deepseek;
+      }
+      // 加载OpenAI设置
+      if (this.$store.state.apiKeys && this.$store.state.apiKeys.openai) {
+        this.openaiApiKey = this.$store.state.apiKeys.openai;
+      }
+      // 加载OpenAI模型设置
+      if (this.$store.state.openaiModel) {
+        this.openaiModel = this.$store.state.openaiModel;
       }
     });
 
@@ -790,5 +875,29 @@ export default {
   font-size: 14px;
   white-space: nowrap;
   min-width: 120px;
+}
+
+.translate-tips {
+  margin: 15px 0;
+  padding: 10px;
+  background-color: rgba(66, 185, 131, 0.1);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.tip-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tip-icon {
+  font-size: 18px;
+}
+
+.tip-text {
+  flex: 1;
+  line-height: 1.4;
+  color: #555;
 }
 </style>
