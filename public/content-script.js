@@ -423,53 +423,31 @@ function injectStyles() {
     }
     
     .transor-inline {
-      border-bottom: 1px dashed #42b983;
-      padding: 0 2px;
-      margin: 0 2px;
-      color: #42b983;
+      /* 移除原文样式修改 */
+      padding: 0;
+      margin: 0;
     }
     
-    .transor-bilingual {
-      display: block;
-      color: #42b983;
-      margin-top: 3px;
-      padding-left: 10px;
-      border-left: 2px solid #42b983;
-    }
+    // .transor-inline-text {
+    //   color: #42b983;
+    //   margin-left: 0.25em;
+    //   border-bottom: 1px dashed #42b983;
+    // }
     
-    .transor-below {
-      display: block;
-      color: #42b983;
-      margin-top: 5px;
-      padding-left: 10px;
-      border-left: 2px solid #42b983;
-    }
+    // .transor-bilingual {
+    //   display: block;
+    // }
     
-    .transor-hover {
-      position: relative;
-      text-decoration: underline;
-      text-decoration-style: dotted;
-      text-decoration-color: #42b983;
-    }
+    // .transor-bilingual-text {
+    //   color: #42b983;
+    //   margin-top: 3px;
+    //   padding-left: 10px;
+    //   border-left: 2px solid #42b983;
+    // }
     
-    .transor-hover-content {
-      display: none;
-      position: absolute;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 3px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      padding: 8px;
-      z-index: 9999;
-      color: #333;
-      top: 100%;
-      left: 0;
-      min-width: 200px;
-      max-width: 300px;
-    }
-    
-    .transor-hover:hover .transor-hover-content {
-      display: block;
+    .transor-replace {
+      display: inline;
+      color: inherit; /* 使用继承的颜色 */
     }
     
     /* 导航和小空间元素的翻译提示样式 - 基本样式，详细样式由全局系统提供 */
@@ -477,7 +455,17 @@ function injectStyles() {
       position: relative;
       display: inline-block;
       cursor: pointer;
-      border-bottom: 1px dotted #42b983;
+    }
+    
+    .transor-tip-indicator {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background-color: #42b983;
+      border-radius: 50%;
+      margin-left: 3px;
+      vertical-align: super;
+      font-size: 8px;
     }
   `;
   
@@ -680,651 +668,6 @@ function isElementInViewport(el) {
   );
 }
 
-// 判断元素是否需要使用悬浮提示样式（内容放不下的小元素或导航菜单）
-function needsTipStyle(element, text, translation) {
-  // 确保我们有元素和文本
-  if (!element || !text || !translation) return false;
-  
-  try {
-    // 如果元素是文本节点，使用父节点
-    if (element.nodeType === Node.TEXT_NODE) {
-      if (!element.parentNode) return false;
-      element = element.parentNode;
-    }
-    
-    // ===== 0. 检查相同行的其他元素 =====
-    // 如果已经有使用tip样式的相邻元素，则当前元素也应该使用tip
-    const parentElement = element.parentElement;
-    if (parentElement) {
-      // 获取直接兄弟节点
-      const siblings = Array.from(parentElement.childNodes);
-      
-      // 检查是否有兄弟节点已使用tip样式
-      for (const sibling of siblings) {
-        if (sibling !== element && 
-            sibling.nodeType === Node.ELEMENT_NODE && 
-            (sibling.classList && sibling.classList.contains('transor-tip'))) {
-          return true; // 同行有元素使用tip样式，当前元素也用tip
-        }
-      }
-      
-      // 更广泛的检查 - 检查同一行的所有相关元素
-      if (typeof element.getBoundingClientRect === 'function') {
-        const rect = element.getBoundingClientRect();
-        const elementY = rect.top;
-        const yThreshold = 5; // 判断是否同一行的高度阈值（像素）
-        
-        // 查找页面中所有已翻译的元素
-        const allTranslatedElements = document.querySelectorAll('.transor-translation');
-        for (const translatedElem of allTranslatedElements) {
-          if (translatedElem !== element && translatedElem.classList.contains('transor-tip')) {
-            const otherRect = translatedElem.getBoundingClientRect();
-            // 如果Y坐标接近，认为是同一行
-            if (Math.abs(otherRect.top - elementY) < yThreshold) {
-              return true; // 同一行有使用tip样式的元素
-            }
-          }
-        }
-      }
-    }
-    
-    // ===== 1. 元素尺寸检查 =====
-    let elementWidth = 0;
-    let elementHeight = 0;
-    let isVerySmall = false;
-    
-    if (typeof element.getBoundingClientRect === 'function') {
-      try {
-        const rect = element.getBoundingClientRect();
-        elementWidth = rect.width;
-        elementHeight = rect.height;
-        
-        // 小元素检测: 宽度小于120px
-        if (elementWidth < 120) {
-          isVerySmall = true;
-        }
-      } catch (e) {
-        // 忽略获取尺寸的错误
-      }
-    }
-    
-    // ===== 2. 翻译内容空间评估 =====
-    let contentTooLarge = false;
-    if (typeof element.getBoundingClientRect === 'function' && typeof document.createElement === 'function') {
-      try {
-        // 创建测试元素估算翻译文本所需空间
-        const tempElement = document.createElement('div');
-        tempElement.style.position = 'absolute';
-        tempElement.style.visibility = 'hidden';
-        tempElement.style.left = '-9999px';
-        tempElement.style.width = 'auto';
-        tempElement.style.whiteSpace = 'normal'; // 允许换行
-        tempElement.style.fontSize = window.getComputedStyle(element).fontSize;
-        tempElement.style.fontFamily = window.getComputedStyle(element).fontFamily;
-        tempElement.style.lineHeight = window.getComputedStyle(element).lineHeight;
-        tempElement.style.maxWidth = elementWidth + 'px'; // 设置最大宽度等于元素宽度
-        tempElement.textContent = translation;
-        
-        // 添加到DOM中进行测量
-        document.body.appendChild(tempElement);
-        const translationRect = tempElement.getBoundingClientRect();
-        
-        // 如果翻译后文本高度明显超过原始元素高度
-        if (translationRect.height > elementHeight * 1.8) {
-          contentTooLarge = true;
-        }
-        
-        // 如果翻译后文本宽度接近或超过原始元素宽度
-        if (translationRect.width > elementWidth * 0.9 && elementWidth < 350) {
-          contentTooLarge = true;
-        }
-        
-        document.body.removeChild(tempElement);
-      } catch (e) {
-        console.error('测量翻译空间时出错:', e);
-      }
-    }
-    
-    // ===== 3. 导航元素识别（导航栏、菜单、页脚等）=====
-    
-    // 为导航和页脚识别准备更广泛的标识符列表
-    const navIdentifiers = [
-      'nav', 'navigation', 'menu', 'header', 'toolbar', 'topbar', 'navbar', 
-      'sidebar', 'side-nav', 'sidenav', 'tabs', 'tab-nav',
-      'footer', 'foot', 'bottom', 'copyright', 'site-info',
-      'breadcrumb', 'pagination', 'pager'
-    ];
-    
-    // 为侧边导航识别准备标识符
-    const sideNavIdentifiers = [
-      'sidebar', 'side-nav', 'sidenav', 'left-nav', 'right-nav',
-      'drawer', 'toc', 'table-of-content', 'tree-nav', 'vertical-nav'
-    ];
-    
-    let isInNav = false;          // 导航
-    let isInFooter = false;       // 页脚
-    let isInSideNav = false;      // 侧边导航
-    let isInCompactLayout = false; // 紧凑布局
-    
-    // 向上遍历DOM树，最多检查4层
-    let currentElement = element;
-    for (let i = 0; i < 4 && currentElement; i++) {
-      if (!currentElement.tagName) {
-        currentElement = currentElement.parentElement;
-        continue;
-      }
-      
-      // 标签检查
-      const tag = currentElement.tagName.toLowerCase();
-      
-      // 导航类标签直接识别
-      if (['nav', 'header', 'menu', 'ul', 'ol', 'footer'].includes(tag)) {
-        isInNav = true;
-        
-        // 特殊标签单独识别
-        if (tag === 'footer') {
-          isInFooter = true;
-        }
-      }
-      
-      // 检查当前元素是否为垂直导航列表项
-      if (tag === 'li' && currentElement.parentElement) {
-        const parentTag = currentElement.parentElement.tagName.toLowerCase();
-        if (parentTag === 'ul' || parentTag === 'ol') {
-          // 检查列表的样式和定位，确定是否是侧边导航
-          const listStyles = window.getComputedStyle(currentElement.parentElement);
-          const isVertical = listStyles.display === 'block' || 
-                             listStyles.flexDirection === 'column' ||
-                             listStyles.display === 'flex' && listStyles.flexDirection === 'column';
-          
-          if (isVertical) {
-            isInSideNav = true;
-            isInCompactLayout = true;
-          }
-        }
-      }
-      
-      // 获取类名和ID供检查
-      const className = currentElement.className || '';
-      const id = currentElement.id || '';
-      
-      // 横向排版检测：使用flex或grid的横向布局
-      try {
-        const styles = window.getComputedStyle(currentElement);
-        if (styles.display === 'flex' && styles.flexDirection === 'row') {
-          isInCompactLayout = true;
-        }
-        
-        if (styles.display === 'grid') {
-          const gridColumns = styles.gridTemplateColumns;
-          // 如果有多列，认为是横向排版
-          if (gridColumns && gridColumns.split(' ').length > 1) {
-            isInCompactLayout = true;
-          }
-        }
-      } catch (e) {
-        // 忽略样式获取错误
-      }
-      
-      // 通过ID和类名检查导航相关元素
-      for (const identifier of navIdentifiers) {
-        if ((typeof className === 'string' && className.toLowerCase().includes(identifier)) ||
-            (typeof id === 'string' && id.toLowerCase().includes(identifier))) {
-          isInNav = true;
-          
-          // 页脚特殊检测
-          if (identifier === 'footer' || identifier === 'foot' || identifier === 'copyright' || 
-              identifier === 'site-info' || identifier === 'bottom') {
-            isInFooter = true;  
-          }
-          
-          // 侧边导航特殊检测
-          if (sideNavIdentifiers.includes(identifier)) {
-            isInSideNav = true;
-          }
-          
-          break;
-        }
-      }
-      
-      // 检查位置：页脚通常在页面底部
-      if (currentElement.getBoundingClientRect) {
-        const rect = currentElement.getBoundingClientRect();
-        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-        // 如果元素底部接近视口底部，可能是页脚
-        if (rect.bottom > viewportHeight * 0.8) {
-          // 进一步检查是否包含典型页脚文本
-          const text = currentElement.textContent.toLowerCase();
-          if (text.includes('copyright') || text.includes('©') || 
-              text.includes('rights reserved') || text.includes('隐私') || 
-              text.includes('条款') || text.includes('联系') || 
-              text.includes('备案')) {
-            isInFooter = true;
-          }
-        }
-      }
-      
-      // 检查子元素数量，判断是否为紧凑布局
-      if (currentElement.children && currentElement.children.length > 4) {
-        // 如果有多个子元素且排列紧凑，可能是导航或菜单
-        isInCompactLayout = true;
-      }
-      
-      // 移至父元素
-      currentElement = currentElement.parentElement;
-    }
-    
-    // ===== 4. 决策逻辑 =====
-    
-    // 1. 非常小的元素总是使用提示样式
-    if (isVerySmall) {
-      return true;
-    }
-    
-    // 2. 页脚元素总是使用提示样式
-    if (isInFooter) {
-      return true;
-    }
-    
-    // 3. 侧边导航使用提示样式
-    if (isInSideNav) {
-      return true;
-    }
-    
-    // 4. 导航元素，如果内容较多则使用提示样式
-    if (isInNav && (contentTooLarge || elementWidth < 150)) {
-      return true;
-    }
-    
-    // 5. 水平紧凑布局中的元素，如果内容较多则使用提示样式
-    if (isInCompactLayout && contentTooLarge) {
-      return true;
-    }
-    
-    // 6. 特定的导航元素标签
-    if (element.tagName) {
-      const tag = element.tagName.toLowerCase();
-      // 链接或按钮，如果内容较多且宽度有限，则使用提示样式
-      if ((tag === 'a' || tag === 'button') && (contentTooLarge || elementWidth < 180)) {
-        return true;
-      }
-      
-      // 列表项在紧凑布局中使用提示样式
-      if (tag === 'li' && isInCompactLayout) {
-        return true;
-      }
-      
-      // 标记为导航角色的元素
-      if (element.getAttribute('role') === 'navigation' || 
-          element.getAttribute('role') === 'menu' ||
-          element.getAttribute('role') === 'menuitem') {
-        return true;
-      }
-    }
-    
-    // 默认尽量使用below样式
-    return false;
-  } catch (error) {
-    console.error('检查元素是否需要提示样式时出错:', error);
-    return false;
-  }
-}
-
-// 翻译单个元素
-async function translateElement(element) {
-  // 获取元素中所有文本节点
-  const textNodes = getTextNodesIn(element);
-  if (textNodes.length === 0) return;
-  
-  // 提取文本内容
-  const textContents = textNodes.map(node => node.textContent.trim())
-    .filter(text => text && text.length > 1);
-  
-  if (textContents.length === 0) return;
-
-  console.log(textContents, "textContents")
-
-  
-  // 当前选择的翻译样式
-  const currentStyle = translationSettings.translationStyle;
-  
-  // 是否为提示模式（tip）
-  const isTipMode = currentStyle === 'tip';
-  // 是否为悬浮模式（hover）
-  const isHoverMode = currentStyle === 'hover';
-  
-  try {
-    // 使用Promise.all同时处理所有文本翻译
-    const translationPromises = textContents.map((text, index) => {
-      return new Promise(resolve => {
-        // 添加到翻译队列
-        translationQueue.add(text, translation => {
-          resolve({ index, translation });
-        });
-      });
-    });
-    
-    // 等待所有翻译完成
-    const results = await Promise.all(translationPromises);
-    
-    // 应用翻译结果
-    results.forEach(({ index, translation }) => {
-      const node = textNodes[index];
-      const text = textContents[index];
-      console.log(node, translation, "translation")
-      if (node && translation) {
-        console.log(`应用翻译 - 节点: ${node.textContent}, 译文: ${translation}`);
-        console.log(isTipMode, "isTipMode")
-        console.log(translation, "translation")
-        // 如果是提示模式，根据元素情况智能应用样式
-        if (isTipMode) {
-          // 检查是否需要提示样式
-          if (needsTipStyle(node, text, translation)) {
-            // 使用tip样式
-            applyTranslation(node, text, translation, 'tip');
-          } else {
-            // 使用below样式（双语下方样式）
-            applyTranslation(node, text, translation, 'below');
-          }
-        } else if (isHoverMode) {
-          // 悬浮模式直接使用hover样式
-          applyTranslation(node, text, translation, 'hover');
-        } else {
-          // 其他模式使用用户选择的样式
-          applyTranslation(node, text, translation);
-        }
-      }
-    });
-  } catch (error) {
-    console.error('翻译元素时出错:', error);
-  }
-}
-
-// 获取元素中的所有文本节点
-function getTextNodesIn(element) {
-  const textNodes = [];
-  const excludedTagsSet = new Set(translationSettings.excludedTags);
-  
-  // 递归遍历DOM树
-  function walkTextNodes(node) {
-    // 文本节点
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent.trim();
-      if (text && text.length > 1) {
-        let parent = node.parentElement;
-        
-        // 检查是否在排除的标签中
-        if (parent && !excludedTagsSet.has(parent.tagName.toLowerCase())) {
-          // 检查是否有排除的类名
-          let shouldExclude = false;
-          const excludedClassesSet = new Set(translationSettings.excludedClasses);
-          if (parent.classList && parent.classList.length > 0 && excludedClassesSet.size > 0) {
-            for (const cls of parent.classList) {
-              if (excludedClassesSet.has(cls)) {
-                shouldExclude = true;
-                break;
-              }
-            }
-          }
-          
-          // 检查是否是滑词翻译弹窗内的内容
-          if (parent.closest && (
-              parent.closest('.transor-selection-translator') || 
-              parent.closest('.transor-selection-content') || 
-              parent.closest('.transor-selection-header') ||
-              parent.closest('.no-translate')
-          )) {
-            shouldExclude = true;
-          }
-          
-          // 检查是否已经翻译过
-          const isAlreadyTranslated = parent.classList.contains('transor-translation') || 
-                                   parent.closest('.transor-translation');
-          
-          // 检查是否是代码元素
-          const isCode = isCodeElement(parent) || isCodeElement(node);
-          
-          if (!shouldExclude && !isAlreadyTranslated && !isCode) {
-            textNodes.push(node);
-          }
-        }
-      }
-      return;
-    }
-    
-    // 元素节点
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      // 跳过排除的标签
-      if (excludedTagsSet.has(node.tagName.toLowerCase())) {
-        return;
-      }
-      
-      // 跳过排除的类
-      const excludedClassesSet = new Set(translationSettings.excludedClasses);
-      if (node.classList && node.classList.length > 0 && excludedClassesSet.size > 0) {
-        for (const cls of node.classList) {
-          if (excludedClassesSet.has(cls)) {
-            return;
-          }
-        }
-      }
-      
-      // 跳过滑词翻译弹窗内的内容
-      if (node.classList && (
-          node.classList.contains('transor-selection-translator') ||
-          node.classList.contains('transor-selection-content') ||
-          node.classList.contains('transor-selection-header') ||
-          node.classList.contains('no-translate')
-      )) {
-        return;
-      }
-      
-      // 跳过在滑词翻译弹窗内的元素
-      if (node.closest && (
-          node.closest('.transor-selection-translator') ||
-          node.closest('.no-translate')
-      )) {
-        return;
-      }
-      
-      // 跳过代码元素
-      if (isCodeElement(node)) {
-        return;
-      }
-      
-      // 遍历子节点
-      for (let i = 0; i < node.childNodes.length; i++) {
-        walkTextNodes(node.childNodes[i]);
-      }
-    }
-  }
-  
-  walkTextNodes(element);
-  return textNodes;
-}
-
-// 应用翻译
-function applyTranslation(node, originalText, translatedText, overrideStyle = null) {
-  const parentNode = node.parentNode;
-  
-  if (!parentNode) return;
-  
-  // 清理翻译结果，移除可能的语言标记
-  const cleanTranslation = typeof translatedText === 'string' ? 
-                           translatedText.replace(/,\s*(en|zh-CN|zh|auto)$/i, '') : 
-                           translatedText;
-  
-  // 添加调试日志
-  console.log(`应用翻译样式 - 原文: [${node.textContent}], 译文: [${cleanTranslation}]`);
-  
-  // 使用传入的样式覆盖或使用设置中的样式
-  const style = overrideStyle || translationSettings.translationStyle;
-  
-  switch (style) {
-    case 'inline': {
-      // 内联样式：原文后加译文
-      const inlineWrapper = document.createElement('span');
-      inlineWrapper.classList.add('transor-translation');
-      inlineWrapper.textContent = node.textContent;
-      // 保存原始文本
-      inlineWrapper.setAttribute('data-original-text', node.textContent);
-      
-      const translationInline = document.createElement('span');
-      translationInline.classList.add('transor-inline');
-      translationInline.textContent = ` (${cleanTranslation})`;
-      
-      inlineWrapper.appendChild(translationInline);
-      parentNode.replaceChild(inlineWrapper, node);
-      break;
-    }
-      
-    case 'replace': {
-      // 替换样式：直接替换原文
-      const replaceWrapper = document.createElement('span');
-      replaceWrapper.classList.add('transor-translation');
-      replaceWrapper.textContent = cleanTranslation;
-      // 保存原始文本
-      replaceWrapper.setAttribute('data-original-text', node.textContent);
-      parentNode.replaceChild(replaceWrapper, node);
-      break;
-    }
-      
-    case 'bilingual': {
-      // 双语样式：原文上方显示译文
-      const bilingualWrapper = document.createElement('div');
-      bilingualWrapper.classList.add('transor-translation');
-      
-      const original = document.createElement('span');
-      original.textContent = node.textContent;
-      // 保存原始文本
-      bilingualWrapper.setAttribute('data-original-text', node.textContent);
-      
-      const translation = document.createElement('div');
-      translation.classList.add('transor-bilingual');
-      translation.textContent = cleanTranslation;
-      
-      bilingualWrapper.appendChild(original);
-      bilingualWrapper.appendChild(translation);
-      parentNode.replaceChild(bilingualWrapper, node);
-      break;
-    }
-    
-    case 'below': {
-      // 下方样式：原文下方显示译文
-      const belowWrapper = document.createElement('div');
-      belowWrapper.classList.add('transor-translation');
-      // 保存原始文本
-      belowWrapper.setAttribute('data-original-text', node.textContent);
-      
-      const original = document.createElement('div');
-      original.textContent = node.textContent;
-      
-      const translation = document.createElement('div');
-      translation.classList.add('transor-below');
-      translation.textContent = cleanTranslation;
-      
-      belowWrapper.appendChild(original);
-      belowWrapper.appendChild(translation);
-      parentNode.replaceChild(belowWrapper, node);
-      break;
-    }
-      
-    case 'hover': {
-      // 悬浮样式：鼠标悬停显示译文
-      const hoverWrapper = document.createElement('span');
-      hoverWrapper.classList.add('transor-translation', 'transor-hover');
-      hoverWrapper.textContent = node.textContent;
-      // 保存原始文本
-      hoverWrapper.setAttribute('data-original-text', node.textContent);
-      
-      const hoverContent = document.createElement('span');
-      hoverContent.classList.add('transor-hover-content', 'no-translate');
-      hoverContent.textContent = cleanTranslation;
-      
-      hoverWrapper.appendChild(hoverContent);
-      parentNode.replaceChild(hoverWrapper, node);
-      break;
-    }
-    
-    case 'tip': {
-      // 导航提示样式：适合导航和小型元素
-      const tipWrapper = document.createElement('span');
-      tipWrapper.classList.add('transor-translation', 'transor-tip');
-      tipWrapper.textContent = node.textContent;
-      
-      // 保存原始文本
-      tipWrapper.setAttribute('data-original-text', node.textContent);
-      
-      // 创建提示气泡元素
-      const tipPopup = document.createElement('span');
-      tipPopup.classList.add('transor-tip-popup', 'no-translate');
-      tipPopup.textContent = cleanTranslation;
-      
-      // 使用随机ID
-      const popupId = 'transor-tip-' + Math.random().toString(36).substr(2, 9);
-      tipPopup.id = popupId;
-      
-      // 关联元素和popup - 保持两种属性一致，保证兼容性
-      tipWrapper.setAttribute('data-popup-id', popupId);
-      tipWrapper.setAttribute('data-tip-id', popupId);
-      
-      // 将popup添加到body
-      document.body.appendChild(tipPopup);
-      
-      // 将新创建的tip元素注册到全局tip系统
-      if (window.transorTipSystem && window.transorTipSystem.initialized) {
-        window.transorTipSystem.registerTip(tipWrapper, tipPopup);
-      }
-      
-      // 元素移除时清理关联的popup
-      const observer = new MutationObserver(mutations => {
-        mutations.forEach(mutation => {
-          if (mutation.type === 'childList' && mutation.removedNodes.length) {
-            for (let i = 0; i < mutation.removedNodes.length; i++) {
-              const node = mutation.removedNodes[i];
-              if (node === tipWrapper || node.contains(tipWrapper)) {
-                // 移除关联的popup
-                const popup = document.getElementById(popupId);
-                if (popup) {
-                  popup.remove();
-                }
-                // 从全局tip系统中移除
-                if (window.transorTipSystem && window.transorTipSystem.initialized) {
-                  window.transorTipSystem.unregisterTip(tipWrapper);
-                }
-                observer.disconnect();
-                break;
-              }
-            }
-          }
-        });
-      });
-      
-      observer.observe(document.body, { childList: true, subtree: true });
-      
-      // 替换原始节点
-      parentNode.replaceChild(tipWrapper, node);
-      break;
-    }
-      
-    default: {
-      // 默认使用内联样式
-      const defaultWrapper = document.createElement('span');
-      defaultWrapper.classList.add('transor-translation');
-      defaultWrapper.textContent = node.textContent;
-      // 保存原始文本
-      defaultWrapper.setAttribute('data-original-text', node.textContent);
-      
-      const translationDefault = document.createElement('span');
-      translationDefault.classList.add('transor-inline');
-      translationDefault.textContent = ` (${cleanTranslation})`;
-      
-      defaultWrapper.appendChild(translationDefault);
-      parentNode.replaceChild(defaultWrapper, node);
-    }
-  }
-}
-
 // 移除所有翻译
 function removeAllTranslations() {
   console.log('彻底清除所有翻译内容');
@@ -1348,28 +691,38 @@ function removeAllTranslations() {
       // 如果没有data-original-text属性，尝试其他方法获取原始文本
       if (!originalText) {
         // 处理不同类型的翻译样式
-        if (element.classList.contains('transor-hover')) {
-          // 悬浮样式：原文保存在元素的textContent中
-          originalText = element.childNodes[0]?.nodeValue || element.textContent;
-        } else if (element.classList.contains('transor-tip')) {
-          // 导航提示样式：原文保存在元素的textContent中（不包括提示框）
-          originalText = element.childNodes[0]?.nodeValue || element.textContent;
+        if (element.classList.contains('transor-tip')) {
+          // 导航提示样式：原文保存在元素的textContent中（不包括提示框和指示器）
+          // 移除指示器的文本内容
+          const indicator = element.querySelector('.transor-tip-indicator');
+          originalText = element.textContent;
+          if (indicator) {
+            originalText = originalText.replace(indicator.textContent, '');
+          }
+          
           // 移除可能的popup内容
           const popup = element.querySelector('.transor-tip-popup');
           if (popup && originalText.includes(popup.textContent)) {
             originalText = originalText.replace(popup.textContent, '');
           }
         } else if (element.querySelector('.transor-inline')) {
-          // 内联样式：原文是父元素的第一个文本节点
-          originalText = element.childNodes[0]?.nodeValue || '';
-        } else if (element.querySelector('.transor-bilingual') || element.querySelector('.transor-below')) {
-          // 双语样式：原文在第一个子元素中
-          const originalElement = element.querySelector(':first-child');
+          // 内联样式：原文是第一部分，不包括翻译部分
+          const translationPart = element.querySelector('.transor-inline-text');
+          originalText = element.textContent;
+          if (translationPart) {
+            originalText = originalText.replace(translationPart.textContent, '');
+          }
+        } else if (element.querySelector('.transor-bilingual')) {
+          // 双语样式：原文在原文容器中
+          const originalElement = element.querySelector('.transor-original-text');
           if (originalElement) {
             originalText = originalElement.textContent || '';
           }
+        } else if (element.classList.contains('transor-replace')) {
+          // 替换样式：使用保存的数据属性
+          originalText = element.getAttribute('data-original-text') || '';
         } else {
-          // 替换样式：使用保存的数据属性或者使用父元素的内容
+          // 其他样式：使用保存的数据属性或者使用父元素的内容
           originalText = element.textContent;
         }
       }
@@ -4041,4 +3394,410 @@ if (!window.transorTipSystem) {
       this.initialized = false;
     }
   };
+}
+
+// 新增函数：将分散在不同元素中的文本组合起来进行翻译
+function combineTextNodes(element) {
+  // 首先检查元素是否已经被翻译过
+  if (element.closest('.transor-translation') || 
+      element.classList.contains('transor-translation') ||
+      element.querySelector('.transor-translation')) {
+    console.log('跳过已翻译的元素:', element);
+    return [];
+  }
+  
+  // 如果不是元素节点，直接返回
+  if (!element || element.nodeType !== Node.ELEMENT_NODE) return [];
+  
+  console.log('处理元素内的断句:', element.tagName);
+  
+  // 获取元素内所有子节点
+  const allNodes = Array.from(element.childNodes);
+  
+  // 存储组合后的文本片段和对应的节点
+  const combinedTexts = [];
+  let currentText = '';
+  let currentNodes = [];
+  let isCollecting = false;
+  
+  // 用于检查元素是否应该被忽略（不参与组合）
+  const shouldIgnoreElement = (node) => {
+    // 检查节点本身或其任何祖先是否已被翻译
+    if (node.closest && node.closest('.transor-translation')) {
+      return true;
+    }
+    
+    // 检查节点是否是翻译相关的元素
+    if (node.classList && 
+        (node.classList.contains('transor-translation') || 
+         node.classList.contains('transor-tip-popup') ||
+         node.classList.contains('transor-selection-translator') ||
+         node.classList.contains('transor-inline') ||
+         node.classList.contains('transor-tip') ||
+         node.classList.contains('transor-bilingual') ||
+         node.classList.contains('transor-replace') ||
+         node.classList.contains('transor-inline-text') ||
+         node.classList.contains('transor-bilingual-text'))) {
+      return true;
+    }
+    
+    // 对于文本节点，检查其父元素
+    if (node.nodeType === Node.TEXT_NODE) {
+      const parent = node.parentElement;
+      if (parent && (parent.closest('.transor-translation') || 
+                     parent.classList.contains('transor-translation') ||
+                     parent.classList.contains('transor-inline'))) {
+        return true;
+      }
+    }
+    
+    // 如果不是元素节点，直接返回 false（文本节点）
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    
+    // 特殊处理 inline code，不忽略
+    if (node.tagName && node.tagName.toLowerCase() === 'code') {
+      return false; // 将 <code> 视为普通内联元素
+    }
+    
+    // 特殊处理 transor-favorite-highlight，不忽略
+    if (node.classList && node.classList.contains('transor-favorite-highlight')) {
+      return false; // 将高亮词汇视为普通内联元素
+    }
+    
+    // 忽略已经处理过的元素
+    if (processedNodes.has(node)) return true;
+    
+    // 忽略排除的标签
+    const excludedTagsSet = new Set(translationSettings.excludedTags);
+    if (node.tagName && excludedTagsSet.has(node.tagName.toLowerCase())) return true;
+    
+    // 忽略带有排除类的元素
+    const excludedClassesSet = new Set(translationSettings.excludedClasses);
+    if (node.classList && node.classList.length > 0) {
+      for (const cls of node.classList) {
+        if (excludedClassesSet.has(cls) || cls === 'no-translate') return true;
+      }
+    }
+    
+    // 对于非 inline code 的其它代码元素仍然忽略
+    if (isCodeElement(node)) return true;
+    
+    return false;
+  };
+  
+  // 递归处理节点和其子节点
+  const processNode = (node, depth = 0) => {
+    // 对于文本节点
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent.trim();
+      if (text) {
+        // 将文本添加到当前收集的组合中
+        currentText += (currentText ? ' ' : '') + text;
+        currentNodes.push(node);
+        isCollecting = true;
+      }
+      return;
+    }
+    
+    // 对于元素节点
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      // 如果是需要忽略的元素，则完成当前的文本收集
+      if (shouldIgnoreElement(node)) {
+        if (isCollecting && currentText) {
+          combinedTexts.push({
+            text: currentText,
+            nodes: [...currentNodes]
+          });
+          currentText = '';
+          currentNodes = [];
+          isCollecting = false;
+        }
+        return;
+      }
+      
+      // 对于内联元素，继续收集文本
+      const isInlineElement = getComputedStyle(node).display === 'inline' || 
+                             ['SPAN', 'A', 'EM', 'STRONG', 'I', 'B', 'CODE', 'MARK', 'SMALL', 'DEL', 'INS'].includes(node.tagName);
+      
+      if (isInlineElement) {
+        // 对于内联元素，递归处理其子节点
+        for (const childNode of node.childNodes) {
+          processNode(childNode, depth + 1);
+        }
+      } else {
+        // 对于块级元素，完成当前的文本收集，然后递归处理其子节点
+        if (isCollecting && currentText) {
+          combinedTexts.push({
+            text: currentText,
+            nodes: [...currentNodes]
+          });
+          currentText = '';
+          currentNodes = [];
+          isCollecting = false;
+        }
+        
+        // 递归处理块级元素的子节点
+        for (const childNode of node.childNodes) {
+          processNode(childNode, depth + 1);
+        }
+      }
+    }
+  };
+  
+  // 处理所有子节点
+  for (const node of allNodes) {
+    processNode(node);
+  }
+  
+  // 确保最后收集的文本也被添加
+  if (isCollecting && currentText) {
+    combinedTexts.push({
+      text: currentText,
+      nodes: [...currentNodes]
+    });
+  }
+  
+  // 过滤掉太短的文本
+  const filteredTexts = combinedTexts.filter(item => item.text.length > 1);
+  
+  console.log(`组合后的文本片段数量: ${filteredTexts.length}`);
+  return filteredTexts;
+}
+
+// 修改翻译单个元素的函数，支持断句处理并保持原始样式
+async function translateElement(element) {
+  // 安全检查：确保元素没有被翻译过
+  if (element.classList.contains('transor-translation') ||
+      element.closest('.transor-translation') ||
+      element.querySelector('.transor-translation')) {
+    console.log('跳过已翻译的元素:', element);
+    return;
+  }
+  
+  // 使用新的断句处理方法
+  const textGroups = combineTextNodes(element);
+  if (textGroups.length === 0) return;
+  
+  // 提取文本内容
+  const textContents = textGroups.map(group => group.text.trim())
+    .filter(text => text && text.length > 1);
+  
+  if (textContents.length === 0) return;
+
+  console.log(textContents, "组合后的文本内容");
+  
+  try {
+    // 使用Promise.all同时处理所有文本翻译
+    const translationPromises = textContents.map((text, index) => {
+      return new Promise(resolve => {
+        // 添加到翻译队列
+        translationQueue.add(text, translation => {
+          resolve({ index, translation });
+        });
+      });
+    });
+    
+    // 等待所有翻译完成
+    const results = await Promise.all(translationPromises);
+    
+    // 应用翻译结果
+    results.forEach(({ index, translation }) => {
+      const group = textGroups[index];
+      const text = textContents[index];
+      const nodes = group.nodes;
+      
+      // 对于组合文本，保持原始样式结构进行翻译
+      if (nodes.length > 0 && translation) {
+        console.log(`应用组合翻译 - 原文: [${text}], 译文: [${translation}]`);
+        
+        // 保持原始样式结构的翻译应用
+        applyStylePreservingTranslation(nodes, text, translation);
+      }
+    });
+  } catch (error) {
+    console.error('翻译元素时出错:', error);
+  }
+}
+
+// 新增函数：保持原始样式的翻译应用 - 支持多种样式
+function applyStylePreservingTranslation(nodes, originalText, translatedText) {
+  if (nodes.length === 0) return;
+  
+  // 找到这些节点的共同父元素
+  const commonParent = findCommonParent(nodes);
+  if (!commonParent) return;
+  
+  // 额外安全检查：如果共同父元素已经被翻译过，则跳过
+  if (commonParent.classList.contains('transor-translation') ||
+      commonParent.closest('.transor-translation') ||
+      commonParent.querySelector('.transor-translation')) {
+    console.log('跳过已翻译的共同父元素:', commonParent);
+    return;
+  }
+  
+  // 标记所有节点为已处理，但不移除它们
+  nodes.forEach(node => {
+    processedNodes.add(node);
+  });
+  
+  // 根据翻译样式设置应用不同的样式
+  const translationStyle = translationSettings.translationStyle || 'inline';
+  
+  if (translationStyle === 'tip') {
+    // 创建tip样式翻译
+    applyTipStyleTranslation(commonParent, originalText, translatedText);
+  } else if (translationStyle === 'bilingual') {
+    // 创建双语样式翻译
+    applyBilingualStyleTranslation(commonParent, originalText, translatedText);
+  } else if (translationStyle === 'replace') {
+    // 创建替换样式翻译（仅显示译文）
+    applyReplaceStyleTranslation(commonParent, originalText, translatedText);
+  } else {
+    // 默认使用inline样式翻译
+    applyInlineStyleTranslation(commonParent, originalText, translatedText);
+  }
+}
+
+// Tip样式翻译应用
+function applyTipStyleTranslation(commonParent, originalText, translatedText) {
+  // 创建翻译容器
+  const translationWrapper = document.createElement('span');
+  translationWrapper.classList.add('transor-translation', 'transor-tip');
+  translationWrapper.setAttribute('data-original-text', originalText);
+  
+  // 将原始内容移动到翻译容器中，保持原样
+  while (commonParent.firstChild) {
+    translationWrapper.appendChild(commonParent.firstChild);
+  }
+  
+  // 添加小指示器
+  const indicator = document.createElement('span');
+  indicator.className = 'transor-tip-indicator';
+  translationWrapper.appendChild(indicator);
+  
+  // 创建tip弹出框
+  const popup = document.createElement('div');
+  popup.className = 'transor-tip-popup';
+  popup.textContent = translatedText;
+  popup.style.display = 'none';
+  
+  // 生成唯一ID
+  const popupId = 'transor-popup-' + Math.random().toString(36).substr(2, 9);
+  popup.id = popupId;
+  translationWrapper.setAttribute('data-popup-id', popupId);
+  
+  // 将翻译容器和弹出框添加到DOM
+  commonParent.appendChild(translationWrapper);
+  document.body.appendChild(popup);
+  
+  // 注册到tip系统
+  if (window.transorTipSystem && window.transorTipSystem.initialized) {
+    window.transorTipSystem.registerTip(translationWrapper, popup);
+  }
+}
+
+// 双语样式翻译应用
+function applyBilingualStyleTranslation(commonParent, originalText, translatedText) {
+  const translationWrapper = document.createElement('div');
+  translationWrapper.classList.add('transor-translation', 'transor-bilingual');
+  translationWrapper.setAttribute('data-original-text', originalText);
+  
+  // 创建原文容器，保持原文样式不变
+  const originalContainer = document.createElement('div');
+  originalContainer.classList.add('transor-original-text');
+  
+  // 将原始内容移动到原文容器中，保持原样
+  while (commonParent.firstChild) {
+    originalContainer.appendChild(commonParent.firstChild);
+  }
+  
+  // 添加译文容器
+  const translationSpan = document.createElement('div');
+  translationSpan.classList.add('transor-bilingual-text');
+  translationSpan.textContent = translatedText;
+  
+  // 先添加翻译文本（在上方显示），再添加原文
+  translationWrapper.appendChild(translationSpan);
+  translationWrapper.appendChild(originalContainer);
+  
+  commonParent.appendChild(translationWrapper);
+}
+
+// 内联样式翻译应用（默认）
+function applyInlineStyleTranslation(commonParent, originalText, translatedText) {
+  // 创建翻译容器
+  const translationWrapper = document.createElement('span');
+  translationWrapper.classList.add('transor-translation', 'transor-inline');
+  translationWrapper.setAttribute('data-original-text', originalText);
+  
+  // 将原始内容移动到翻译容器中，保持原样
+  while (commonParent.firstChild) {
+    translationWrapper.appendChild(commonParent.firstChild);
+  }
+  
+  // 添加翻译文本，仅对翻译部分应用样式
+  const translationSpan = document.createElement('span');
+  translationSpan.classList.add('transor-inline-text');
+  translationSpan.textContent = ` (${translatedText})`;
+  
+  translationWrapper.appendChild(translationSpan);
+  commonParent.appendChild(translationWrapper);
+}
+
+// 替换样式翻译应用
+function applyReplaceStyleTranslation(commonParent, originalText, translatedText) {
+  // 创建翻译容器
+  const translationWrapper = document.createElement('span');
+  translationWrapper.classList.add('transor-translation', 'transor-replace');
+  translationWrapper.setAttribute('data-original-text', originalText);
+  
+  // 记录原始元素的样式
+  const computedStyle = window.getComputedStyle(commonParent);
+  const originalStyles = {
+    color: computedStyle.color,
+    fontSize: computedStyle.fontSize,
+    fontFamily: computedStyle.fontFamily,
+    fontWeight: computedStyle.fontWeight,
+    textDecoration: computedStyle.textDecoration,
+    lineHeight: computedStyle.lineHeight
+  };
+  
+  // 清空原有内容
+  while (commonParent.firstChild) {
+    commonParent.removeChild(commonParent.firstChild);
+  }
+  
+  // 直接设置为翻译文本
+  translationWrapper.textContent = translatedText;
+  
+  // 应用原有样式
+  Object.keys(originalStyles).forEach(styleKey => {
+    translationWrapper.style[styleKey] = originalStyles[styleKey];
+  });
+  
+  // 添加到父元素
+  commonParent.appendChild(translationWrapper);
+}
+
+// 新增函数：找到节点的共同父元素
+function findCommonParent(nodes) {
+  if (nodes.length === 0) return null;
+  if (nodes.length === 1) return nodes[0].parentNode;
+  
+  // 获取第一个节点的所有祖先
+  const ancestors = [];
+  let current = nodes[0];
+  while (current && current.parentNode) {
+    ancestors.push(current.parentNode);
+    current = current.parentNode;
+  }
+  
+  // 找到所有节点的共同祖先
+  for (const ancestor of ancestors) {
+    if (nodes.every(node => ancestor.contains(node))) {
+      return ancestor;
+    }
+  }
+  
+  return null;
 }

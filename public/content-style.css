@@ -5,20 +5,20 @@
   line-height: inherit !important;
 }
 
-.transor-inline {
+/* .transor-inline {
   border-bottom: 1px dashed #ff5588 !important;
   padding: 0 2px !important;
   margin: 0 2px !important;
   color: #ff5588 !important;
-}
+} */
 
-.transor-bilingual {
+/* .transor-bilingual {
   display: block !important;
   color: #ff5588 !important;
   margin-top: 3px !important;
   padding-left: 10px !important;
   border-left: 2px solid #ff5588 !important;
-}
+} */
 
 .transor-hover {
   position: relative !important;

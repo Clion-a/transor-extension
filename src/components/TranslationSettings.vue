@@ -138,8 +138,6 @@
           <el-option :label="$t('general')" value="tip"></el-option>
           <el-option :label="$t('replace')" value="replace"></el-option>
           <el-option :label="$t('bilingual_above')" value="bilingual"></el-option>
-          <el-option :label="$t('bilingual_below')" value="below"></el-option>
-          <el-option :label="$t('hover')" value="hover"></el-option>
         </el-select>
       </div>
     </div>
