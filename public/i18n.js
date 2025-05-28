@@ -43,6 +43,7 @@ const i18n = {
     
     // 翻译样式
     'general': '通用',
+    'universal': '通用(智能选择显示样式)',
     'replace': '替换(直接替换原文)',
     'bilingual_above': '双语(原文上方显示译文)',
     'bilingual_below': '双语(原文下方显示译文)',
@@ -110,6 +111,7 @@ const i18n = {
     
     // Translation styles
     'general': 'General',
+    'universal': 'Universal (Smart Style Selection)',
     'replace': 'Replace (Direct Replacement)',
     'bilingual_above': 'Bilingual (Translation Above)',
     'bilingual_below': 'Bilingual (Translation Below)',

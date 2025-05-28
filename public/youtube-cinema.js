@@ -112,43 +112,172 @@ function addCinemaButton() {
     return;
   }
   
-  // 寻找YouTube进度条下方的工具栏容器
-  const controlsContainer = document.querySelector('.ytp-chrome-bottom .ytp-left-controls');
-  if (!controlsContainer) {
-    console.error('未找到YouTube控制栏，无法添加影院模式按钮');
+  // 寻找YouTube右侧控制栏容器
+  const rightControlsContainer = document.querySelector('.ytp-right-controls');
+  if (!rightControlsContainer) {
+    console.error('未找到YouTube右侧控制栏，无法添加影院模式按钮');
     return;
   }
   
-  // 创建影院模式按钮
-  const cinemaButton = document.createElement('button');
-  cinemaButton.id = 'cinema-mode-btn';
-  cinemaButton.className = 'ytp-button transor-cinema-btn';
-  cinemaButton.title = '进入影院模式 (带双语字幕)';
-  cinemaButton.innerHTML = `
-    <svg height="100%" viewBox="0 0 36 36" width="100%">
-      <path d="M7,9 L29,9 C30.1045695,9 31,9.8954305 31,11 L31,25 C31,26.1045695 30.1045695,27 29,27 L7,27 C5.8954305,27 5,26.1045695 5,25 L5,11 C5,9.8954305 5.8954305,9 7,9 Z M28,13 L8,13 L8,23 L28,23 L28,13 Z" fill="white"></path>
-      <path d="M12,17 L24,17 L24,19 L12,19 L12,17 Z" fill="white"></path>
-    </svg>
-  `;
+  // 获取用户界面语言设置，优先从Chrome存储中读取
+  getUserLanguage().then(uiLanguage => {
+    console.log('检测到用户界面语言:', uiLanguage);
+    
+    // 根据用户界面语言获取按钮提示文本
+    const buttonTipText = getTranslatedText('cinema_mode_tip', uiLanguage);
+    console.log('设置按钮提示文本:', buttonTipText);
+    
+    // 创建影院模式按钮
+    const cinemaButton = document.createElement('button');
+    cinemaButton.id = 'cinema-mode-btn';
+    cinemaButton.className = 'ytp-button transor-cinema-btn';
+    cinemaButton.title = buttonTipText;
+    cinemaButton.setAttribute('data-tooltip-text', buttonTipText);
+    cinemaButton.setAttribute('data-language', uiLanguage);
+    
+    // 获取扩展URL
+    const logoUrl = chrome.runtime.getURL('logos/logo48.png');
+    console.log('Logo URL:', logoUrl);
+    
+    // 使用Base64编码的图标作为备选方案
+    const fallbackIcon = `
+      <svg height="100%" viewBox="0 0 36 36" width="100%">
+        <path d="M7,9 L29,9 C30.1045695,9 31,9.8954305 31,11 L31,25 C31,26.1045695 30.1045695,27 29,27 L7,27 C5.8954305,27 5,26.1045695 5,25 L5,11 C5,9.8954305 5.8954305,9 7,9 Z M28,13 L8,13 L8,23 L28,23 L28,13 Z" fill="white"></path>
+        <path d="M12,17 L24,17 L24,19 L12,19 L12,17 Z" fill="white"></path>
+      </svg>
+    `;
+    
+    // 使用logo图片作为按钮图标，如果加载失败则使用备选图标
+    cinemaButton.innerHTML = `
+      <img src="${logoUrl}" alt="影院模式" style="width: 24px; height: 24px;" onerror="this.style.display='none'; this.parentNode.innerHTML='${fallbackIcon.replace(/'/g, "\\'")}'; ">
+    `;
   
-  // 添加点击事件
-  cinemaButton.addEventListener('click', toggleCinemaMode);
+    // 创建自定义提示元素
+    const tipElement = document.createElement('div');
+    tipElement.id = 'transor-cinema-tip';
+    tipElement.className = 'transor-cinema-tip';
+    tipElement.textContent = buttonTipText;
+    tipElement.style.display = 'none';
+    document.body.appendChild(tipElement);
+    
+    // 添加鼠标悬停事件显示提示
+    cinemaButton.addEventListener('mouseenter', () => {
+      const rect = cinemaButton.getBoundingClientRect();
+      tipElement.style.left = rect.left + 'px';
+      tipElement.style.top = (rect.bottom + 10) + 'px';
+      tipElement.style.display = 'block';
+    });
+    
+    cinemaButton.addEventListener('mouseleave', () => {
+      tipElement.style.display = 'none';
+    });
+    
+    // 添加点击事件
+    cinemaButton.addEventListener('click', toggleCinemaMode);
+    
+    // 查找trancy-youtube-button以便在其前面插入我们的按钮
+    const trancyButton = rightControlsContainer.querySelector('.trancy-youtube-button');
+    
+    if (trancyButton) {
+      // 在trancy按钮前插入我们的按钮
+      rightControlsContainer.insertBefore(cinemaButton, trancyButton);
+    } else {
+      // 如果找不到trancy按钮，则插入到右侧控制栏的最后
+      rightControlsContainer.appendChild(cinemaButton);
+    }
+    
+    // 添加样式
+    addCinemaStyles();
+    
+    console.log('影院模式按钮已添加到右侧控制栏');
+  });
+}
+
+// 获取用户语言设置，优先从Chrome存储中读取，其次从localStorage读取
+async function getUserLanguage() {
+  // 首先尝试从Chrome存储读取
+  try {
+    return new Promise((resolve) => {
+      chrome.storage.local.get('transor-ui-language', (result) => {
+        if (chrome.runtime.lastError) {
+          console.warn('从Chrome存储读取语言设置失败:', chrome.runtime.lastError);
+          // 失败时从localStorage读取
+          const localLang = localStorage.getItem('transor-ui-language') || 'zh-CN';
+          console.log('从localStorage读取到语言设置:', localLang);
+          resolve(localLang);
+        } else if (result && result['transor-ui-language']) {
+          console.log('从Chrome存储读取到语言设置:', result['transor-ui-language']);
+          resolve(result['transor-ui-language']);
+        } else {
+          // Chrome存储中没有，从localStorage读取
+          const localLang = localStorage.getItem('transor-ui-language') || 'zh-CN';
+          console.log('Chrome存储中无语言设置，从localStorage读取:', localLang);
+          resolve(localLang);
+        }
+      });
+    });
+  } catch (error) {
+    console.warn('获取语言设置出错:', error);
+    // 出错时从localStorage读取
+    const localLang = localStorage.getItem('transor-ui-language') || 'zh-CN';
+    console.log('出错回退到localStorage读取语言设置:', localLang);
+    return localLang;
+  }
+}
+
+// 根据语言获取翻译文本
+function getTranslatedText(key, language) {
+  console.log(`获取[${key}]的翻译，语言:`, language);
   
-  // 添加到工具栏
-  // 如果是YouTube移动版布局，找到不同的位置
-  const mobileControlsContainer = document.querySelector('.ytp-chrome-bottom .ytp-chrome-controls');
-  if (mobileControlsContainer && !controlsContainer) {
-    // 移动版布局，将按钮添加到底部控制栏
-    mobileControlsContainer.appendChild(cinemaButton);
-  } else {
-    // 在控制栏的最后添加
-    controlsContainer.appendChild(cinemaButton);
+  const translations = {
+    'cinema_mode_tip': {
+      'zh-CN': '进入影院模式 (带双语字幕)',
+      'en': 'Enter Cinema Mode (with Bilingual Subtitles)',
+      'ja': 'シネマモードに入る (バイリンガル字幕付き)',
+      'ko': '영화관 모드 시작 (이중 언어 자막 포함)'
+    }
+  };
+  
+  // 确保语言代码格式一致
+  const normalizedLang = language ? language.trim() : 'zh-CN';
+  
+  // 检查此语言是否有对应翻译
+  if (translations[key] && translations[key][normalizedLang]) {
+    return translations[key][normalizedLang];
   }
   
-  // 添加样式
-  addCinemaStyles();
+  // 返回默认中文翻译
+  console.log(`未找到语言[${normalizedLang}]的翻译，使用默认中文`);
+  return translations[key]['zh-CN'];
+}
+
+// 更新影院模式按钮提示
+async function updateCinemaButtonTip() {
+  const cinemaButton = document.getElementById('cinema-mode-btn');
+  const tipElement = document.getElementById('transor-cinema-tip');
   
-  console.log('影院模式按钮已添加');
+  if (cinemaButton && tipElement) {
+    // 获取最新的语言设置
+    const uiLanguage = await getUserLanguage();
+    console.log('更新提示，检测到语言:', uiLanguage);
+    
+    const currentLang = cinemaButton.getAttribute('data-language');
+    console.log('按钮当前语言:', currentLang);
+    
+    // 只有当语言变更时才更新提示
+    if (currentLang !== uiLanguage) {
+      const buttonTipText = getTranslatedText('cinema_mode_tip', uiLanguage);
+      
+      cinemaButton.title = buttonTipText;
+      cinemaButton.setAttribute('data-tooltip-text', buttonTipText);
+      cinemaButton.setAttribute('data-language', uiLanguage);
+      tipElement.textContent = buttonTipText;
+      
+      console.log('影院模式按钮提示已更新为:', buttonTipText);
+    } else {
+      console.log('语言未变更，无需更新提示');
+    }
+  }
 }
 
 // 添加影院模式CSS样式
@@ -166,23 +295,44 @@ function addCinemaStyles() {
     .transor-cinema-btn {
       opacity: 0.9;
       transition: opacity 0.2s;
-      margin-left: 10px !important;
-      width: 36px !important;
-      height: 36px !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
+      width: 26px !important;
+      height: 40px !important;
+      background: transparent !important;
+      border: none !important;
+      cursor: pointer !important;
     }
     
-    .transor-cinema-btn:hover {
-      opacity: 1;
-      background-color: rgba(255, 255, 255, 0.1) !important;
-      border-radius: 50% !important;
-    }
-    
-    .transor-cinema-btn svg {
+    .transor-cinema-btn img {
       width: 24px !important;
       height: 24px !important;
+      filter: brightness(1.8);
+    }
+    
+    /* 自定义提示样式 */
+    .transor-cinema-tip {
+      position: fixed;
+      z-index: 99999;
+      background-color: rgba(28, 28, 28, 0.9);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: Arial, sans-serif;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+      white-space: nowrap;
+      transform: translateX(-50%);
+    }
+    
+    .transor-cinema-tip::after {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: transparent transparent rgba(28, 28, 28, 0.9) transparent;
     }
     
     /* 影院模式容器样式 */
@@ -251,19 +401,10 @@ function addCinemaStyles() {
     }
     
     .cinema-translated-subtitle {
-      color: #3bd671;
+      color: #ff5588;
       font-weight: 500;
       text-align: center;
     }
-    
-    // .subtitle-controls {
-    //   display: flex;
-    //   justify-content: space-between;
-    //   align-items: center;
-    //   margin-top: 15px;
-    //   padding-top: 10px;
-    //   border-top: 1px solid rgba(255, 255, 255, 0.2);
-    // }
     
     .cinema-subtitle-btn {
       background: rgba(255, 255, 255, 0.2);
@@ -295,7 +436,7 @@ function addCinemaStyles() {
     
     .loading-progress {
       height: 100%;
-      background: #3bd671;
+      background: #ff5588;
       border-radius: 2px;
       transition: width 0.3s;
     }
@@ -314,18 +455,18 @@ function waitForYouTubeControls() {
   return new Promise((resolve, reject) => {
     // 尝试寻找YouTube控制栏容器
     const findControls = () => {
-      const controlsContainer = document.querySelector('.ytp-chrome-bottom .ytp-left-controls');
-      if (controlsContainer) {
-        resolve(controlsContainer);
+      const rightControlsContainer = document.querySelector('.ytp-right-controls');
+      if (rightControlsContainer) {
+        resolve(rightControlsContainer);
       } else if (document.readyState === 'complete') {
         // 如果已经完全加载且未找到，延迟重试几次
         let retryCount = 0;
         const maxRetries = 5;
         
         const retryFindControls = () => {
-          const controls = document.querySelector('.ytp-chrome-bottom .ytp-left-controls');
-          if (controls) {
-            resolve(controls);
+          const rightControls = document.querySelector('.ytp-right-controls');
+          if (rightControls) {
+            resolve(rightControls);
           } else {
             // 尝试寻找移动版布局的控制栏
             const mobileControls = document.querySelector('.ytp-chrome-bottom .ytp-chrome-controls');
@@ -388,7 +529,10 @@ function observeVideoChange() {
   const observer = new MutationObserver(() => {
     if (isYouTubeVideoPage() && document.querySelector('video') && !document.getElementById('cinema-mode-btn')) {
       console.log('检测到视频元素变化，添加影院模式按钮');
-      addCinemaButton();
+      // 延迟添加按钮，确保右侧控制栏已加载
+      setTimeout(() => {
+        addCinemaButton();
+      }, 500);
     }
   });
   
@@ -432,11 +576,11 @@ function createCinemaUI() {
   
   // 创建字幕容器
   const subtitlesElement = document.createElement('div');
-  subtitlesElement.className = 'cinema-subtitles-container';
+  subtitlesElement.className = 'cinema-subtitles-container no-translate';
   
   // 创建加载进度UI
   subtitlesElement.innerHTML = `
-    <div class="loading-container">
+    <div class="loading-container no-translate">
       <div class="loading-bar">
         <div class="loading-progress" style="width: 0%"></div>
       </div>
@@ -483,7 +627,7 @@ async function loadSubtitles() {
 
   try {
     // 更新加载进度
-    updateLoadingProgress(30, '正在获取字幕...');
+    updateLoadingProgress(30, 'Loading...');
     
     // 直接获取字幕，不再通过background.js
     console.log(`正在获取视频ID为 ${currentVideoId} 的字幕...`);
@@ -563,7 +707,7 @@ async function loadSubtitles() {
     console.log(`成功获取并处理${processedSubtitles.length}条字幕`);
     
     // 更新加载进度
-    updateLoadingProgress(60, '正在翻译字幕...');
+    updateLoadingProgress(60, 'Loading...');
     
     try {
       // 使用translateSubtitles函数来翻译字幕
@@ -736,7 +880,7 @@ function showSubtitlesUI() {
 
   // 创建原文字幕元素
   const subtitleText = document.createElement('div');
-  subtitleText.className = 'cinema-original-subtitle';
+  subtitleText.className = 'cinema-original-subtitle no-translate';
   subtitleText.id = 'subtitle-original-text';
   subtitleText.style.wordWrap = 'break-word';
   subtitleText.style.fontSize = '24px';
@@ -747,7 +891,7 @@ function showSubtitlesUI() {
 
   // 创建翻译字幕元素
   const subtitleTranslation = document.createElement('div');
-  subtitleTranslation.className = 'cinema-translated-subtitle';
+  subtitleTranslation.className = 'cinema-translated-subtitle no-translate';
   subtitleTranslation.id = 'subtitle-translation';
   subtitleTranslation.style.wordWrap = 'break-word';
   subtitleTranslation.style.fontSize = '20px';
@@ -760,49 +904,8 @@ function showSubtitlesUI() {
   subtitleContent.appendChild(subtitleText);
   subtitleContent.appendChild(subtitleTranslation);
 
-  // 创建字幕导航控制
-  const subtitleControls = document.createElement('div');
-  subtitleControls.className = 'subtitle-controls';
-  subtitleControls.style.display = 'flex';
-  subtitleControls.style.justifyContent = 'space-between';
-  subtitleControls.style.alignItems = 'center';
-  subtitleControls.style.marginTop = '15px';
-  subtitleControls.style.paddingTop = '10px';
-  subtitleControls.style.borderTop = '1px solid rgba(255, 255, 255, 0.2)';
-
-  // 创建导航按钮
-  const prevButton = document.createElement('button');
-  prevButton.className = 'cinema-subtitle-btn';
-  prevButton.textContent = '← 上一条';
-  prevButton.addEventListener('click', () => {
-    if (currentSubtitleIndex > 0) {
-      displaySubtitle(currentSubtitleIndex - 1);
-    }
-  });
-
-  const nextButton = document.createElement('button');
-  nextButton.className = 'cinema-subtitle-btn';
-  nextButton.textContent = '下一条 →';
-  nextButton.addEventListener('click', () => {
-    if (currentSubtitleIndex < subtitles.length - 1) {
-      displaySubtitle(currentSubtitleIndex + 1);
-    }
-  });
-
-  // 创建导航信息
-  const navInfo = document.createElement('div');
-  navInfo.id = 'subtitle-nav-info';
-  navInfo.style.color = 'rgba(255, 255, 255, 0.7)';
-  navInfo.textContent = '0/0';
-
-  // 添加导航元素到控制区
-  subtitleControls.appendChild(prevButton);
-  subtitleControls.appendChild(navInfo);
-  subtitleControls.appendChild(nextButton);
-
   // 将所有元素添加到字幕容器
   subtitlesContainer.appendChild(subtitleContent);
-  subtitlesContainer.appendChild(subtitleControls);
 
   // 初始化并显示第一条字幕
   console.log('初始化第一条字幕...');
@@ -1112,9 +1215,8 @@ function displaySubtitle(index) {
   try {
     // 获取DOM元素
     const subtitleText = document.getElementById('subtitle-original-text');
-  const subtitleTranslation = document.getElementById('subtitle-translation');
-    const navInfo = document.getElementById('subtitle-nav-info');
-
+    const subtitleTranslation = document.getElementById('subtitle-translation');
+    
     if (!subtitleText || !subtitleTranslation) {
       console.error('字幕DOM元素不存在', {subtitleText, subtitleTranslation});
       return;
@@ -1129,7 +1231,7 @@ function displaySubtitle(index) {
     }
 
     // 更新当前索引
-  currentSubtitleIndex = index;
+    currentSubtitleIndex = index;
 
     // 获取当前字幕
     const currentSubtitle = subtitles[index];
@@ -1177,7 +1279,7 @@ function displaySubtitle(index) {
           // 强制刷新DOM
           const tempText = document.createElement('div');
           tempText.id = 'subtitle-original-text';
-          tempText.className = 'cinema-original-subtitle';
+          tempText.className = 'cinema-original-subtitle no-translate';
           tempText.style.cssText = subtitleText.style.cssText;
           tempText.textContent = cleanText;
           
@@ -1222,7 +1324,7 @@ function displaySubtitle(index) {
           // 强制刷新DOM
           const tempTranslation = document.createElement('div');
           tempTranslation.id = 'subtitle-translation';
-          tempTranslation.className = 'cinema-translated-subtitle';
+          tempTranslation.className = 'cinema-translated-subtitle no-translate';
           tempTranslation.style.cssText = subtitleTranslation.style.cssText;
           tempTranslation.textContent = cleanTranslation;
           
@@ -1234,11 +1336,6 @@ function displaySubtitle(index) {
       } else {
       // 如果没有翻译，显示加载中
       subtitleTranslation.textContent = '加载翻译中...';
-    }
-
-    // 更新导航信息
-    if (navInfo) {
-      navInfo.textContent = `${index + 1}/${subtitles.length}`;
     }
 
     console.log(`显示字幕 #${index + 1}/${subtitles.length}: ${cleanText?.substring(0, 50)}${cleanText?.length > 50 ? '...' : ''}`);
@@ -1270,7 +1367,7 @@ function clearSubtitleDisplay() {
       if (subtitleContent) {
         // 创建空白字幕元素
         const emptySubtitleText = document.createElement('div');
-        emptySubtitleText.className = 'cinema-original-subtitle';
+        emptySubtitleText.className = 'cinema-original-subtitle no-translate';
         emptySubtitleText.id = 'subtitle-original-text';
         emptySubtitleText.style.wordWrap = 'break-word';
         emptySubtitleText.style.fontSize = '24px';
@@ -1278,7 +1375,7 @@ function clearSubtitleDisplay() {
         emptySubtitleText.style.margin = '10px 0';
 
         const emptyTranslation = document.createElement('div');
-        emptyTranslation.className = 'cinema-translated-subtitle';
+        emptyTranslation.className = 'cinema-translated-subtitle no-translate';
         emptyTranslation.id = 'subtitle-translation';
         emptyTranslation.style.wordWrap = 'break-word';
         emptyTranslation.style.fontSize = '20px';
@@ -1319,7 +1416,7 @@ function showSubtitleError(errorMessage) {
   console.log('显示字幕错误:', errorMessage);
   
   subtitlesContainer.innerHTML = `
-    <div class="subtitle-error-container">
+    <div class="subtitle-error-container no-translate">
       <div class="subtitle-error-icon">⚠️</div>
       <div class="subtitle-error-message">${errorMessage || '未知错误'}</div>
       <button id="btn-retry-subtitle" class="subtitle-retry-button">重试</button>
@@ -1430,7 +1527,7 @@ function useBackupSubtitles() {
     // 即使出错，也确保UI不会停留在加载状态
     if (subtitlesContainer) {
       subtitlesContainer.innerHTML = `
-        <div style="color: white; text-align: center; padding: 20px;">
+        <div style="color: white; text-align: center; padding: 20px;" class="no-translate">
           <p>无法加载字幕: ${error.message}</p>
           <p>请尝试刷新页面或退出影院模式后重试</p>
     </div>
@@ -1455,12 +1552,72 @@ function updateLoadingProgress(progress, message) {
 // 在页面加载时初始化
 window.addEventListener('load', function () {
   initYouTubeCinema();
+
+  // 监听语言变化 - localStorage变化
+  window.addEventListener('storage', function(event) {
+    if (event.key === 'transor-ui-language') {
+      console.log('localStorage语言变更检测:', event.newValue);
+      // 语言设置已更改，更新提示文本
+      updateCinemaButtonTip();
+    }
+  });
+  
+  // 监听来自扩展的消息
+  try {
+    chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+      console.log('收到扩展消息:', message);
+      
+      if (message.action === 'language-changed') {
+        // 接收到语言变更通知
+        console.log('接收到语言变更通知:', message.language);
+        updateCinemaButtonTip();
+        // 发送响应
+        if (sendResponse) {
+          sendResponse({success: true, status: "正在更新语言设置"});
+        }
+      }
+      
+      // 专门处理设置语言的消息
+      if (message.action === 'set-language') {
+        console.log('接收到设置语言消息:', message.language);
+        updateCinemaButtonTip();
+        // 发送响应
+        if (sendResponse) {
+          sendResponse({success: true, status: "语言设置已更新"});
+        }
+      }
+      
+      return true; // 保持消息通道开放
+    });
+    
+    // 主动请求当前语言设置
+    setTimeout(() => {
+      console.log('向扩展发送获取当前语言设置请求');
+      try {
+        chrome.runtime.sendMessage({
+          action: 'get-language'
+        }, function(response) {
+          if (chrome.runtime.lastError) {
+            console.warn('获取语言设置失败:', chrome.runtime.lastError);
+          } else if (response && response.language) {
+            console.log('收到当前语言设置:', response.language);
+            updateCinemaButtonTip();
+          }
+        });
+      } catch (error) {
+        console.warn('发送获取语言请求失败:', error);
+      }
+    }, 2000);
+    
+  } catch (error) {
+    console.warn('无法设置扩展消息监听器:', error);
+  }
 });
 
 // 翻译字幕
 function translateSubtitles(subtitlesToTranslate) {
   console.log(`开始翻译字幕...`);
-  updateLoadingProgress(60, '正在翻译字幕...');
+  updateLoadingProgress(60, 'Loading...');
 
   // 确保subtitlesToTranslate是数组
   if (!Array.isArray(subtitlesToTranslate)) {
@@ -1500,7 +1657,7 @@ function translateSubtitles(subtitlesToTranslate) {
 
   // 设置模拟翻译以快速显示UI，后续会被真实翻译替换
   setTranslatedSubtitles(mockSubs);
-  updateLoadingProgress(70, '准备翻译结果...');
+  updateLoadingProgress(70, 'Loading...');
 
   return new Promise((resolve) => {
     try {
@@ -1548,7 +1705,7 @@ function translateSubtitles(subtitlesToTranslate) {
             console.log(`字幕时间校验 - 最后一条: ${translatedSubs[translatedSubs.length - 1]?.start}s - ${translatedSubs[translatedSubs.length - 1]?.end}s`);
 
             setTranslatedSubtitles(translatedSubs);
-            updateLoadingProgress(100, '翻译完成');
+            updateLoadingProgress(100, 'Success');
 
             // 更新当前显示的字幕，如果有的话
             if (currentSubtitleIndex >= 0 && currentSubtitleIndex < translatedSubs.length) {

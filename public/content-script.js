@@ -428,22 +428,28 @@ function injectStyles() {
       margin: 0;
     }
     
-    // .transor-inline-text {
-    //   color: #42b983;
-    //   margin-left: 0.25em;
-    //   border-bottom: 1px dashed #42b983;
-    // }
+    /* 内联翻译文本 */
+    .transor-inline-text {
+      color: #ff5588;
+      margin-left: 0.25em;
+    }
     
-    // .transor-bilingual {
-    //   display: block;
-    // }
+    /* 双语翻译容器 */
+    .transor-bilingual {
+      display: block;
+    }
     
-    // .transor-bilingual-text {
-    //   color: #42b983;
-    //   margin-top: 3px;
-    //   padding-left: 10px;
-    //   border-left: 2px solid #42b983;
-    // }
+    /* 原文容器 */
+    .transor-original-text {
+      /* 保持原文样式不变 */
+    }
+    
+    /* 双语模式的翻译文本 */
+    .transor-bilingual-text {
+      color: #ff5588;
+      margin-top: 5px;
+      display: block;
+    }
     
     .transor-replace {
       display: inline;
@@ -461,7 +467,7 @@ function injectStyles() {
       display: inline-block;
       width: 6px;
       height: 6px;
-      background-color: #42b983;
+      background-color: #ff5588;
       border-radius: 50%;
       margin-left: 3px;
       vertical-align: super;
@@ -785,9 +791,13 @@ function looksLikeCode(text) {
     /return\s+.+;/i                      // return语句
   ];
   
+  // 代码特征匹配计数
+  let codePatternMatchCount = 0;
+  
+  // 统计匹配到的代码特征数量
   for (const pattern of codePatterns) {
     if (pattern.test(text)) {
-      return true;
+      codePatternMatchCount++;
     }
   }
   
@@ -801,13 +811,49 @@ function looksLikeCode(text) {
     }
   }
   
-  // 如果符号密度过高，可能是代码
+  // 计算符号密度
   const symbolRatio = symbolCount / text.length;
-  if (symbolRatio > 0.15) {
-    return true;
+  
+  // 文本行数
+  const lineCount = text.split('\n').length;
+  
+  // 行平均长度
+  const avgLineLength = text.length / lineCount;
+  
+  // 检查是否包含自然语言特征
+  const naturalLanguagePatterns = [
+    /[。，？！；：""''「」]/,   // 中文标点
+    /[\u4e00-\u9fa5]{5,}/,      // 连续5个以上汉字
+    /\b(the|and|that|this|but|for|you|what|where|when|why|how|who|with|about)\b/i, // 英文常用虚词
+    /\b[A-Z][a-z]+\b \b[A-Z][a-z]+\b/  // 连续的首字母大写单词(可能是人名)
+  ];
+  
+  // 检查自然语言特征
+  let naturalLanguageFeatures = 0;
+  for (const pattern of naturalLanguagePatterns) {
+    if (pattern.test(text)) {
+      naturalLanguageFeatures++;
+    }
   }
   
-  return false;
+  // 综合判断是否是完整的代码:
+  // 1. 有足够多的代码特征匹配
+  // 2. 代码符号密度达到阈值
+  // 3. 没有明显的自然语言特征
+  // 4. 考虑文本的行特征(代码通常有特定的行长度特征)
+  
+  const isCode = (
+    // 至少匹配到3个以上的代码特征
+    (codePatternMatchCount >= 3 || 
+     // 或者符号密度非常高
+     symbolRatio > 0.18) && 
+    // 且没有明显的自然语言特征
+    naturalLanguageFeatures === 0 &&
+    // 行长度特征：代码行通常不会太长也不会太短
+    (avgLineLength > 10 && avgLineLength < 120)
+  );
+  
+  return isCode;
 }
 
 // 监听DOM变化，处理动态加载的内容
@@ -1243,7 +1289,7 @@ function createSelectionTranslator() {
     
     .transor-selection-logo {
       font-weight: bold;
-      color: #42b983;
+      color: #ff5588;
       font-size: 16px;
       letter-spacing: -0.5px;
     }
@@ -1270,7 +1316,7 @@ function createSelectionTranslator() {
     
     .transor-selection-action-btn:hover {
       background-color: rgba(0, 0, 0, 0.05);
-      color: #42b983;
+      color: #ff5588;
     }
     
     .transor-favorite-btn.active {
@@ -1363,12 +1409,12 @@ function createSelectionTranslator() {
     .transor-selection-definition-item:before {
       content: "•";
       margin-right: 8px;
-      color: #42b983;
+      color: #ff5588;
       font-weight: bold;
     }
     
     .transor-selection-sentence {
-      border-left: 2px solid #42b983;
+      border-left: 2px solid #ff5588;
       padding-left: 10px;
       margin: 10px 0;
       font-style: italic;
@@ -1403,7 +1449,7 @@ function createSelectionTranslator() {
     .transor-loading-dots span {
       width: 4px;
       height: 4px;
-      background-color: #42b983;
+      background-color: #ff5588;
       border-radius: 50%;
       display: inline-block;
       animation: transorDotPulse 1.4s infinite ease-in-out both;
@@ -1431,7 +1477,7 @@ function createSelectionTranslator() {
       display: inline-block;
       width: 3px;
       height: 14px;
-      background-color: #42b983;
+      background-color: #ff5588;
       margin-right: 6px;
       border-radius: 2px;
     }
@@ -1454,8 +1500,8 @@ function createSelectionTranslator() {
     }
     
     .transor-tab.active {
-      color: #42b983;
-      border-bottom: 2px solid #42b983;
+      color: #ff5588;
+      border-bottom: 2px solid #ff5588;
     }
     
     .transor-panel {
@@ -1581,7 +1627,7 @@ function createSelectionTranslator() {
       navigator.clipboard.writeText(text).then(() => {
         // 显示复制成功提示
         copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"></path></svg>';
-        copyBtn.style.color = '#42b983';
+        copyBtn.style.color = '#ff5588';
         
         setTimeout(() => {
           copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>';
@@ -1712,7 +1758,7 @@ function initSelectionTranslator() {
             <div class="transor-selection-translation no-translate">
               <p>所选文本较长 (${textToProcess.length} 字符)，是否翻译？</p>
               <div style="display: flex; gap: 10px; margin-top: 12px;">
-                <button class="transor-confirm-btn" style="background: #42b983; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">翻译</button>
+                <button class="transor-confirm-btn" style="background: #ff5588; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">翻译</button>
                 <button class="transor-cancel-btn" style="background: #f5f5f5; color: #666; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">取消</button>
               </div>
             </div>
@@ -2557,11 +2603,14 @@ function setupGlobalTipSystem() {
       return;
     }
     
-    // 计算提示框位置 - 使用相对于视口的坐标，而不是页面坐标
-    // 默认显示在元素下方
+    // 获取滚动偏移量
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // 计算提示框位置，添加滚动偏移量
     const offsetY = 10;
-    let top = rect.bottom + offsetY;
-    let left = rect.left + (rect.width / 2);
+    let top = rect.bottom + scrollTop + offsetY;
+    let left = rect.left + scrollLeft + (rect.width / 2);
     
     // 检查提示框的尺寸
     const popupWidth = popup.offsetWidth || 200; // 默认宽度
@@ -2572,22 +2621,22 @@ function setupGlobalTipSystem() {
     const viewportWidth = window.innerWidth;
     
     // 如果提示框超出视口底部，显示在元素上方
-    if (top + popupHeight > viewportHeight) {
-      top = rect.top - popupHeight - offsetY;
+    if (top + popupHeight > viewportHeight + scrollTop) {
+      top = rect.top + scrollTop - popupHeight - offsetY;
     }
     
     // 如果提示框超出视口右侧，向左调整
-    if (left + (popupWidth / 2) > viewportWidth) {
-      left = viewportWidth - popupWidth - 10;
+    if (left + (popupWidth / 2) > viewportWidth + scrollLeft) {
+      left = viewportWidth + scrollLeft - popupWidth - 10;
     }
     
     // 如果提示框超出视口左侧，向右调整
-    if (left - (popupWidth / 2) < 0) {
-      left = popupWidth / 2 + 10;
+    if (left - (popupWidth / 2) < scrollLeft) {
+      left = scrollLeft + popupWidth / 2 + 10;
     }
     
-    // 使用固定定位，相对于视口而不是文档
-    popup.style.position = 'fixed';
+    // 应用定位，不使用fixed定位
+    popup.style.position = 'absolute';
     popup.style.left = left + 'px';
     popup.style.top = top + 'px';
     popup.style.transform = 'translateX(-50%)';
@@ -2599,7 +2648,7 @@ function setupGlobalTipSystem() {
   styleElement.textContent = `
     .transor-tip-popup {
       visibility: hidden;
-      position: fixed; /* 使用固定定位，相对于视口 */
+      position: absolute; /* 使用绝对定位，适应滚动 */
       background-color: rgba(255, 255, 255, 0.95);
       color: #333;
       text-align: left;
@@ -3297,10 +3346,11 @@ if (!window.transorTipSystem) {
         return;
       }
       
-      // 计算位置
+      // 获取滚动偏移量
       const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       
+      // 计算位置，包含滚动偏移量
       const offsetY = 10;
       let top = rect.bottom + scrollTop + offsetY;
       let left = rect.left + scrollLeft + (rect.width / 2);
@@ -3640,21 +3690,44 @@ function applyStylePreservingTranslation(nodes, originalText, translatedText) {
     processedNodes.add(node);
   });
   
-  // 根据翻译样式设置应用不同的样式
-  const translationStyle = translationSettings.translationStyle || 'inline';
+  // 获取用户设置的翻译样式
+  const userSetTranslationStyle = translationSettings.translationStyle || 'inline';
   
-  if (translationStyle === 'tip') {
-    // 创建tip样式翻译
-    applyTipStyleTranslation(commonParent, originalText, translatedText);
-  } else if (translationStyle === 'bilingual') {
-    // 创建双语样式翻译
-    applyBilingualStyleTranslation(commonParent, originalText, translatedText);
-  } else if (translationStyle === 'replace') {
-    // 创建替换样式翻译（仅显示译文）
-    applyReplaceStyleTranslation(commonParent, originalText, translatedText);
+  // 如果用户设置的是"通用"样式，根据规则动态选择显示样式
+  if (userSetTranslationStyle === 'universal') {
+    // 计算单词数
+    const wordCount = countWords(originalText);
+    console.log(`文本 "${originalText.substring(0, 30)}..." 的单词数: ${wordCount}`);
+    
+    // 检查元素是否在导航或footer中
+    const isInNavOrFooter = isElementInNavOrFooter(commonParent);
+    console.log(`元素是否在导航或页脚中: ${isInNavOrFooter}`);
+    
+    // 根据规则选择样式
+    if (wordCount <= 3 || isInNavOrFooter) {
+      // 少于等于3个单词或在导航/footer中，使用tip样式
+      console.log('应用tip样式: 短文本或导航/页脚元素');
+      applyTipStyleTranslation(commonParent, originalText, translatedText);
+    } else {
+      // 其他情况使用双语样式
+      console.log('应用双语样式: 一般内容');
+      applyBilingualStyleTranslation(commonParent, originalText, translatedText);
+    }
   } else {
-    // 默认使用inline样式翻译
-    applyInlineStyleTranslation(commonParent, originalText, translatedText);
+    // 使用用户指定的样式
+    if (userSetTranslationStyle === 'tip') {
+      // 创建tip样式翻译
+      applyTipStyleTranslation(commonParent, originalText, translatedText);
+    } else if (userSetTranslationStyle === 'bilingual') {
+      // 创建双语样式翻译
+      applyBilingualStyleTranslation(commonParent, originalText, translatedText);
+    } else if (userSetTranslationStyle === 'replace') {
+      // 创建替换样式翻译（仅显示译文）
+      applyReplaceStyleTranslation(commonParent, originalText, translatedText);
+    } else {
+      // 默认使用inline样式翻译
+      applyInlineStyleTranslation(commonParent, originalText, translatedText);
+    }
   }
 }
 
@@ -3670,16 +3743,23 @@ function applyTipStyleTranslation(commonParent, originalText, translatedText) {
     translationWrapper.appendChild(commonParent.firstChild);
   }
   
-  // 添加小指示器
-  const indicator = document.createElement('span');
-  indicator.className = 'transor-tip-indicator';
-  translationWrapper.appendChild(indicator);
+  // 检查元素是否有no-translate类，只有没有这个类时才添加小指示器
+  const hasNoTranslateClass = commonParent.classList && commonParent.classList.contains('no-translate');
+  // 递归检查父元素是否有no-translate类
+  const parentHasNoTranslateClass = commonParent.closest && commonParent.closest('.no-translate');
+  
+  // 只有当元素和其父元素都没有no-translate类时，才添加指示器
+  if (!hasNoTranslateClass && !parentHasNoTranslateClass) {
+    // 添加小指示器
+    const indicator = document.createElement('span');
+    indicator.className = 'transor-tip-indicator';
+    translationWrapper.appendChild(indicator);
+  }
   
   // 创建tip弹出框
   const popup = document.createElement('div');
   popup.className = 'transor-tip-popup';
   popup.textContent = translatedText;
-  popup.style.display = 'none';
   
   // 生成唯一ID
   const popupId = 'transor-popup-' + Math.random().toString(36).substr(2, 9);
@@ -3690,8 +3770,12 @@ function applyTipStyleTranslation(commonParent, originalText, translatedText) {
   commonParent.appendChild(translationWrapper);
   document.body.appendChild(popup);
   
-  // 注册到tip系统
-  if (window.transorTipSystem && window.transorTipSystem.initialized) {
+  // 确保Tip系统已初始化，然后注册元素
+  if (window.transorTipSystem) {
+    // 如果系统还未初始化，先初始化
+    if (!window.transorTipSystem.initialized) {
+      window.transorTipSystem.init();
+    }
     window.transorTipSystem.registerTip(translationWrapper, popup);
   }
 }
@@ -3716,9 +3800,9 @@ function applyBilingualStyleTranslation(commonParent, originalText, translatedTe
   translationSpan.classList.add('transor-bilingual-text');
   translationSpan.textContent = translatedText;
   
-  // 先添加翻译文本（在上方显示），再添加原文
-  translationWrapper.appendChild(translationSpan);
+  // 先添加原文，再添加翻译文本（在下方显示）
   translationWrapper.appendChild(originalContainer);
+  translationWrapper.appendChild(translationSpan);
   
   commonParent.appendChild(translationWrapper);
 }
@@ -3800,4 +3884,60 @@ function findCommonParent(nodes) {
   }
   
   return null;
+}
+
+// 新增函数：计算单词数
+function countWords(text) {
+  if (!text) return 0;
+  
+  // 尝试检测文本是否主要是中文
+  const chineseCharCount = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+  const totalLength = text.length;
+  const chineseRatio = chineseCharCount / totalLength;
+  
+  if (chineseRatio > 0.5) {
+    // 如果主要是中文文本，以字符数计算（每个汉字算一个单词）
+    return chineseCharCount;
+  } else {
+    // 如果主要是英文或其他语言，按空格分割计算单词数
+    return text.trim().split(/\s+/).length;
+  }
+}
+
+// 新增函数：检查元素是否在导航或页脚区域
+function isElementInNavOrFooter(element) {
+  if (!element) return false;
+  
+  // 向上查找父元素，检查是否有导航或页脚相关的标签或类名
+  let current = element;
+  const maxDepth = 5; // 限制向上查找的层级，避免过度递归
+  let depth = 0;
+  
+  while (current && depth < maxDepth) {
+    // 检查标签名
+    const tagName = current.tagName ? current.tagName.toLowerCase() : '';
+    if (tagName === 'nav' || tagName === 'footer' || tagName === 'header') {
+      return true;
+    }
+    
+    // 检查类名和ID
+    const className = current.className ? current.className.toLowerCase() : '';
+    const id = current.id ? current.id.toLowerCase() : '';
+    
+    // 常见的导航和页脚类名/ID模式
+    const navPatterns = ['nav', 'navigation', 'menu', 'header', 'top-bar', 'navbar', 'site-header'];
+    const footerPatterns = ['footer', 'bottom', 'site-footer', 'page-footer', 'copyright'];
+    
+    for (const pattern of [...navPatterns, ...footerPatterns]) {
+      if (className.includes(pattern) || id.includes(pattern)) {
+        return true;
+      }
+    }
+    
+    // 向上查找父元素
+    current = current.parentElement;
+    depth++;
+  }
+  
+  return false;
 }

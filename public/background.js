@@ -49,7 +49,7 @@ const defaultSettings = {
   enabled: true,
   targetLanguage: 'zh-CN',
   sourceLanguage: 'auto',
-  translationStyle: 'tip',
+  translationStyle: 'inline',
   enabledSelectors: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'span', 'a'],
   excludedClasses: ['no-translate'],
   excludedUrls: [],
@@ -2722,16 +2722,15 @@ function generateMockDictionaryData(word) {
       definitions: [
         {
           pos: 'v.',
-          meanings: ['承诺', '自杀', '做出（错事）']
+          meanings: ['--']
         },
         {
           pos: 'web.',
-          meanings: ['提交', '提交完成', '干']
+          meanings: ['--']
         }
       ],
       examples: [
-        'He committed himself to helping the poor.',
-        'She was committed to a mental hospital.'
+        
       ]
     };
   } else {

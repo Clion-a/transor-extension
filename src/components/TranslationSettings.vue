@@ -134,10 +134,10 @@
       <div class="ai-mode">
         <div class="setting-label">{{ $t('display_type') }}</div>
         <el-select v-model="transStyle" size="large" class="dark-select">
+          <el-option :label="$t('universal')" value="universal"></el-option>
           <el-option :label="$t('inline')" value="inline"></el-option>
-          <el-option :label="$t('general')" value="tip"></el-option>
           <el-option :label="$t('replace')" value="replace"></el-option>
-          <el-option :label="$t('bilingual_above')" value="bilingual"></el-option>
+          <el-option :label="$t('bilingual_below')" value="bilingual"></el-option>
         </el-select>
       </div>
     </div>

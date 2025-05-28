@@ -152,47 +152,48 @@ function createTranslatorUI(imageUrl) {
   // 创建翻译器容器
   const container = document.createElement('div');
   container.id = 'transor-image-translator-container';
+  container.className = 'no-translate';
   
   // 创建内容
   container.innerHTML = `
-    <div class="transor-image-translator">
-      <div class="translator-header">
-        <h3>图片文字翻译</h3>
-        <button id="close-translator" class="translator-close-btn" title="关闭">×</button>
+    <div class="transor-image-translator no-translate">
+      <div class="translator-header no-translate">
+        <h3 class="no-translate">图片文字翻译</h3>
+        <button id="close-translator" class="translator-close-btn no-translate" title="关闭">×</button>
       </div>
       
-      <div class="translator-body">
-        <div class="translator-content-wrapper">
-          <div class="image-preview-container">
-            <img src="${imageUrl}" alt="要翻译的图片" id="translated-image-preview" />
+      <div class="translator-body no-translate">
+        <div class="translator-content-wrapper no-translate">
+          <div class="image-preview-container no-translate">
+            <img src="${imageUrl}" alt="要翻译的图片" id="translated-image-preview" class="no-translate" />
           </div>
           
-          <div class="text-sections-container">
-            <div class="translator-section">
-              <div class="section-header">
-                <h4>原文</h4>
-                <div class="section-actions">
-                  <button id="copy-original" class="translator-action-btn">复制</button>
+          <div class="text-sections-container no-translate">
+            <div class="translator-section no-translate">
+              <div class="section-header no-translate">
+                <h4 class="no-translate">原文</h4>
+                <div class="section-actions no-translate">
+                  <button id="copy-original" class="translator-action-btn no-translate">复制</button>
                 </div>
               </div>
-              <div id="image-original-text" class="text-content">正在识别中...</div>
+              <div id="image-original-text" class="text-content no-translate">正在识别中...</div>
             </div>
             
-            <div class="translator-section">
-              <div class="section-header">
-                <h4>译文</h4>
-                <div class="section-actions">
-                  <button id="copy-translation" class="translator-action-btn">复制</button>
+            <div class="translator-section no-translate">
+              <div class="section-header no-translate">
+                <h4 class="no-translate">译文</h4>
+                <div class="section-actions no-translate">
+                  <button id="copy-translation" class="translator-action-btn no-translate">复制</button>
                 </div>
               </div>
-              <div id="image-translated-text" class="text-content">等待翻译...</div>
+              <div id="image-translated-text" class="text-content no-translate">等待翻译...</div>
             </div>
           </div>
         </div>
       </div>
       
-      <div class="translator-footer">
-        <div id="translation-status" class="status-message">准备中...</div>
+      <div class="translator-footer no-translate">
+        <div id="translation-status" class="status-message no-translate">准备中...</div>
       </div>
     </div>
   `;
@@ -256,6 +257,7 @@ function copyTextToClipboard(text) {
     // 兼容旧浏览器的方法
     const textArea = document.createElement('textarea');
     textArea.value = text;
+    textArea.className = 'no-translate';
     textArea.style.position = 'fixed';
     textArea.style.left = '-999999px';
     textArea.style.top = '-999999px';

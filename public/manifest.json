@@ -20,15 +20,15 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "logos/logo16.png",
+      "48": "logos/logo48.png",
+      "128": "logos/logo128.png"
     }
   },
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "logos/logo16.png",
+    "48": "logos/logo48.png",
+    "128": "logos/logo128.png"
   },
   "content_scripts": [
     {
@@ -40,6 +40,11 @@
     {
       "matches": ["*://*.youtube.com/*"],
       "js": ["youtube-cinema.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["*://*.netflix.com/*"],
+      "js": ["netflix-cinema.js"],
       "run_at": "document_end"
     },
     {
@@ -55,11 +60,25 @@
         "youtube-cinema.css",
         "youtube-cinema.html",
         "iconfont.js",
-        "fonts/*"
+        "fonts/*",
+        "logos/logo16.png",
+        "logos/logo48.png",
+        "logos/logo128.png"
       ],
       "matches": [
         "https://*.youtube.com/*",
         "https://*.youtu.be/*"
+      ]
+    },
+    {
+      "resources": [
+        "netflix-cinema.js",
+        "logos/logo16.png",
+        "logos/logo48.png",
+        "logos/logo128.png"
+      ],
+      "matches": [
+        "https://*.netflix.com/*"
       ]
     },
     {
@@ -90,6 +109,6 @@
     }
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com https://api.ocr.space http://api-test.transor.ai https://api-test.transor.ai https://api.cognitive.microsofttranslator.com https://api.deepseek.com https://edge.microsoft.com https://api.dictionaryapi.dev http://116.202.96.240:8080"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://libretranslate.de https://translate.googleapis.com https://fanyi.baidu.com https://lingva.ml https://api.fanyi.baidu.com https://api.ocr.space http://api-test.transor.ai https://api-test.transor.ai https://api.cognitive.microsofttranslator.com https://api.deepseek.com https://edge.microsoft.com https://api.dictionaryapi.dev http://116.202.96.240:8080 https://*.netflix.com"
   }
 } 
