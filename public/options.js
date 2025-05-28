@@ -151,15 +151,41 @@ function showSaveNotification(message) {
   }, 3000);
 }
 
-// 根据当前翻译引擎显示/隐藏 API Key 输入框
+// 根据当前翻译引擎显示/隐藏 API Key 输入框和AI配置模块
 function updateApiKeyVisibility(engine) {
   const container = document.getElementById('api-key-container');
   const label = document.getElementById('api-key-label');
+  const openaiConfig = document.getElementById('openai-config');
+  const deepseekConfig = document.getElementById('deepseek-config');
+  
+  // 首先隐藏所有配置
+  if (container) container.style.display = 'none';
+  if (openaiConfig) openaiConfig.style.display = 'none';
+  if (deepseekConfig) deepseekConfig.style.display = 'none';
+  
   if (['openai', 'deepseek'].includes(engine)) {
-    label.textContent = `${engine} API Key`;
-    container.style.display = 'block';
-  } else {
-    container.style.display = 'none';
+    // 显示API Key输入框
+    if (container) {
+      container.style.display = 'block';
+      if (label) label.textContent = `${engine} API Key`;
+    }
+    
+    // 显示对应的AI配置模块
+    if (engine === 'openai' && openaiConfig) {
+      openaiConfig.style.display = 'block';
+    } else if (engine === 'deepseek' && deepseekConfig) {
+      deepseekConfig.style.display = 'block';
+    }
+  }
+}
+
+// 切换自定义模型输入框的显示/隐藏
+function toggleCustomModelInput(prefix) {
+  const checkbox = document.getElementById(`${prefix}-custom-model-enabled`);
+  const inputGroup = document.getElementById(`${prefix}-custom-model-group`);
+  
+  if (checkbox && inputGroup) {
+    inputGroup.style.display = checkbox.checked ? 'block' : 'none';
   }
 }
 
@@ -288,7 +314,84 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 初始化UI显示状态
     updateApiKeyVisibility(engineSel.value);
+    
+    // 加载AI配置
+    if (settings.openaiConfig) {
+      const openaiConfig = settings.openaiConfig;
+      const openaiModelSelect = document.getElementById('openai-model');
+      const openaiCustomModelEnabledChk = document.getElementById('openai-custom-model-enabled');
+      const openaiCustomModelInput = document.getElementById('openai-custom-model');
+      const openaiMaxRequestsInput = document.getElementById('openai-max-requests');
+      const openaiAiContextChk = document.getElementById('openai-ai-context');
+      const openaiExpertStrategySelect = document.getElementById('openai-expert-strategy');
+      
+      if (openaiModelSelect) openaiModelSelect.value = openaiConfig.model || 'gpt-4.1-mini';
+      if (openaiCustomModelEnabledChk) openaiCustomModelEnabledChk.checked = openaiConfig.customModelEnabled || false;
+      if (openaiCustomModelInput) {
+        // 尝试从localStorage读取上次保存的自定义模型名称
+        openaiCustomModelInput.value = openaiConfig.customModel || localStorage.getItem('openai-custom-model') || '';
+      }
+      if (openaiMaxRequestsInput) openaiMaxRequestsInput.value = openaiConfig.maxRequests || 10;
+      if (openaiAiContextChk) openaiAiContextChk.checked = openaiConfig.aiContext || false;
+      if (openaiExpertStrategySelect) openaiExpertStrategySelect.value = openaiConfig.expertStrategy || 'translation-master';
+      
+      // 更新自定义模型输入框显示
+      if (openaiCustomModelEnabledChk) {
+        toggleCustomModelInput('openai');
+      }
+    } 
+    // 兼容老版本，如果没有openaiConfig但有openaiModel
+    else if (settings.openaiModel) {
+      const openaiModelSelect = document.getElementById('openai-model');
+      if (openaiModelSelect) {
+        // 尝试在预设模型中查找
+        const modelExists = Array.from(openaiModelSelect.options).some(option => option.value === settings.openaiModel);
+        if (modelExists) {
+          openaiModelSelect.value = settings.openaiModel;
+        } else if (settings.openaiModel && settings.openaiModel !== 'gpt-3.5-turbo' && 
+                  settings.openaiModel !== 'gpt-4' && settings.openaiModel !== 'gpt-4-turbo') {
+          // 如果是自定义模型
+          const openaiCustomModelEnabledChk = document.getElementById('openai-custom-model-enabled');
+          const openaiCustomModelInput = document.getElementById('openai-custom-model');
+          
+          if (openaiCustomModelEnabledChk) openaiCustomModelEnabledChk.checked = true;
+          if (openaiCustomModelInput) openaiCustomModelInput.value = settings.openaiModel;
+          toggleCustomModelInput('openai');
+        }
+      }
+    }
+    
+    if (settings.deepseekConfig) {
+      const deepseekConfig = settings.deepseekConfig;
+      const deepseekModelSelect = document.getElementById('deepseek-model');
+      const deepseekCustomModelEnabledChk = document.getElementById('deepseek-custom-model-enabled');
+      const deepseekCustomModelInput = document.getElementById('deepseek-custom-model');
+      const deepseekMaxRequestsInput = document.getElementById('deepseek-max-requests');
+      const deepseekAiContextChk = document.getElementById('deepseek-ai-context');
+      const deepseekExpertStrategySelect = document.getElementById('deepseek-expert-strategy');
+      
+      if (deepseekModelSelect) {
+        // 确保模型值有效
+        const modelValue = deepseekConfig.model || 'deepseek-chat';
+        if (modelValue === 'deepseek-coder') {
+          deepseekModelSelect.value = 'deepseek-reasoner';
+        } else {
+          deepseekModelSelect.value = modelValue;
+        }
+      }
+      if (deepseekCustomModelEnabledChk) deepseekCustomModelEnabledChk.checked = deepseekConfig.customModelEnabled || false;
+      if (deepseekCustomModelInput) deepseekCustomModelInput.value = deepseekConfig.customModel || '';
+      if (deepseekMaxRequestsInput) deepseekMaxRequestsInput.value = deepseekConfig.maxRequests || 10;
+      if (deepseekAiContextChk) deepseekAiContextChk.checked = deepseekConfig.aiContext || false;
+      if (deepseekExpertStrategySelect) deepseekExpertStrategySelect.value = deepseekConfig.expertStrategy || 'translation-master';
+      
+      // 更新自定义模型输入框显示
+      if (deepseekCustomModelEnabledChk) {
+        toggleCustomModelInput('deepseek');
+      }
+    }
   });
 
   // 保存按钮事件
@@ -332,7 +435,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 事件监听保存 - 翻译引擎
   engineSel.addEventListener('change', () => {
+    // 保存当前选择的引擎，用于记录上一次选择
+    if (engineSel.value === 'openai') {
+      localStorage.setItem('last-openai-model', document.getElementById('openai-model')?.value || 'gpt-4.1-mini');
+    }
+    
+    // 立即更新API Key和配置模块的显示
     updateApiKeyVisibility(engineSel.value);
+    
     saveSettings({ translationEngine: engineSel.value });
     
     // 同步两个页面的翻译引擎选择器
@@ -350,6 +460,9 @@ window.addEventListener('DOMContentLoaded', () => {
   // 翻译服务页面中的引擎选择器联动
   if (engine2Sel) {
     engine2Sel.addEventListener('change', () => {
+      // 更新配置模块显示
+      updateApiKeyVisibility(engine2Sel.value);
+      
       if (engineSel) {
         engineSel.value = engine2Sel.value;
       }
@@ -405,4 +518,193 @@ window.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
-}); 
+
+  // AI配置相关事件监听器
+  
+  // OpenAI配置
+  const openaiModelSelect = document.getElementById('openai-model');
+  const openaiCustomModelEnabledChk = document.getElementById('openai-custom-model-enabled');
+  const openaiCustomModelInput = document.getElementById('openai-custom-model');
+  const openaiMaxRequestsInput = document.getElementById('openai-max-requests');
+  const openaiAiContextChk = document.getElementById('openai-ai-context');
+  const openaiExpertStrategySelect = document.getElementById('openai-expert-strategy');
+  
+  if (openaiCustomModelEnabledChk) {
+    openaiCustomModelEnabledChk.addEventListener('change', () => {
+      toggleCustomModelInput('openai');
+      
+      // 如果取消自定义模型，且当前选择为"more-models"，则恢复上次选择的模型
+      if (!openaiCustomModelEnabledChk.checked) {
+        const openaiModelSelect = document.getElementById('openai-model');
+        if (openaiModelSelect && openaiModelSelect.value === 'more-models') {
+          // 恢复上次选择的模型，如果没有则默认为gpt-4.1-mini
+          const lastModel = localStorage.getItem('last-openai-model') || 'gpt-4.1-mini';
+          openaiModelSelect.value = lastModel;
+        }
+      }
+      
+      saveAiConfig('openai');
+    });
+  }
+  
+  if (openaiModelSelect) {
+    openaiModelSelect.addEventListener('change', () => {
+      // 如果选择"设置更多模型"，自动开启自定义模型输入
+      if (openaiModelSelect.value === 'more-models') {
+        const customModelEnabledChk = document.getElementById('openai-custom-model-enabled');
+        const customModelInput = document.getElementById('openai-custom-model');
+        
+        if (customModelEnabledChk && !customModelEnabledChk.checked) {
+          customModelEnabledChk.checked = true;
+          toggleCustomModelInput('openai');
+          
+          // 聚焦到自定义模型输入框
+          if (customModelInput) {
+            setTimeout(() => customModelInput.focus(), 100);
+          }
+        }
+      }
+      
+      saveAiConfig('openai');
+    });
+  }
+  
+  if (openaiCustomModelInput) {
+    openaiCustomModelInput.addEventListener('change', () => {
+      // 保存自定义模型名称
+      if (openaiCustomModelInput.value) {
+        localStorage.setItem('openai-custom-model', openaiCustomModelInput.value);
+      }
+      
+      saveAiConfig('openai');
+    });
+  }
+  
+  if (openaiMaxRequestsInput) {
+    openaiMaxRequestsInput.addEventListener('change', () => saveAiConfig('openai'));
+  }
+  
+  if (openaiAiContextChk) {
+    openaiAiContextChk.addEventListener('change', () => saveAiConfig('openai'));
+  }
+  
+  if (openaiExpertStrategySelect) {
+    openaiExpertStrategySelect.addEventListener('change', () => saveAiConfig('openai'));
+  }
+  
+  // DeepSeek配置
+  const deepseekModelSelect = document.getElementById('deepseek-model');
+  const deepseekCustomModelEnabledChk = document.getElementById('deepseek-custom-model-enabled');
+  const deepseekCustomModelInput = document.getElementById('deepseek-custom-model');
+  const deepseekMaxRequestsInput = document.getElementById('deepseek-max-requests');
+  const deepseekAiContextChk = document.getElementById('deepseek-ai-context');
+  const deepseekExpertStrategySelect = document.getElementById('deepseek-expert-strategy');
+  
+  if (deepseekCustomModelEnabledChk) {
+    deepseekCustomModelEnabledChk.addEventListener('change', () => {
+      toggleCustomModelInput('deepseek');
+      saveAiConfig('deepseek');
+    });
+  }
+  
+  if (deepseekModelSelect) {
+    deepseekModelSelect.addEventListener('change', () => saveAiConfig('deepseek'));
+  }
+  
+  if (deepseekCustomModelInput) {
+    deepseekCustomModelInput.addEventListener('change', () => saveAiConfig('deepseek'));
+  }
+  
+  if (deepseekMaxRequestsInput) {
+    deepseekMaxRequestsInput.addEventListener('change', () => saveAiConfig('deepseek'));
+  }
+  
+  if (deepseekAiContextChk) {
+    deepseekAiContextChk.addEventListener('change', () => saveAiConfig('deepseek'));
+  }
+  
+  if (deepseekExpertStrategySelect) {
+    deepseekExpertStrategySelect.addEventListener('change', () => saveAiConfig('deepseek'));
+  }
+});
+
+// 保存AI配置
+function saveAiConfig(engine) {
+  const config = {};
+  
+  if (engine === 'openai') {
+    const modelSelect = document.getElementById('openai-model');
+    const customModelEnabledChk = document.getElementById('openai-custom-model-enabled');
+    const customModelInput = document.getElementById('openai-custom-model');
+    const maxRequestsInput = document.getElementById('openai-max-requests');
+    const aiContextChk = document.getElementById('openai-ai-context');
+    const expertStrategySelect = document.getElementById('openai-expert-strategy');
+    
+    // 使用与store中相同的结构
+    config.openaiConfig = {
+      model: modelSelect ? modelSelect.value : 'gpt-4.1-mini',
+      customModelEnabled: customModelEnabledChk ? customModelEnabledChk.checked : false,
+      customModel: customModelInput ? customModelInput.value : '',
+      maxRequests: maxRequestsInput ? parseInt(maxRequestsInput.value) : 10,
+      aiContext: aiContextChk ? aiContextChk.checked : false,
+      expertStrategy: expertStrategySelect ? expertStrategySelect.value : 'translation-master'
+    };
+    
+    // 同时更新旧的openaiModel字段，保持兼容性
+    config.openaiModel = config.openaiConfig.customModelEnabled && config.openaiConfig.customModel ? 
+      config.openaiConfig.customModel : config.openaiConfig.model;
+    
+    // 发送配置到background.js
+    try {
+      chrome.runtime.sendMessage({
+        action: 'updateAiConfig',
+        engine: 'openai',
+        config: config.openaiConfig
+      }, response => {
+        if (chrome.runtime.lastError) {
+          console.warn('向background发送OpenAI配置失败:', chrome.runtime.lastError);
+        } else if (response && response.success) {
+          console.log('成功更新background中的OpenAI配置');
+        }
+      });
+    } catch(e) {
+      console.error('发送OpenAI配置消息异常:', e.message);
+    }
+  } else if (engine === 'deepseek') {
+    const modelSelect = document.getElementById('deepseek-model');
+    const customModelEnabledChk = document.getElementById('deepseek-custom-model-enabled');
+    const customModelInput = document.getElementById('deepseek-custom-model');
+    const maxRequestsInput = document.getElementById('deepseek-max-requests');
+    const aiContextChk = document.getElementById('deepseek-ai-context');
+    const expertStrategySelect = document.getElementById('deepseek-expert-strategy');
+    
+    // 使用与store中相同的结构
+    config.deepseekConfig = {
+      model: modelSelect ? modelSelect.value : 'deepseek-chat',
+      customModelEnabled: customModelEnabledChk ? customModelEnabledChk.checked : false,
+      customModel: customModelInput ? customModelInput.value : '',
+      maxRequests: maxRequestsInput ? parseInt(maxRequestsInput.value) : 10,
+      aiContext: aiContextChk ? aiContextChk.checked : false,
+      expertStrategy: expertStrategySelect ? expertStrategySelect.value : 'translation-master'
+    };
+    
+    // 发送配置到background.js
+    try {
+      chrome.runtime.sendMessage({
+        action: 'updateAiConfig',
+        engine: 'deepseek',
+        config: config.deepseekConfig
+      }, response => {
+        if (chrome.runtime.lastError) {
+          console.warn('向background发送DeepSeek配置失败:', chrome.runtime.lastError);
+        } else if (response && response.success) {
+          console.log('成功更新background中的DeepSeek配置');
+        }
+      });
+    } catch(e) {
+      console.error('发送DeepSeek配置消息异常:', e.message);
+    }
+  }
+  
+  saveSettings(config);
+} 

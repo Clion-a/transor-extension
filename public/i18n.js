@@ -109,7 +109,21 @@ const i18n = {
     "youtubeCinemaModeDesc": "在 YouTube 上启用字幕翻译功能",
     "settingsSaved": "设置已保存",
     "uiLanguageUpdated": "界面语言已更新",
-    "confirmRestore": "确定要清除所有设置并恢复默认值吗？"
+    "confirmRestore": "确定要清除所有设置并恢复默认值吗？",
+    
+    // AI模块配置
+    "model": "模型",
+    "inputCustomModel": "输入自定义模型名称",
+    "maxRequestsPerSecond": "每秒最大请求数",
+    "requestLimitWarning": "请求数超过该限制时会进入排队状态，直到下一秒钟开始。由于AI服务的各种限制，请点击这里查看最新建议的数值",
+    "enableAiContext": "启用 AI 智能上下文",
+    "aiContextDesc": "启用后，系统将先理解全文内容与专业术语，让翻译更专业准确。支持文章网页（博客、新闻）、电子书、PDF和双语等。AI专家同伴支持智能上下文。目前为实验功能，仅Pro会员可用。",
+    "aiExpertStrategy": "你可以指定 AI 专家来提供翻译策略",
+    "translationMaster": "意译大师",
+    "literalExpert": "直译专家",
+    "contextAnalyzer": "语境分析师",
+    "culturalAdapter": "文化适配师",
+    "moreModels": "设置更多模型"
   },
   
   'en': {
@@ -221,7 +235,21 @@ const i18n = {
     "youtubeCinemaModeDesc": "Enable subtitle translation feature on YouTube",
     "settingsSaved": "Settings Saved",
     "uiLanguageUpdated": "UI Language Updated",
-    "confirmRestore": "Are you sure you want to clear all settings and restore defaults?"
+    "confirmRestore": "Are you sure you want to clear all settings and restore defaults?",
+    
+    // AI模块配置
+    "model": "Model",
+    "inputCustomModel": "Input custom model name",
+    "maxRequestsPerSecond": "Max requests per second",
+    "requestLimitWarning": "Requests exceeding this limit will be queued until the next second begins. Due to various limitations of AI services, please click here to see the latest recommended values",
+    "enableAiContext": "Enable AI Smart Context",
+    "aiContextDesc": "When enabled, the system will first understand the full text content and professional terminology to make translations more professional and accurate. Supports article web pages (blogs, news), e-books, PDFs and bilingual content. AI expert companion supports smart context. Currently an experimental feature, available only to Pro members.",
+    "aiExpertStrategy": "You can specify AI experts to provide translation strategies",
+    "translationMaster": "Translation Master",
+    "literalExpert": "Literal Expert",
+    "contextAnalyzer": "Context Analyzer",
+    "culturalAdapter": "Cultural Adapter",
+    "moreModels": "Configure more models"
   },
   
   'ja': {
@@ -332,7 +360,21 @@ const i18n = {
     "youtubeCinemaModeDesc": "YouTubeで字幕翻訳機能を有効にする",
     "settingsSaved": "設定が保存されました",
     "uiLanguageUpdated": "インターフェース言語が更新されました",
-    "confirmRestore": "すべての設定をクリアしてデフォルトに戻しますか？"
+    "confirmRestore": "すべての設定をクリアしてデフォルトに戻しますか？",
+    
+    // AI模块配置
+    "model": "モデル",
+    "inputCustomModel": "カスタムモデル名を入力",
+    "maxRequestsPerSecond": "1秒あたりの最大リクエスト数",
+    "requestLimitWarning": "このリミットを超えるリクエストは次の秒まで待機状態になります。AIサービスの様々な制限により、最新の推奨値については<span style=\"color: var(--danger-color);\">こちら</span>をクリックしてください",
+    "enableAiContext": "AIスマートコンテキストを有効にする",
+    "aiContextDesc": "有効にすると、システムはまず全文の内容と専門用語を理解し、より専門的で正確な翻訳を提供します。記事ウェブページ（ブログ、ニュース）、電子書籍、PDF、バイリンガルコンテンツをサポートします。AIエキスパートコンパニオンはスマートコンテキストをサポートします。現在は実験的な機能で、Proメンバーのみが利用できます。",
+    "aiExpertStrategy": "翻訳戦略を提供するAI専門家を指定できます",
+    "translationMaster": "意訳マスター",
+    "literalExpert": "直訳エキスパート",
+    "contextAnalyzer": "コンテキスト分析者",
+    "culturalAdapter": "文化適応者",
+    "moreModels": "その他のモデルを設定"
   },
   
   'ko': {
@@ -443,7 +485,21 @@ const i18n = {
     "youtubeCinemaModeDesc": "YouTube에서 자막 번역 기능 활성화",
     "settingsSaved": "설정이 저장됨",
     "uiLanguageUpdated": "인터페이스 언어가 업데이트됨",
-    "confirmRestore": "모든 설정을 지우고 기본값을 복원하시겠습니까?"
+    "confirmRestore": "모든 설정을 지우고 기본값을 복원하시겠습니까?",
+    
+    // AI模块配置
+    "model": "모델",
+    "inputCustomModel": "사용자 정의 모델 이름 입력",
+    "maxRequestsPerSecond": "초당 최대 요청 수",
+    "requestLimitWarning": "이 제한을 초과하는 요청은 다음 초까지 대기열에 들어갑니다. AI 서비스의 다양한 제한으로 인해 최신 권장 값을 보려면 <span style=\"color: var(--danger-color);\">여기</span>를 클릭하세요",
+    "enableAiContext": "AI 스마트 컨텍스트 활성화",
+    "aiContextDesc": "활성화하면 시스템이 먼저 전체 텍스트 내용과 전문 용어를 이해하여 번역을 더 전문적이고 정확하게 만듭니다. 기사 웹 페이지(블로그, 뉴스), 전자책, PDF 및 이중 언어 콘텐츠를 지원합니다. AI 전문가 동반자는 스마트 컨텍스트를 지원합니다. 현재 실험적 기능으로, Pro 회원만 사용할 수 있습니다.",
+    "aiExpertStrategy": "번역 전략을 제공할 AI 전문가를 지정할 수 있습니다",
+    "translationMaster": "의역 마스터",
+    "literalExpert": "직역 전문가",
+    "contextAnalyzer": "컨텍스트 분석가",
+    "culturalAdapter": "문화 적응자",
+    "moreModels": "더 많은 모델 설정"
   }
 };
 

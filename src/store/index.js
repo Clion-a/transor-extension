@@ -14,13 +14,29 @@ export default new Vuex.Store({
     excludedClasses: ['no-translate'],
     excludedUrls: [],
     customCss: '',
-    openaiModel: 'gpt-3.5-turbo',
+    openaiModel: 'gpt-4.1-mini',
     enableInputSpaceTranslation: true,
     apiKeys: {
       microsoftapi: '',
       microsoft: '',
       deepseek: '',
       openai: ''
+    },
+    openaiConfig: {
+      model: 'gpt-4.1-mini',
+      customModelEnabled: false,
+      customModel: '',
+      maxRequests: 10,
+      aiContext: false,
+      expertStrategy: 'translation-master'
+    },
+    deepseekConfig: {
+      model: 'deepseek-chat',
+      customModelEnabled: false,
+      customModel: '',
+      maxRequests: 10,
+      aiContext: false,
+      expertStrategy: 'translation-master'
     }
   },
   mutations: {
@@ -65,6 +81,22 @@ export default new Vuex.Store({
     },
     setApiKeys(state, apiKeys) {
       state.apiKeys = apiKeys
+    },
+    setOpenaiConfig(state, config) {
+      state.openaiConfig = config
+    },
+    setDeepseekConfig(state, config) {
+      state.deepseekConfig = config
+    },
+    updateOpenaiConfig(state, { key, value }) {
+      if (state.openaiConfig) {
+        state.openaiConfig[key] = value
+      }
+    },
+    updateDeepseekConfig(state, { key, value }) {
+      if (state.deepseekConfig) {
+        state.deepseekConfig[key] = value
+      }
     }
   },
   actions: {
@@ -83,6 +115,16 @@ export default new Vuex.Store({
           if (result.openaiModel) commit('setOpenaiModel', result.openaiModel)
           if (result.enableInputSpaceTranslation !== undefined) commit('setEnableInputSpaceTranslation', result.enableInputSpaceTranslation)
           if (result.apiKeys) commit('setApiKeys', result.apiKeys)
+          
+          // 加载AI配置项
+          if (result.openaiConfig) commit('setOpenaiConfig', result.openaiConfig)
+          if (result.deepseekConfig) commit('setDeepseekConfig', result.deepseekConfig)
+          
+          // 如果没有新的配置但有老的model，兼容处理
+          if (!result.openaiConfig && result.openaiModel) {
+            commit('updateOpenaiConfig', { key: 'model', value: result.openaiModel })
+          }
+          
           resolve()
         })
       })
@@ -100,7 +142,10 @@ export default new Vuex.Store({
         customCss: state.customCss,
         openaiModel: state.openaiModel,
         enableInputSpaceTranslation: state.enableInputSpaceTranslation,
-        apiKeys: state.apiKeys
+        apiKeys: state.apiKeys,
+        // 保存AI配置项
+        openaiConfig: state.openaiConfig,
+        deepseekConfig: state.deepseekConfig
       })
       
       // 向当前活动标签发送更新设置的消息

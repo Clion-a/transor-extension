@@ -476,6 +476,162 @@
             </button>
           </div>
         </div>
+        
+        <!-- OpenAI 配置模块 -->
+        <div id="openai-config" class="ai-config" style="display: none; margin-top: 15px; padding: 15px; background-color: var(--bg-color); border-radius: 6px; border: 1px solid var(--border-color);">
+          <div class="form-group">
+            <label for="openai-model" data-i18n="model">模型:</label>
+            <select id="openai-model">
+              <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="gpt-4.1">gpt-4.1</option>
+              <option value="gpt-4.1-nano">gpt-4.1-nano</option>
+              <option value="gpt-4.5-preview">gpt-4.5-preview</option>
+              <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+              <option value="gpt-4">gpt-4</option>
+              <option value="gpt-4-turbo">gpt-4-turbo</option>
+              <option value="more-models" data-i18n="moreModels">设置更多模型</option>
+            </select>
+          </div>
+          
+          <div class="toggle-container">
+            <div>
+              <div class="toggle-label" data-i18n="inputCustomModel">输入自定义模型名称</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="openai-custom-model-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <div class="form-group" id="openai-custom-model-group" style="display: none;">
+            <input type="text" id="openai-custom-model" placeholder="输入自定义模型名称">
+          </div>
+          
+          <div class="form-group">
+            <label for="openai-max-requests" data-i18n="maxRequestsPerSecond">每秒最大请求数:</label>
+            <input type="number" id="openai-max-requests" value="10" min="1" max="100">
+            <p style="font-size: 11px; color: var(--text-color); opacity: 0.7; margin-top: 5px;" data-i18n="requestLimitWarning">请求数超过该限制时会进入排队状态，直到下一秒钟开始。由于OpenAI目前服务的各种限制，请点击<span style="color: var(--danger-color);">这里</span>查看最新建议的数值</p>
+          </div>
+          
+          <div class="toggle-container">
+            <div>
+              <div class="toggle-label" data-i18n="enableAiContext">启用 AI 智能上下文</div>
+              <div class="toggle-description" data-i18n="aiContextDesc">启用后，系统将先理解全文内容与专业术语，让翻译更专业准确。支持文章网页（博客、新闻）、电子书、PDF和双语等。AI专家同伴支持智能上下文。目前为实验功能，仅Pro会员可用。</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="openai-ai-context">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <div class="form-group">
+            <label for="openai-expert-strategy" data-i18n="aiExpertStrategy">你可以指定 AI 专家来提供翻译策略:</label>
+            <select id="openai-expert-strategy">
+              <option value="universal" data-i18n="universal">通用</option>
+              <option value="smart-choice" data-i18n="smartChoice">智能选择</option>
+              <option value="translation-master" data-i18n="translationMaster">意译大师</option>
+              <option value="paragraph-expert" data-i18n="paragraphExpert">段落总结专家</option>
+              <option value="english-simplifier" data-i18n="englishSimplifier">英文简化大师</option>
+              <option value="twitter-enhancer" data-i18n="twitterEnhancer">Twitter 翻译增强器</option>
+              <option value="tech-translator" data-i18n="techTranslator">科技类翻译大师</option>
+              <option value="reddit-enhancer" data-i18n="redditEnhancer">Reddit 翻译增强器</option>
+              <option value="academic-translator" data-i18n="academicTranslator">学术论文翻译师</option>
+              <option value="news-translator" data-i18n="newsTranslator">新闻媒体译者</option>
+              <option value="music-expert" data-i18n="musicExpert">音乐专家</option>
+              <option value="medical-translator" data-i18n="medicalTranslator">医学翻译大师</option>
+              <option value="legal-translator" data-i18n="legalTranslator">法律行业译者</option>
+              <option value="github-enhancer" data-i18n="githubEnhancer">GitHub 翻译增强器</option>
+              <option value="gaming-translator" data-i18n="gamingTranslator">游戏译者</option>
+              <option value="ecommerce-translator" data-i18n="ecommerceTranslator">电商翻译大师</option>
+              <option value="finance-translator" data-i18n="financeTranslator">金融翻译顾问</option>
+              <option value="novel-translator" data-i18n="novelTranslator">小说译者</option>
+              <option value="ao3-translator" data-i18n="ao3Translator">AO3 译者</option>
+              <option value="ebook-translator" data-i18n="ebookTranslator">电子书译者</option>
+              <option value="designer" data-i18n="designer">设计师</option>
+              <option value="cn-en-polisher" data-i18n="cnEnPolisher">中英夹杂</option>
+              <option value="web3-translator" data-i18n="web3Translator">Web3 翻译大师</option>
+              <option value="literal-expert" data-i18n="literalExpert">直译专家</option>
+              <option value="context-analyzer" data-i18n="contextAnalyzer">语境分析师</option>
+              <option value="cultural-adapter" data-i18n="culturalAdapter">文化适配师</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- DeepSeek 配置模块 -->
+        <div id="deepseek-config" class="ai-config" style="display: none; margin-top: 15px; padding: 15px; background-color: var(--bg-color); border-radius: 6px; border: 1px solid var(--border-color);">
+          <div class="form-group">
+            <label for="deepseek-model" data-i18n="model">模型:</label>
+            <select id="deepseek-model">
+              <option value="deepseek-chat">deepseek-chat</option>
+              <option value="deepseek-reasoner">deepseek-reasoner</option>
+            </select>
+          </div>
+          
+          <div class="toggle-container">
+            <div>
+              <div class="toggle-label" data-i18n="inputCustomModel">输入自定义模型名称</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="deepseek-custom-model-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <div class="form-group" id="deepseek-custom-model-group" style="display: none;">
+            <input type="text" id="deepseek-custom-model" placeholder="输入自定义模型名称">
+          </div>
+          
+          <div class="form-group">
+            <label for="deepseek-max-requests" data-i18n="maxRequestsPerSecond">每秒最大请求数:</label>
+            <input type="number" id="deepseek-max-requests" value="10" min="1" max="100">
+            <p style="font-size: 11px; color: var(--text-color); opacity: 0.7; margin-top: 5px;" data-i18n="requestLimitWarning">请求数超过该限制时会进入排队状态，直到下一秒钟开始。由于DeepSeek目前服务的各种限制，请点击<span style="color: var(--danger-color);">这里</span>查看最新建议的数值</p>
+          </div>
+          
+          <div class="toggle-container">
+            <div>
+              <div class="toggle-label" data-i18n="enableAiContext">启用 AI 智能上下文</div>
+              <div class="toggle-description" data-i18n="aiContextDesc">启用后，系统将先理解全文内容与专业术语，让翻译更专业准确。支持文章网页（博客、新闻）、电子书、PDF和双语等。AI专家同伴支持智能上下文。目前为实验功能，仅Pro会员可用。</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="deepseek-ai-context">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <div class="form-group">
+            <label for="deepseek-expert-strategy" data-i18n="aiExpertStrategy">你可以指定 AI 专家来提供翻译策略:</label>
+            <select id="deepseek-expert-strategy">
+              <option value="universal" data-i18n="universal">通用</option>
+              <option value="smart-choice" data-i18n="smartChoice">智能选择</option>
+              <option value="translation-master" data-i18n="translationMaster">意译大师</option>
+              <option value="paragraph-expert" data-i18n="paragraphExpert">段落总结专家</option>
+              <option value="english-simplifier" data-i18n="englishSimplifier">英文简化大师</option>
+              <option value="twitter-enhancer" data-i18n="twitterEnhancer">Twitter 翻译增强器</option>
+              <option value="tech-translator" data-i18n="techTranslator">科技类翻译大师</option>
+              <option value="reddit-enhancer" data-i18n="redditEnhancer">Reddit 翻译增强器</option>
+              <option value="academic-translator" data-i18n="academicTranslator">学术论文翻译师</option>
+              <option value="news-translator" data-i18n="newsTranslator">新闻媒体译者</option>
+              <option value="music-expert" data-i18n="musicExpert">音乐专家</option>
+              <option value="medical-translator" data-i18n="medicalTranslator">医学翻译大师</option>
+              <option value="legal-translator" data-i18n="legalTranslator">法律行业译者</option>
+              <option value="github-enhancer" data-i18n="githubEnhancer">GitHub 翻译增强器</option>
+              <option value="gaming-translator" data-i18n="gamingTranslator">游戏译者</option>
+              <option value="ecommerce-translator" data-i18n="ecommerceTranslator">电商翻译大师</option>
+              <option value="finance-translator" data-i18n="financeTranslator">金融翻译顾问</option>
+              <option value="novel-translator" data-i18n="novelTranslator">小说译者</option>
+              <option value="ao3-translator" data-i18n="ao3Translator">AO3 译者</option>
+              <option value="ebook-translator" data-i18n="ebookTranslator">电子书译者</option>
+              <option value="designer" data-i18n="designer">设计师</option>
+              <option value="cn-en-polisher" data-i18n="cnEnPolisher">中英夹杂</option>
+              <option value="web3-translator" data-i18n="web3Translator">Web3 翻译大师</option>
+              <option value="literal-expert" data-i18n="literalExpert">直译专家</option>
+              <option value="context-analyzer" data-i18n="contextAnalyzer">语境分析师</option>
+              <option value="cultural-adapter" data-i18n="culturalAdapter">文化适配师</option>
+            </select>
+          </div>
+        </div>
       </div>
       
       <div class="buttons">

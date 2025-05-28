@@ -94,7 +94,7 @@
       </div>
     </div>
 
-    <!-- 新增API密钥设置区域 -->
+    <!-- 新增DeepSeek API密钥设置区域 -->
     <div class="settings-group" v-if="transEngine === 'deepseek'">
       <div class="api-key-input">
         <div class="setting-label">{{ $t('deepseek_api_key') }}</div>
@@ -105,6 +105,37 @@
           @change="saveDeepseekApiKey"
           show-password
         ></el-input>
+      </div>
+      
+      <!-- 添加DeepSeek模型选择 -->
+      <div class="api-key-input">
+        <div class="setting-label">{{ $t('model') }}</div>
+        <el-select v-model="deepseekModel" size="large" class="dark-select" @change="saveDeepseekConfig">
+          <el-option label="deepseek-chat" value="deepseek-chat"></el-option>
+          <el-option label="deepseek-coder" value="deepseek-coder"></el-option>
+        </el-select>
+      </div>
+
+      <!-- 添加高级DeepSeek设置 -->
+      <div class="api-key-input" v-if="showAdvancedDeepseekSettings">
+        <div class="setting-label">{{ $t('aiExpertStrategy') }}</div>
+        <el-select v-model="deepseekExpertStrategy" size="large" class="dark-select" @change="saveDeepseekConfig">
+          <el-option :label="$t('translationMaster')" value="translation-master"></el-option>
+          <el-option :label="$t('literalExpert')" value="literal-expert"></el-option>
+          <el-option :label="$t('contextAnalyzer')" value="context-analyzer"></el-option>
+          <el-option :label="$t('culturalAdapter')" value="cultural-adapter"></el-option>
+        </el-select>
+      </div>
+
+      <div class="toggle-container" v-if="showAdvancedDeepseekSettings">
+        <span>{{ $t('enableAiContext') }}</span>
+        <el-switch v-model="deepseekAiContext" active-color="#13ce66" inactive-color="#ff4949"
+          @change="saveDeepseekConfig"></el-switch>
+      </div>
+
+      <div class="toggle-container" v-if="transEngine === 'deepseek'">
+        <span>{{ $t('advancedSettings') }}</span>
+        <el-switch v-model="showAdvancedDeepseekSettings" active-color="#13ce66" inactive-color="#ff4949"></el-switch>
       </div>
     </div>
 
@@ -123,10 +154,38 @@
       <div class="api-key-input">
         <div class="setting-label">{{ $t('openai_model') }}</div>
         <el-select v-model="openaiModel" size="large" class="dark-select" @change="saveOpenaiModel">
+          <el-option label="gpt-4.1-mini" value="gpt-4.1-mini"></el-option>
+          <el-option label="gpt-4o-mini" value="gpt-4o-mini"></el-option>
+          <el-option label="gpt-4o" value="gpt-4o"></el-option>
+          <el-option label="gpt-4.1" value="gpt-4.1"></el-option>
+          <el-option label="gpt-4.1-nano" value="gpt-4.1-nano"></el-option>
+          <el-option label="gpt-4.5-preview" value="gpt-4.5-preview"></el-option>
           <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo"></el-option>
           <el-option label="gpt-4" value="gpt-4"></el-option>
           <el-option label="gpt-4-turbo" value="gpt-4-turbo"></el-option>
         </el-select>
+      </div>
+
+      <!-- 添加高级OpenAI设置 -->
+      <div class="api-key-input" v-if="showAdvancedOpenaiSettings">
+        <div class="setting-label">{{ $t('aiExpertStrategy') }}</div>
+        <el-select v-model="openaiExpertStrategy" size="large" class="dark-select" @change="saveOpenaiConfig">
+          <el-option :label="$t('translationMaster')" value="translation-master"></el-option>
+          <el-option :label="$t('literalExpert')" value="literal-expert"></el-option>
+          <el-option :label="$t('contextAnalyzer')" value="context-analyzer"></el-option>
+          <el-option :label="$t('culturalAdapter')" value="cultural-adapter"></el-option>
+        </el-select>
+      </div>
+
+      <div class="toggle-container" v-if="showAdvancedOpenaiSettings">
+        <span>{{ $t('enableAiContext') }}</span>
+        <el-switch v-model="openaiAiContext" active-color="#13ce66" inactive-color="#ff4949"
+          @change="saveOpenaiConfig"></el-switch>
+      </div>
+
+      <div class="toggle-container" v-if="transEngine === 'openai'">
+        <span>{{ $t('advancedSettings') }}</span>
+        <el-switch v-model="showAdvancedOpenaiSettings" active-color="#13ce66" inactive-color="#ff4949"></el-switch>
       </div>
     </div>
 
@@ -215,7 +274,8 @@ export default {
       i18n: null, // 保存i18n实例
       deepseekApiKey: '', // DeepSeek API密钥
       openaiApiKey: '', // OpenAI API密钥
-      openaiModel: 'gpt-3.5-turbo' // OpenAI 模型
+      showAdvancedOpenaiSettings: false,
+      showAdvancedDeepseekSettings: false
     }
   },
   computed: {
@@ -223,7 +283,9 @@ export default {
       'isEnabled',
       'excludedTags',
       'excludedClasses',
-      'customCss'
+      'customCss',
+      'openaiConfig',
+      'deepseekConfig'
     ]),
     isTranslationEnabled: {
       get() {
@@ -277,6 +339,75 @@ export default {
         this.$store.commit('setEnableInputSpaceTranslation', value);
         this.saveSettings();
       }
+    },
+    openaiModel: {
+      get() {
+        // 如果有openaiConfig，从中获取
+        if (this.$store.state.openaiConfig) {
+          return this.$store.state.openaiConfig.model;
+        }
+        // 否则使用旧的字段
+        return this.$store.state.openaiModel;
+      },
+      set(value) {
+        // 保持旧字段兼容
+        this.$store.commit('setOpenaiModel', value);
+        
+        // 同时更新新的配置结构
+        if (this.$store.state.openaiConfig) {
+          this.$store.commit('updateOpenaiConfig', { key: 'model', value });
+        }
+      }
+    },
+    openaiExpertStrategy: {
+      get() {
+        return this.$store.state.openaiConfig && this.$store.state.openaiConfig.expertStrategy 
+          ? this.$store.state.openaiConfig.expertStrategy 
+          : 'translation-master';
+      },
+      set(value) {
+        this.$store.commit('updateOpenaiConfig', { key: 'expertStrategy', value });
+      }
+    },
+    openaiAiContext: {
+      get() {
+        return this.$store.state.openaiConfig && this.$store.state.openaiConfig.aiContext 
+          ? this.$store.state.openaiConfig.aiContext 
+          : false;
+      },
+      set(value) {
+        this.$store.commit('updateOpenaiConfig', { key: 'aiContext', value });
+      }
+    },
+    deepseekModel: {
+      get() {
+        return this.$store.state.deepseekConfig && this.$store.state.deepseekConfig.model
+          ? this.$store.state.deepseekConfig.model
+          : 'deepseek-chat';
+      },
+      set(value) {
+        this.$store.commit('updateDeepseekConfig', { key: 'model', value });
+      }
+    },
+    deepseekExpertStrategy: {
+      get() {
+        return this.$store.state.deepseekConfig && this.$store.state.deepseekConfig.expertStrategy
+          ? this.$store.state.deepseekConfig.expertStrategy
+          : 'translation-master';
+      },
+      set(value) {
+        this.$store.commit('updateDeepseekConfig', { key: 'expertStrategy', value });
+      }
+    },
+    deepseekAiContext: {
+      get() {
+        return this.$store.state.deepseekConfig && this.$store.state.deepseekConfig.aiContext
+          ? this.$store.state.deepseekConfig.aiContext
+          : false;
+      },
+      set(value) {
+        this.$store.commit('updateDeepseekConfig', { key: 'aiContext', value });
+      }
     }
   },
   methods: {
@@ -288,7 +419,9 @@ export default {
       'setExcludedTags',
       'setExcludedClasses',
       'setCustomCss',
-      'setApiKey' // 添加设置API密钥的mutation
+      'setApiKey', // 添加设置API密钥的mutation
+      'updateOpenaiConfig',
+      'updateDeepseekConfig'
     ]),
     // 处理键盘快捷键
     handleKeyboardShortcut(event) {
@@ -500,10 +633,34 @@ export default {
     },
     // 保存OpenAI模型
     saveOpenaiModel() {
-      if (this.openaiModel) {
-        this.$store.commit('setOpenaiModel', this.openaiModel);
-        this.saveSettings();
+      // 保存到旧字段，保持兼容性
+      this.$store.commit('setOpenaiModel', this.openaiModel);
+      
+      // 同时更新新的配置结构
+      if (this.$store.state.openaiConfig) {
+        this.$store.commit('updateOpenaiConfig', { key: 'model', value: this.openaiModel });
+      } else {
+        // 如果openaiConfig不存在，创建一个
+        const config = {
+          model: this.openaiModel,
+          customModelEnabled: false,
+          customModel: '',
+          maxRequests: 10,
+          aiContext: false,
+          expertStrategy: 'translation-master'
+        };
+        this.$store.commit('setOpenaiConfig', config);
       }
+      
+      this.saveSettings();
+    },
+    // 保存OpenAI配置
+    saveOpenaiConfig() {
+      this.saveSettings();
+    },
+    // 保存DeepSeek模型
+    saveDeepseekConfig() {
+      this.saveSettings();
     },
     toggleInputSpaceTranslation() {
       this.saveSettings();

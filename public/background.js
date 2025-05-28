@@ -571,6 +571,39 @@ function handleMessage(message, sender, sendResponse) {
       sendResponse({ success: false, error: '无效的API密钥数据' });
       return true;
     },
+    
+    // 更新AI配置
+    updateAiConfig: () => {
+      if (message.engine && message.config) {
+        console.log(`接收到${message.engine}配置更新:`, message.config);
+        
+        // 更新本地配置
+        if (message.engine === 'openai') {
+          chrome.storage.sync.get(['openaiConfig'], (result) => {
+            const updatedConfig = { ...result.openaiConfig || {}, ...message.config };
+            
+            chrome.storage.sync.set({ openaiConfig: updatedConfig }, () => {
+              console.log('已更新OpenAI配置', updatedConfig);
+              sendResponse({ success: true });
+            });
+          });
+        } else if (message.engine === 'deepseek') {
+          chrome.storage.sync.get(['deepseekConfig'], (result) => {
+            const updatedConfig = { ...result.deepseekConfig || {}, ...message.config };
+            
+            chrome.storage.sync.set({ deepseekConfig: updatedConfig }, () => {
+              console.log('已更新DeepSeek配置', updatedConfig);
+              sendResponse({ success: true });
+            });
+          });
+        } else {
+          sendResponse({ success: false, error: '不支持的AI引擎类型' });
+        }
+        return true;
+      }
+      sendResponse({ success: false, error: '无效的AI配置数据' });
+      return true;
+    },
   };
   
   try {
@@ -676,9 +709,17 @@ async function handleBatchTranslation(texts, sourceLanguage, targetLanguage, opt
         translateFunction = translateWithMicrosoftAPI;
         break;
       case 'deepseek':
+        // 检查是否有DeepSeek配置
+        if (settings.deepseekConfig) {
+          console.log(`使用DeepSeek翻译，模型: ${settings.deepseekConfig.model}, 专家策略: ${settings.deepseekConfig.expertStrategy}`);
+        }
         translateFunction = translateWithDeepSeek;
         break;
       case 'openai':
+        // 检查是否有OpenAI配置
+        if (settings.openaiConfig) {
+          console.log(`使用OpenAI翻译，模型: ${settings.openaiConfig.model}, 专家策略: ${settings.openaiConfig.expertStrategy}`);
+        }
         translateFunction = translateWithOpenAI;
         break;
       case 'google':
@@ -1145,6 +1186,39 @@ async function translateWithDeepSeek(texts, sourceLanguage, targetLanguage) {
     const settings = await getSettings();
     const apiKey = settings.apiKeys?.deepseek || TRANSLATION_CONFIG.apiKeys.deepseek;
     
+    // 使用完整的deepseekConfig配置
+    const deepseekConfig = settings.deepseekConfig || {
+      model: 'deepseek-chat',
+      expertStrategy: 'translation-master',
+      aiContext: false,
+      maxRequests: 10
+    };
+    
+    // 检查模型，如果是deepseek-coder则改为deepseek-reasoner
+    if (deepseekConfig.model === 'deepseek-coder') {
+      deepseekConfig.model = 'deepseek-reasoner';
+      // 尝试更新存储的配置
+      try {
+        chrome.storage.sync.get(['deepseekConfig'], (result) => {
+          if (result.deepseekConfig) {
+            const updatedConfig = { ...result.deepseekConfig, model: 'deepseek-reasoner' };
+            chrome.storage.sync.set({ deepseekConfig: updatedConfig }, () => {
+              console.log('已将DeepSeek模型从deepseek-coder更新为deepseek-reasoner');
+            });
+          }
+        });
+      } catch (e) {
+        console.warn('更新存储的DeepSeek模型时出错:', e);
+      }
+    }
+    
+    // 获取模型名称（优先使用配置中的模型，如果配置中启用了自定义模型则使用自定义模型）
+    const modelName = deepseekConfig.customModelEnabled && deepseekConfig.customModel 
+      ? deepseekConfig.customModel 
+      : deepseekConfig.model || 'deepseek-chat';
+    
+    console.log(`DeepSeek翻译使用模型: ${modelName}, 策略: ${deepseekConfig.expertStrategy}, 上下文: ${deepseekConfig.aiContext}`);
+    
     if (!apiKey) {
       console.error('未配置DeepSeek翻译API密钥');
       throw new Error('未配置DeepSeek翻译API密钥');
@@ -1270,21 +1344,118 @@ async function translateWithDeepSeek(texts, sourceLanguage, targetLanguage) {
           // 合并文本并添加分隔符
           const combinedText = batch.join(DELIMITER);
           
+          // 构建提示
+          let userPrompt = `请将以下${sourceLanguage === 'auto' ? '文本' : sourceLanguage + '文本'}翻译成${targetLanguage}，注意：1. 分隔符处理：
+- 严格保留所有"##===@@TRANSOR__INTERNAL__DELIMITER@@===##"分隔符
+- 分隔符不翻译、不修改、不增减
+- 仅翻译分隔符之间的内容
+   输出格式要求：
+- 保持原文段落结构
+- 技术术语首次出现时可添加括号注释（如"分叉(Fork)")
+- 统一术语表（后续相同术语保持译法一致）
+`;
+
+          // 根据专家策略添加额外指导
+          switch(deepseekConfig.expertStrategy) {
+            case 'universal':
+              userPrompt += `\n\n作为一个通用翻译助手，你可以处理各种类型的文本。你的翻译既准确又符合${targetLanguage}的表达习惯。`;
+              break;
+            case 'smart-choice':
+              userPrompt += `\n\n作为一个智能翻译助手，请根据文本内容自动选择最合适的翻译策略。分析文本类型和语境，灵活运用不同的翻译技巧。`;
+              break;
+            case 'translation-master':
+              userPrompt += `\n\n作为一位精通多语言的翻译大师，请提供意译。你的翻译应既准确又流畅自然，确保译文符合${targetLanguage}的表达习惯。`;
+              break;
+            case 'paragraph-expert':
+              userPrompt += `\n\n作为一位段落总结专家，请将复杂段落精简为清晰且保留核心含义的译文。抓住段落的主要观点，同时保持翻译的准确性。`;
+              break;
+            case 'english-simplifier':
+              userPrompt += `\n\n作为一位英文简化大师，请将复杂英文翻译成简洁易懂的${targetLanguage}。降低语言复杂度，使译文更加通俗易懂。`;
+              break;
+            case 'twitter-enhancer':
+              userPrompt += `\n\n作为Twitter翻译增强器，专门处理社交媒体简短文本的翻译。了解网络用语、话题标签和Twitter特有表达方式，保留原文风格同时确保翻译准确。`;
+              break;
+            case 'tech-translator':
+              userPrompt += `\n\n作为科技类翻译大师，专精于技术文档、科技新闻和专业内容的翻译。请使用准确的专业术语，准确传达技术概念。`;
+              break;
+            case 'reddit-enhancer':
+              userPrompt += `\n\n作为Reddit翻译增强器，专门处理论坛讨论内容。了解Reddit特有的表达方式、梗和社区文化，保留原文风格和幽默感。`;
+              break;
+            case 'academic-translator':
+              userPrompt += `\n\n作为学术论文翻译师，专注于学术文献、研究论文的翻译。保持学术严谨性，准确使用学术术语，维持论文的逻辑结构。`;
+              break;
+            case 'news-translator':
+              userPrompt += `\n\n作为新闻媒体译者，专门翻译新闻报道和时事内容。保持客观中立的语调，准确传达事实信息，符合新闻写作风格。`;
+              break;
+            case 'music-expert':
+              userPrompt += `\n\n作为音乐专家，擅长翻译歌词、音乐评论和相关内容。注重保留原文的韵律和情感表达，了解音乐术语和表达方式。`;
+              break;
+            case 'medical-translator':
+              userPrompt += `\n\n作为医学翻译大师，专精于医学文献、健康信息的翻译。熟悉医学术语，准确传达专业医学概念，保持医学内容的精确性。`;
+              break;
+            case 'legal-translator':
+              userPrompt += `\n\n作为法律行业译者，专注于法律文件、合同和法规的翻译。理解法律术语和表达，保持法律文本的准确性和专业性。`;
+              break;
+            case 'github-enhancer':
+              userPrompt += `\n\n作为GitHub翻译增强器，专门处理代码、技术文档和开发讨论的翻译。了解编程术语，保留代码块的完整性，准确翻译技术概念。`;
+              break;
+            case 'gaming-translator':
+              userPrompt += `\n\n作为游戏译者，专注于游戏内容、游戏评论和相关讨论的翻译。熟悉游戏术语和表达，保留游戏文化特色。`;
+              break;
+            case 'ecommerce-translator':
+              userPrompt += `\n\n作为电商翻译大师，专门翻译产品描述、评价和电商内容。使用吸引人的语言，准确传达产品信息和特点。`;
+              break;
+            case 'finance-translator':
+              userPrompt += `\n\n作为金融翻译顾问，专注于金融新闻、报告和分析的翻译。熟悉金融术语和表达，准确传达金融概念和数据。`;
+              break;
+            case 'novel-translator':
+              userPrompt += `\n\n作为小说译者，专精于文学作品和小说的翻译。注重保留原作的风格、情感和文学性，同时使译文流畅自然。`;
+              break;
+            case 'ao3-translator':
+              userPrompt += `\n\n作为AO3译者，专门翻译同人文学作品。理解粉丝文化和特定术语，保留原作的风格和情感表达。`;
+              break;
+            case 'ebook-translator':
+              userPrompt += `\n\n作为电子书译者，专注于各类电子书的翻译。善于处理长篇内容，保持章节结构，使译文读起来流畅自然。`;
+              break;
+            case 'designer':
+              userPrompt += `\n\n作为设计师专业翻译助手，专注于设计相关内容的翻译。熟悉设计术语和概念，准确传达设计理念和技术细节。`;
+              break;
+            case 'cn-en-polisher':
+              userPrompt += `\n\n作为中英夹杂内容的翻译专家，擅长处理混合了中英文的内容。识别并适当保留原文中的英文术语，使译文既专业又易于理解。`;
+              break;
+            case 'web3-translator':
+              userPrompt += `\n\n作为Web3翻译大师，专注于区块链、加密货币和Web3相关内容的翻译。熟悉这一领域的专业术语和概念，准确传达技术信息。`;
+              break;
+            case 'literal-expert':
+              userPrompt += `\n\n作为一位精确翻译专家，请提供直译。你应严格保持原文的结构和表达方式，确保忠实于原文。`;
+              break;
+            case 'context-analyzer':
+              userPrompt += `\n\n作为一位语境分析翻译专家，请深入理解文本的上下文和潜在含义，在翻译时保留原文的语境和意图。`;
+              break;
+            case 'cultural-adapter':
+              userPrompt += `\n\n作为一位文化适配翻译专家，请将文本适应${targetLanguage}的文化背景，使用恰当的文化参照和习语表达。`;
+              break;
+            default:
+              userPrompt += `\n\n请提供准确、流畅的翻译，确保译文符合${targetLanguage}的表达习惯。`;
+          }
+          
+          // 如果启用了AI上下文，添加相关指导
+          if (deepseekConfig.aiContext) {
+            userPrompt += `\n\n请首先理解整体内容和专业术语，确保翻译的连贯性和术语一致性。你应该考虑整个文本的上下文，而不是孤立地翻译每个部分。`;
+          }
+
+          userPrompt += `\n\n原文:\n${combinedText}`;
+          
           // 翻译合并文本
           const requestBody = {
-            model: "deepseek-chat",
+            model: modelName,
             messages: [
               {
                 role: "user",
-                content: `请将以下${sourceLanguage === 'auto' ? '文本' : sourceLanguage + '文本'}翻译成${targetLanguage}。
-请注意：文本之间用分隔符"##===@@TRANSOR__INTERNAL__DELIMITER@@===##"隔开，这不是文本内容的一部分，请在翻译时保留这些分隔符，但不要翻译分隔符本身。
-这样我可以根据分隔符将翻译结果分割回多段。
-
-原文:
-${combinedText}`,
+                content: userPrompt,
               },
             ],
-            temperature: 0.7, // 适中的温度值，平衡创造性和准确性
+            temperature: deepseekConfig.aiContext ? 0.4 : 0.7, // 根据上下文需求调整温度
           };
           
           const response = await fetch(TRANSLATION_CONFIG.endpoints.deepseek, {
@@ -1887,7 +2058,21 @@ async function translateWithOpenAI(texts, sourceLanguage, targetLanguage) {
     // 获取配置
     const settings = await getSettings();
     const apiKey = settings.apiKeys?.openai || TRANSLATION_CONFIG.apiKeys.openai;
-    const modelName = settings.openaiModel || 'gpt-3.5-turbo';
+    
+    // 使用完整的openaiConfig配置
+    const openaiConfig = settings.openaiConfig || {
+      model: settings.openaiModel || 'gpt-4.1-mini',
+      expertStrategy: 'translation-master',
+      aiContext: false,
+      maxRequests: 10
+    };
+    
+    // 获取模型名称（优先使用配置中的模型，如果配置中启用了自定义模型则使用自定义模型）
+    const modelName = openaiConfig.customModelEnabled && openaiConfig.customModel 
+      ? openaiConfig.customModel 
+      : openaiConfig.model || 'gpt-4.1-mini';
+    
+    console.log(`OpenAI翻译使用模型: ${modelName}, 策略: ${openaiConfig.expertStrategy}, 上下文: ${openaiConfig.aiContext}`);
     
     if (!apiKey) {
       console.error('未配置OpenAI翻译API密钥');
@@ -2014,25 +2199,120 @@ async function translateWithOpenAI(texts, sourceLanguage, targetLanguage) {
           // 合并文本并添加分隔符
           const combinedText = batch.join(DELIMITER);
           
+          // 构建系统提示，根据翻译策略定制
+          let systemPrompt = "你是一个专业的翻译助手，请将提供的文本准确翻译，保留原始分隔符。不要添加任何解释或评论。";
+          
+          // 根据专家策略调整系统提示
+          switch(openaiConfig.expertStrategy) {
+            case 'universal':
+              systemPrompt = "你是一个通用翻译助手，能够处理各种类型的文本。你的翻译既准确又符合目标语言习惯。保留所有分隔符。";
+              break;
+            case 'smart-choice':
+              systemPrompt = "你是一个智能翻译助手，能够根据文本内容自动选择最合适的翻译策略。你会分析文本类型和语境，灵活运用不同的翻译技巧。保留所有分隔符。";
+              break;
+            case 'translation-master':
+              systemPrompt = "你是一位精通多语言的翻译大师，专注于意译。你的翻译既准确又流畅自然，确保译文符合目标语言的表达习惯。保留所有分隔符。";
+              break;
+            case 'paragraph-expert':
+              systemPrompt = "你是一位段落总结专家，擅长将复杂段落精简为清晰且保留核心含义的译文。你会抓住段落的主要观点，同时保持翻译的准确性。保留所有分隔符。";
+              break;
+            case 'english-simplifier':
+              systemPrompt = "你是一位英文简化大师，专注于将复杂英文翻译成简洁易懂的目标语言。你擅长降低语言复杂度，使译文更加通俗易懂。保留所有分隔符。";
+              break;
+            case 'twitter-enhancer':
+              systemPrompt = "你是Twitter翻译增强器，专门处理社交媒体简短文本的翻译。你了解网络用语、话题标签和Twitter特有表达方式，能保留原文风格同时确保翻译准确。保留所有分隔符。";
+              break;
+            case 'tech-translator':
+              systemPrompt = "你是科技类翻译大师，专精于技术文档、科技新闻和专业内容的翻译。你熟悉各领域专业术语，能准确传达技术概念。保留所有分隔符。";
+              break;
+            case 'reddit-enhancer':
+              systemPrompt = "你是Reddit翻译增强器，专门处理论坛讨论内容。你了解Reddit特有的表达方式、梗和社区文化，能保留原文风格和幽默感。保留所有分隔符。";
+              break;
+            case 'academic-translator':
+              systemPrompt = "你是学术论文翻译师，专注于学术文献、研究论文的翻译。你保持学术严谨性，准确使用学术术语，维持论文的逻辑结构。保留所有分隔符。";
+              break;
+            case 'news-translator':
+              systemPrompt = "你是新闻媒体译者，专门翻译新闻报道和时事内容。你保持客观中立的语调，准确传达事实信息，符合新闻写作风格。保留所有分隔符。";
+              break;
+            case 'music-expert':
+              systemPrompt = "你是音乐专家，擅长翻译歌词、音乐评论和相关内容。你注重保留原文的韵律和情感表达，了解音乐术语和表达方式。保留所有分隔符。";
+              break;
+            case 'medical-translator':
+              systemPrompt = "你是医学翻译大师，专精于医学文献、健康信息的翻译。你熟悉医学术语，能准确传达专业医学概念，保持医学内容的精确性。保留所有分隔符。";
+              break;
+            case 'legal-translator':
+              systemPrompt = "你是法律行业译者，专注于法律文件、合同和法规的翻译。你理解法律术语和表达，保持法律文本的准确性和专业性。保留所有分隔符。";
+              break;
+            case 'github-enhancer':
+              systemPrompt = "你是GitHub翻译增强器，专门处理代码、技术文档和开发讨论的翻译。你了解编程术语，保留代码块的完整性，准确翻译技术概念。保留所有分隔符。";
+              break;
+            case 'gaming-translator':
+              systemPrompt = "你是游戏译者，专注于游戏内容、游戏评论和相关讨论的翻译。你熟悉游戏术语和表达，能保留游戏文化特色。保留所有分隔符。";
+              break;
+            case 'ecommerce-translator':
+              systemPrompt = "你是电商翻译大师，专门翻译产品描述、评价和电商内容。你擅长使用吸引人的语言，准确传达产品信息和特点。保留所有分隔符。";
+              break;
+            case 'finance-translator':
+              systemPrompt = "你是金融翻译顾问，专注于金融新闻、报告和分析的翻译。你熟悉金融术语和表达，能准确传达金融概念和数据。保留所有分隔符。";
+              break;
+            case 'novel-translator':
+              systemPrompt = "你是小说译者，专精于文学作品和小说的翻译。你注重保留原作的风格、情感和文学性，同时使译文流畅自然。保留所有分隔符。";
+              break;
+            case 'ao3-translator':
+              systemPrompt = "你是AO3译者，专门翻译同人文学作品。你理解粉丝文化和特定术语，能保留原作的风格和情感表达。保留所有分隔符。";
+              break;
+            case 'ebook-translator':
+              systemPrompt = "你是电子书译者，专注于各类电子书的翻译。你善于处理长篇内容，保持章节结构，使译文读起来流畅自然。保留所有分隔符。";
+              break;
+            case 'designer':
+              systemPrompt = "你是设计师专业翻译助手，专注于设计相关内容的翻译。你熟悉设计术语和概念，能准确传达设计理念和技术细节。保留所有分隔符。";
+              break;
+            case 'cn-en-polisher':
+              systemPrompt = "你是中英夹杂内容的翻译专家，擅长处理混合了中英文的内容。你能识别并适当保留原文中的英文术语，使译文既专业又易于理解。保留所有分隔符。";
+              break;
+            case 'web3-translator':
+              systemPrompt = "你是Web3翻译大师，专注于区块链、加密货币和Web3相关内容的翻译。你熟悉这一领域的专业术语和概念，能准确传达技术信息。保留所有分隔符。";
+              break;
+            case 'literal-expert':
+              systemPrompt = "你是一位精确翻译专家，专注于直译。你会严格保持原文的结构和表达方式，确保忠实于原文。保留所有分隔符。";
+              break;
+            case 'context-analyzer':
+              systemPrompt = "你是一位语境分析翻译专家。你会深入理解文本的上下文和潜在含义，在翻译时保留原文的语境和意图。保留所有分隔符。";
+              break;
+            case 'cultural-adapter':
+              systemPrompt = "你是一位文化适配翻译专家。你会将文本适应目标语言的文化背景，使用恰当的文化参照和习语表达。保留所有分隔符。";
+              break;
+            default:
+              // 默认使用通用提示
+              systemPrompt = "你是一个专业的翻译助手，请将提供的文本准确翻译，保留原始分隔符。不要添加任何解释或评论。";
+          }
+          
+          // 构建用户提示，根据是否启用AI上下文调整
+          let userPrompt = `请将以下${sourceLanguage === 'auto' ? '文本' : sourceLanguage + '文本'}翻译成${targetLanguage}。
+请注意：文本之间用分隔符"##===@@TRANSOR__INTERNAL__DELIMITER@@===##"隔开，这不是文本内容的一部分，请在翻译时保留这些分隔符，但不要翻译分隔符本身。
+这样我可以根据分隔符将翻译结果分割回多段。`;
+
+          // 如果启用了AI上下文，添加相关指导
+          if (openaiConfig.aiContext) {
+            userPrompt += `\n\n请首先理解整体内容和专业术语，确保翻译的连贯性和术语一致性。你应该考虑整个文本的上下文，而不是孤立地翻译每个部分。`;
+          }
+
+          userPrompt += `\n\n原文:\n${combinedText}`;
+          
           // 翻译合并文本
           const requestBody = {
             model: modelName,
             messages: [
               {
                 role: "system",
-                content: "你是一个专业的翻译助手，请将提供的文本准确翻译，保留原始分隔符。不要添加任何解释或评论。"
+                content: systemPrompt
               },
               {
                 role: "user",
-                content: `请将以下${sourceLanguage === 'auto' ? '文本' : sourceLanguage + '文本'}翻译成${targetLanguage}。
-请注意：文本之间用分隔符"##===@@TRANSOR__INTERNAL__DELIMITER@@===##"隔开，这不是文本内容的一部分，请在翻译时保留这些分隔符，但不要翻译分隔符本身。
-这样我可以根据分隔符将翻译结果分割回多段。
-
-原文:
-${combinedText}`,
+                content: userPrompt
               },
             ],
-            temperature: 0.3, // 较低的温度值，保证翻译准确性
+            temperature: openaiConfig.aiContext ? 0.4 : 0.3, // 根据上下文需求调整温度
           };
           
           const response = await fetch(TRANSLATION_CONFIG.endpoints.openai, {
@@ -2197,19 +2477,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const targetLanguage = message.to || 'zh-CN';
     
     // 获取存储的设置
-    chrome.storage.sync.get(['translationEngine', 'openaiApiKey', 'openaiModel'], (settings) => {
+    chrome.storage.sync.get(null, (settings) => {
       const engine = settings.translationEngine || 'google';
       console.log('使用翻译引擎:', engine);
       
-      // 调用已有的翻译方法
-      translateWithGoogle(text, sourceLanguage, targetLanguage)
+      // 根据引擎选择翻译方法
+      let translateFunction;
+      switch (engine.toLowerCase()) {
+        case 'microsoft':
+          translateFunction = translateWithMicrosoft;
+          break;
+        case 'microsoftapi':
+          translateFunction = translateWithMicrosoftAPI;
+          break;
+        case 'deepseek':
+          translateFunction = translateWithDeepSeek;
+          break;
+        case 'openai':
+          translateFunction = translateWithOpenAI;
+          break;
+        case 'google':
+        default:
+          translateFunction = translateWithGoogle;
+          break;
+      }
+      
+      // 调用选定的翻译方法
+      translateFunction(text, sourceLanguage, targetLanguage)
         .then(translation => {
           console.log('翻译成功:', translation);
           sendResponse({
             success: true,
             translation: translation,
             originalText: text,
-            source: 'google'
+            source: engine
           });
         })
         .catch(error => {
