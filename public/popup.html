@@ -316,6 +316,79 @@
       animation: heartbeat 1.2s ease infinite;
     }
 
+    /* 设置按钮样式 */
+    .settings-btn {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      margin-top: 10px;
+      padding: 10px;
+      background: white;
+      color: #333;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 400;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      height: auto;
+      text-align: left;
+      position: relative;
+      gap: 12px;
+    }
+    
+    .settings-btn .icon-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      width: 42px;
+      height: 42px;
+      background-color: #ebf8ff;
+      border-radius: 10px;
+      margin: 0;
+    }
+    
+    .settings-btn .text-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    
+    .settings-btn .gear-icon {
+      width: 22px;
+      height: 22px;
+      fill: #0ea5e9;
+      transition: transform 0.4s ease;
+    }
+    
+    .settings-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .settings-btn:hover .gear-icon {
+      transform: rotate(90deg);
+    }
+    
+    .settings-btn:active,
+    .settings-btn.active {
+      transform: scale(0.98);
+    }
+    
+    .settings-btn .btn-text {
+      color: #999;
+      font-size: 12px;
+    }
+    
+    .settings-btn .count {
+      color: #333;
+    }
+
     /* 添加动画效果 */
     @keyframes pulse {
       0% {
@@ -390,6 +463,17 @@
       <div class="text-container">
         <span class="count">--</span>
         <span class="btn-text" data-i18n="favorites_label"></span>
+      </div>
+    </button>
+    <button id="open-settings" class="settings-btn">
+      <div class="icon-container">
+        <svg class="gear-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+          <path d="M487.4 315.7l-42.6-24.6c4.3-23.2 4.3-47 0-70.2l42.6-24.6c4.9-2.8 7.1-8.6 5.5-14-11.1-35.6-30-67.8-54.7-94.6-3.8-4.1-10-5.1-14.8-2.3L380.8 110c-17.9-15.4-38.5-27.3-60.8-35.1V25.8c0-5.6-3.9-10.5-9.4-11.7-36.7-8.2-74.3-7.8-109.2 0-5.5 1.2-9.4 6.1-9.4 11.7V75c-22.2 7.9-42.8 19.8-60.8 35.1L88.7 85.5c-4.9-2.8-11-1.9-14.8 2.3-24.7 26.7-43.6 58.9-54.7 94.6-1.7 5.4.6 11.2 5.5 14L67.3 221c-4.3 23.2-4.3 47 0 70.2l-42.6 24.6c-4.9 2.8-7.1 8.6-5.5 14 11.1 35.6 30 67.8 54.7 94.6 3.8 4.1 10 5.1 14.8 2.3l42.6-24.6c17.9 15.4 38.5 27.3 60.8 35.1v49.2c0 5.6 3.9 10.5 9.4 11.7 36.7 8.2 74.3 7.8 109.2 0 5.5-1.2 9.4-6.1 9.4-11.7v-49.2c22.2-7.9 42.8-19.8 60.8-35.1l42.6 24.6c4.9 2.8 11 1.9 14.8-2.3 24.7-26.7 43.6-58.9 54.7-94.6 1.5-5.5-.7-11.3-5.6-14.1zM256 336c-44.1 0-80-35.9-80-80s35.9-80 80-80 80 35.9 80 80-35.9 80-80 80z"/>
+        </svg>
+      </div>
+      <div class="text-container">
+        <span class="count" data-i18n="settings_title">设置</span>
+        <span class="btn-text" data-i18n="settings_description">调整翻译引擎、语言等</span>
       </div>
     </button>
     <div id="app"></div>

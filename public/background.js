@@ -49,12 +49,12 @@ const defaultSettings = {
   enabled: true,
   targetLanguage: 'zh-CN',
   sourceLanguage: 'auto',
-  translationStyle: 'inline',
+  translationStyle: 'universal',
   enabledSelectors: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'span', 'a'],
   excludedClasses: ['no-translate'],
   excludedUrls: [],
   customCss: '',
-  translationEngine: 'microsoftapi',  // 翻译引擎: google, microsoft, microsoftapi, deepseek, openai
+  translationEngine: 'microsoft',  // 翻译引擎: google, microsoft, microsoftapi, deepseek, openai
   openaiModel: 'gpt-3.5-turbo', // OpenAI模型选择
   // API密钥配置
   apiKeys: {
@@ -2740,17 +2740,17 @@ function generateMockDictionaryData(word) {
       phonetic: '',
       definitions: [
         {
-          pos: '动词',
-          meanings: ['commit', 'submit', 'make']
+          pos: '--',
+          meanings: []
         },
         {
-          pos: '名词',
-          meanings: ['commitment', 'submission']
+          pos: '--',
+          meanings: []
         }
       ],
       examples: [
-        '他提交了一份报告。(He submitted a report.)',
-        '她承诺会按时完成工作。(She committed to finishing the work on time.)'
+        '--',
+        '--'
       ]
     };
   }

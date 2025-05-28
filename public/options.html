@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transor 设置</title>
+  <style>
+    :root {
+      --bg-color: #1e1e2e;
+      --bg-secondary: #292a3e;
+      --text-color: #cdd6f4;
+      --accent-color: #ff5588;
+      --accent-light: #ff80a0;
+      --accent-dark: #e63d72;
+      --border-color: #45475a;
+      --success-color: #a6e3a1;
+      --warning-color: #f9e2af;
+      --danger-color: #f38ba8;
+      --nav-width: 260px;
+      --header-height: 60px;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    
+    /* 页面布局 */
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    
+    /* 侧边导航 */
+    .sidebar {
+      width: var(--nav-width);
+      background-color: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      padding: 20px 0;
+      height: 100vh;
+      overflow-y: auto;
+      position: fixed;
+      left: 0;
+      top: 0;
+    }
+    
+    .logo {
+      padding: 0 20px 20px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .logo img {
+      width: 40px;
+      height: 40px;
+      margin-right: 10px;
+    }
+    
+    .logo h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent-color);
+    }
+    
+    .nav-item {
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+      border-radius: 0 25px 25px 0;
+      margin-right: 10px;
+    }
+    
+    .nav-item:hover {
+      background-color: rgba(255, 85, 136, 0.1);
+    }
+    
+    .nav-item.active {
+      background-color: rgba(255, 85, 136, 0.2);
+      border-left: 3px solid var(--accent-color);
+    }
+    
+    .nav-item i {
+      margin-right: 10px;
+      font-size: 18px;
+      width: 24px;
+      text-align: center;
+    }
+    
+    /* 图标样式 */
+    .icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 10px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    /* 主要内容区域 */
+    .main-content {
+      flex: 1;
+      margin-left: var(--nav-width);
+      padding: 30px;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    
+    .header {
+      margin-bottom: 30px;
+    }
+    
+    .header h2 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--accent-color);
+    }
+    
+    .header p {
+      color: var(--text-color);
+      opacity: 0.8;
+    }
+    
+    /* 内容部分 */
+    .content-section {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .content-section.active {
+      display: block;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .card {
+      background-color: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-color);
+    }
+    
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .card-title i {
+      margin-right: 8px;
+      color: var(--accent-color);
+    }
+    
+    /* 表单元素 */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    
+    input[type="text"], 
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    
+    input[type="text"]:focus, 
+    input[type="password"]:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+    
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 15px;
+    }
+    
+    .toggle-container:last-child {
+      margin-bottom: 0;
+    }
+    
+    .toggle-label {
+      font-weight: 500;
+    }
+    
+    .toggle-description {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-top: 3px;
+    }
+    
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 22px;
+    }
+    
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--border-color);
+      transition: .4s;
+      border-radius: 34px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background-color: var(--text-color);
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: var(--accent-color);
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(22px);
+    }
+    
+    /* 按钮样式 */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background-color: var(--accent-color);
+      color: var(--bg-color);
+    }
+    
+    .btn-primary:hover {
+      background-color: var(--accent-light);
+    }
+    
+    .btn-danger {
+      background-color: var(--danger-color);
+      color: var(--bg-color);
+    }
+    
+    .btn-danger:hover {
+      background-color: #f4a4b9;
+    }
+    
+    .btn i {
+      margin-right: 6px;
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    /* API Key 容器 */
+    .api-key-wrapper {
+      position: relative;
+    }
+    
+    .api-key-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: var(--accent-color);
+      background: none;
+      border: none;
+    }
+
+    .api-service-title {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .api-service-title img {
+      width: 20px;
+      height: 20px;
+      margin-right: 8px;
+    }
+
+    .api-services {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    /* 响应式调整 */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+      }
+      
+      .main-content {
+        margin-left: 0;
+      }
+      
+      .api-services {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+<div class="container">
+  <!-- 侧边导航栏 -->
+  <div class="sidebar">
+    <div class="logo">
+      <img src="logos/logo128.png" alt="Transor Logo">
+      <h1>Transor</h1>
+    </div>
+    
+    <div class="nav-item active" data-section="general">
+      <div class="icon"><i class="fas fa-cog"></i></div>
+      <span data-i18n="generalSettings">常规设置</span>
+    </div>
+    
+    <div class="nav-item" data-section="translation">
+      <div class="icon"><i class="fas fa-language"></i></div>
+      <span data-i18n="translationServices">翻译服务</span>
+    </div>
+    
+    <div class="nav-item" data-section="features">
+      <div class="icon"><i class="fas fa-th-large"></i></div>
+      <span data-i18n="featureManagement">功能管理</span>
+    </div>
+    
+    <div class="nav-item" data-section="about">
+      <div class="icon"><i class="fas fa-info-circle"></i></div>
+      <span data-i18n="about">关于</span>
+    </div>
+  </div>
+  
+  <!-- 主内容区域 -->
+  <div class="main-content">
+    <!-- 常规设置页面 -->
+    <div id="general-section" class="content-section active">
+      <div class="header">
+        <h2 data-i18n="generalSettings">常规设置</h2>
+        <p data-i18n="generalSettingsDescription">配置 Transor 的基本设置和翻译首选项</p>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-globe"></i> <span data-i18n="languageSettings">语言设置</span>
+        </div>
+        <div class="form-group">
+          <label for="ui-language" data-i18n="uiLanguage">界面语言</label>
+          <select id="ui-language">
+            <option value="zh-CN">简体中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="target-language" data-i18n="targetLanguage">目标翻译语言</label>
+          <select id="target-language">
+            <option value="zh-CN">简体中文</option>
+            <option value="en">英语</option>
+            <option value="ja">日语</option>
+            <option value="ko">韩语</option>
+            <option value="fr">法语</option>
+            <option value="de">德语</option>
+            <option value="es">西班牙语</option>
+            <option value="ru">俄语</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-sliders-h"></i> <span data-i18n="translationOptions">翻译选项</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="translation-engine" data-i18n="defaultEngine">默认翻译引擎</label>
+          <select id="translation-engine">
+            <option value="microsoftapi">Microsoft API</option>
+            <option value="microsoft" selected>Microsoft Edge</option>
+            <option value="google">Google</option>
+            <option value="openai">OpenAI (Pro)</option>
+            <option value="deepseek">DeepSeek (Pro)</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="translation-style" data-i18n="translationStyle">翻译样式</label>
+          <select id="translation-style">
+            <option value="universal" selected data-i18n="universal">通用(智能选择显示样式)</option>
+            <option value="inline" data-i18n="inline">双语(原文后方显示译文)</option>
+            <option value="bilingual" data-i18n="bilingual_below">双语(原文下方显示译文)</option>
+            <option value="replace" data-i18n="replace">替换(仅显示译文)</option>
+          </select>
+        </div>
+        
+        <div id="api-key-container" class="form-group">
+          <label id="api-key-label" for="api-key-input">API Key</label>
+          <div class="api-key-wrapper">
+            <input type="password" id="api-key-input" placeholder="输入您的 API Key">
+            <button type="button" class="api-key-toggle" id="toggle-api-key">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="buttons">
+        <button id="save-settings" class="btn btn-primary">
+          <i class="fas fa-save"></i> <span data-i18n="saveSettings">保存设置</span>
+        </button>
+        <button id="restore-defaults" class="btn btn-danger">
+          <i class="fas fa-undo"></i> <span data-i18n="restoreDefaults">恢复默认</span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- 翻译服务页面 -->
+    <div id="translation-section" class="content-section">
+      <div class="header">
+        <h2 data-i18n="translationServices">翻译服务</h2>
+        <p data-i18n="translationServicesDescription">管理和配置不同的翻译服务</p>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-cogs"></i> <span data-i18n="defaultEngine">翻译引擎设置</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="translation-engine-2" data-i18n="currentEngine">当前使用的翻译引擎</label>
+          <select id="translation-engine-2">
+            <option value="microsoftapi">Microsoft API</option>
+            <option value="microsoft" selected>Microsoft Edge</option>
+            <option value="google">Google</option>
+            <option value="openai">OpenAI (Pro)</option>
+            <option value="deepseek">DeepSeek (Pro)</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-key"></i> <span data-i18n="apiKeys">API 密钥</span>
+        </div>
+        
+        <p style="margin-bottom: 20px;" data-i18n="apiKeysDescription">为各翻译服务配置 API 密钥</p>
+        
+        <div class="api-services">
+          <div class="form-group">
+            <div class="api-service-title">
+              <img src="https://www.microsoft.com/favicon.ico" alt="Microsoft">
+              <label>Microsoft Translator API</label>
+            </div>
+            <p style="font-size: 12px; color: var(--text-color); opacity: 0.8; margin-top: 5px;" data-i18n="microsoftApiInfo">系统内置密钥，无需配置</p>
+          </div>
+          
+          <div class="form-group">
+            <div class="api-service-title">
+              <img src="https://openai.com/favicon.ico" alt="OpenAI">
+              <label for="openai-api-key">OpenAI API</label>
+            </div>
+            <div class="api-key-wrapper">
+              <input type="password" id="openai-api-key" placeholder="OpenAI API Key">
+              <button type="button" class="api-key-toggle" id="toggle-openai-key">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <div class="api-service-title">
+              <img src="https://www.deepseek.com/favicon.ico" alt="DeepSeek" id="deepseek-icon" data-fallback="https://placehold.co/20x20?text=DS">
+              <label for="deepseek-api-key">DeepSeek API</label>
+            </div>
+            <div class="api-key-wrapper">
+              <input type="password" id="deepseek-api-key" placeholder="DeepSeek API Key">
+              <button type="button" class="api-key-toggle" id="toggle-deepseek-key">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 功能管理页面 -->
+    <div id="features-section" class="content-section">
+      <div class="header">
+        <h2 data-i18n="featureManagement">功能管理</h2>
+        <p data-i18n="featureManagementDescription">启用或禁用 Transor 的各项功能</p>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-toggle-on"></i> <span data-i18n="functionSwitches">功能开关</span>
+        </div>
+        
+        <div class="toggle-container">
+          <div>
+            <div class="toggle-label" data-i18n="enableWebTranslation">启用网页翻译</div>
+            <div class="toggle-description" data-i18n="enableWebTranslationDesc">允许 Transor 翻译网页内容</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="enable-translation" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
+        <div class="toggle-container">
+          <div>
+            <div class="toggle-label" data-i18n="highlightFavorites">高亮收藏夹</div>
+            <div class="toggle-description" data-i18n="highlightFavoritesDesc">在网页上高亮显示收藏的单词和短语</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="enable-highlight" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
+        <div class="toggle-container">
+          <div>
+            <div class="toggle-label" data-i18n="youtubeCinemaMode">YouTube 影院模式</div>
+            <div class="toggle-description" data-i18n="youtubeCinemaModeDesc">在 YouTube 上启用字幕翻译功能</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="enable-youtube-cinema" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 关于页面 -->
+    <div id="about-section" class="content-section">
+      <div class="header">
+        <h2 data-i18n="about">关于 Transor</h2>
+        <p data-i18n="aboutDescription">了解更多关于 Transor 的信息</p>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-info-circle"></i> <span data-i18n="appInfo">应用信息</span>
+        </div>
+        
+        <p data-i18n="appDescription"><strong>Transor</strong> 是一款功能强大的浏览器翻译扩展，为用户提供网页翻译、收藏夹高亮、YouTube 字幕翻译等功能。</p>
+        <p style="margin-top: 10px;"><span data-i18n="version">版本</span>：<span id="version">1.0.0</span></p>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-heart"></i> <span data-i18n="supportUs">支持我们</span>
+        </div>
+        
+        <p data-i18n="supportDescription">如果您喜欢 Transor，请考虑给我们一个好评或分享给您的朋友。</p>
+        <p style="margin-top: 10px;" data-i18n="supportMotivation">您的支持是我们不断改进的动力！</p>
+        
+        <div class="buttons">
+          <a href="https://github.com/your-username/transor" target="_blank" class="btn btn-primary">
+            <i class="fab fa-github"></i> GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="i18n.js"></script>
+<script src="config.js"></script>
+<script src="options-ui.js"></script>
+<script src="options.js"></script>
+</body>
+</html> 

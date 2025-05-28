@@ -1551,7 +1551,29 @@ function updateLoadingProgress(progress, message) {
 
 // 在页面加载时初始化
 window.addEventListener('load', function () {
-  initYouTubeCinema();
+  chrome.storage.sync.get({ youtubeCinemaEnabled: true }, (res) => {
+    if (res.youtubeCinemaEnabled !== false) {
+      initYouTubeCinema();
+    } else {
+      console.log('YouTube 影院模式已在设置中禁用');
+    }
+  });
+
+  // 监听设置变化，动态启用/停用
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'sync' && changes.youtubeCinemaEnabled) {
+      const enabled = changes.youtubeCinemaEnabled.newValue;
+      if (enabled) {
+        if (!isCinemaMode) {
+          initYouTubeCinema();
+        }
+      } else {
+        if (isCinemaMode) {
+          exitCinemaMode();
+        }
+      }
+    }
+  });
 
   // 监听语言变化 - localStorage变化
   window.addEventListener('storage', function(event) {

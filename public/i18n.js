@@ -12,6 +12,8 @@ const i18n = {
     // 主要功能
     'favorites_label': '生词本',
     'open_favorites': '打开英语学习收藏夹',
+    'settings_title': '设置',
+    'settings_description': '调整翻译引擎、语言等',
     
     // 翻译设置
     'source_language': '翻译语言',
@@ -29,6 +31,7 @@ const i18n = {
     'enter_deepseek_api_key': '请输入你的DeepSeek API密钥',
     'input_triple_space_tip': '小技巧：在任意输入框中输入文本后，连续敲击三个空格可以立即翻译文本。按ESC键可取消翻译。',
     'input_space_translation_toggle': '输入框空格翻译',
+    'microsoftApiInfo': '系统内置密钥，无需配置',
     
     // 语言选项
     'auto_detect': '自动检测',
@@ -65,7 +68,48 @@ const i18n = {
     'tag_script': '脚本(script)',
     'tag_style': '样式(style)',
     'tag_headings': '标题(h1-h6)',
-    'tag_links': '链接(a)'
+    'tag_links': '链接(a)',
+
+    // 设置页面
+    "settings": "设置",
+    "generalSettings": "常规设置",
+    "generalSettingsDescription": "配置 Transor 的基本设置和翻译首选项",
+    "translationServices": "翻译服务",
+    "translationServicesDescription": "管理和配置不同的翻译服务",
+    "featureManagement": "功能管理",
+    "featureManagementDescription": "启用或禁用 Transor 的各项功能",
+    "about": "关于",
+    "aboutDescription": "了解更多关于 Transor 的信息",
+    "languageSettings": "语言设置",
+    "uiLanguage": "界面语言",
+    "targetLanguage": "目标翻译语言",
+    "translationOptions": "翻译选项",
+    "defaultEngine": "默认翻译引擎",
+    "translationStyle": "翻译样式",
+    "inlineDisplay": "行内显示",
+    "bubbleDisplay": "气泡显示",
+    "replaceOriginal": "替换原文",
+    "saveSettings": "保存设置",
+    "restoreDefaults": "恢复默认",
+    "apiKeys": "API 密钥",
+    "apiKeysDescription": "为各翻译服务配置 API 密钥",
+    "currentEngine": "当前使用的翻译引擎",
+    "functionSwitches": "功能开关",
+    "appInfo": "应用信息",
+    "appDescription": "Transor 是一款功能强大的浏览器翻译扩展，为用户提供网页翻译、收藏夹高亮、YouTube 字幕翻译等功能。",
+    "version": "版本",
+    "supportUs": "支持我们",
+    "supportDescription": "如果您喜欢 Transor，请考虑给我们一个好评或分享给您的朋友。",
+    "supportMotivation": "您的支持是我们不断改进的动力！",
+    "enableWebTranslation": "启用网页翻译",
+    "enableWebTranslationDesc": "允许 Transor 翻译网页内容",
+    "highlightFavorites": "高亮收藏夹",
+    "highlightFavoritesDesc": "在网页上高亮显示收藏的单词和短语",
+    "youtubeCinemaMode": "YouTube 影院模式",
+    "youtubeCinemaModeDesc": "在 YouTube 上启用字幕翻译功能",
+    "settingsSaved": "设置已保存",
+    "uiLanguageUpdated": "界面语言已更新",
+    "confirmRestore": "确定要清除所有设置并恢复默认值吗？"
   },
   
   'en': {
@@ -80,6 +124,8 @@ const i18n = {
     // Main functions
     'favorites_label': 'Vocabulary',
     'open_favorites': 'Open English Learning Favorites',
+    'settings_title': 'Settings',
+    'settings_description': 'Adjust translation engine, language, etc.',
     
     // Translation settings
     'source_language': 'Source Language',
@@ -97,6 +143,7 @@ const i18n = {
     'enter_deepseek_api_key': 'Enter your DeepSeek API Key',
     'input_triple_space_tip': 'Tip: In any input field, after typing text, press space three times in a row to instantly translate the text. Press ESC to cancel translation.',
     'input_space_translation_toggle': 'Input Space Translation',
+    'microsoftApiInfo': 'System built-in key, no configuration needed',
     
     // Language options
     'auto_detect': 'Auto Detect',
@@ -133,7 +180,48 @@ const i18n = {
     'tag_script': 'Script (script)',
     'tag_style': 'Style (style)',
     'tag_headings': 'Headings (h1-h6)',
-    'tag_links': 'Links (a)'
+    'tag_links': 'Links (a)',
+
+    // 设置页面
+    "settings": "Settings",
+    "generalSettings": "General Settings",
+    "generalSettingsDescription": "Configure basic settings and translation preferences for Transor",
+    "translationServices": "Translation Services",
+    "translationServicesDescription": "Manage and configure different translation services",
+    "featureManagement": "Feature Management",
+    "featureManagementDescription": "Enable or disable various features of Transor",
+    "about": "About",
+    "aboutDescription": "Learn more about Transor",
+    "languageSettings": "Language Settings",
+    "uiLanguage": "UI Language",
+    "targetLanguage": "Target Language",
+    "translationOptions": "Translation Options",
+    "defaultEngine": "Default Translation Engine",
+    "translationStyle": "Translation Style",
+    "inlineDisplay": "Inline Display",
+    "bubbleDisplay": "Bubble Display",
+    "replaceOriginal": "Replace Original",
+    "saveSettings": "Save Settings",
+    "restoreDefaults": "Restore Defaults",
+    "apiKeys": "API Keys",
+    "apiKeysDescription": "Configure API keys for different translation services",
+    "currentEngine": "Current Translation Engine",
+    "functionSwitches": "Feature Switches",
+    "appInfo": "App Information",
+    "appDescription": "Transor is a powerful browser translation extension that provides web page translation, favorites highlighting, YouTube subtitle translation and more.",
+    "version": "Version",
+    "supportUs": "Support Us",
+    "supportDescription": "If you like Transor, please consider giving us a good rating or sharing it with your friends.",
+    "supportMotivation": "Your support motivates us to keep improving!",
+    "enableWebTranslation": "Enable Web Translation",
+    "enableWebTranslationDesc": "Allow Transor to translate web content",
+    "highlightFavorites": "Highlight Favorites",
+    "highlightFavoritesDesc": "Highlight saved words and phrases on web pages",
+    "youtubeCinemaMode": "YouTube Cinema Mode",
+    "youtubeCinemaModeDesc": "Enable subtitle translation feature on YouTube",
+    "settingsSaved": "Settings Saved",
+    "uiLanguageUpdated": "UI Language Updated",
+    "confirmRestore": "Are you sure you want to clear all settings and restore defaults?"
   },
   
   'ja': {
@@ -148,6 +236,8 @@ const i18n = {
     // 主な機能
     'favorites_label': '単語帳',
     'open_favorites': '英語学習のお気に入りを開く',
+    'settings_title': '設定',
+    'settings_description': '翻訳エンジン、言語などを調整',
     
     // 翻訳設定
     'source_language': '翻訳元言語',
@@ -165,6 +255,7 @@ const i18n = {
     'enter_deepseek_api_key': 'DeepSeek APIキーを入力してください',
     'input_triple_space_tip': 'ヒント：任意の入力フィールドでテキストを入力した後、スペースを3回連続で押すと即座にテキストが翻訳されます。ESCキーを押すとキャンセルできます。',
     'input_space_translation_toggle': '入力スペース翻訳',
+    'microsoftApiInfo': 'システム組み込みキー、設定不要',
     
     // 言語オプション
     'auto_detect': '自動検出',
@@ -200,7 +291,48 @@ const i18n = {
     'tag_script': 'スクリプト(script)',
     'tag_style': 'スタイル(style)',
     'tag_headings': '見出し(h1-h6)',
-    'tag_links': 'リンク(a)'
+    'tag_links': 'リンク(a)',
+
+    // 设置页面
+    "settings": "設定",
+    "generalSettings": "一般設定",
+    "generalSettingsDescription": "Transorの基本設定と翻訳設定を構成する",
+    "translationServices": "翻訳サービス",
+    "translationServicesDescription": "さまざまな翻訳サービスを管理および設定する",
+    "featureManagement": "機能管理",
+    "featureManagementDescription": "Transorのさまざまな機能を有効または無効にする",
+    "about": "について",
+    "aboutDescription": "Transorについての詳細を知る",
+    "languageSettings": "言語設定",
+    "uiLanguage": "インターフェース言語",
+    "targetLanguage": "翻訳先言語",
+    "translationOptions": "翻訳オプション",
+    "defaultEngine": "デフォルト翻訳エンジン",
+    "translationStyle": "翻訳スタイル",
+    "inlineDisplay": "インライン表示",
+    "bubbleDisplay": "バブル表示",
+    "replaceOriginal": "原文を置き換える",
+    "saveSettings": "設定を保存",
+    "restoreDefaults": "デフォルトに戻す",
+    "apiKeys": "APIキー",
+    "apiKeysDescription": "各翻訳サービスのAPIキーを設定する",
+    "currentEngine": "現在使用中の翻訳エンジン",
+    "functionSwitches": "機能スイッチ",
+    "appInfo": "アプリ情報",
+    "appDescription": "Transorは、ウェブページ翻訳、お気に入りのハイライト、YouTubeの字幕翻訳などの機能を提供する強力なブラウザ翻訳拡張機能です。",
+    "version": "バージョン",
+    "supportUs": "サポートする",
+    "supportDescription": "Transorが気に入ったら、良い評価を付けるか友達と共有することを検討してください。",
+    "supportMotivation": "あなたのサポートが私たちの改善への動機付けになります！",
+    "enableWebTranslation": "ウェブ翻訳を有効にする",
+    "enableWebTranslationDesc": "Transorがウェブコンテンツを翻訳できるようにする",
+    "highlightFavorites": "お気に入りをハイライト",
+    "highlightFavoritesDesc": "ウェブページ上で保存した単語やフレーズをハイライト表示する",
+    "youtubeCinemaMode": "YouTube シネマモード",
+    "youtubeCinemaModeDesc": "YouTubeで字幕翻訳機能を有効にする",
+    "settingsSaved": "設定が保存されました",
+    "uiLanguageUpdated": "インターフェース言語が更新されました",
+    "confirmRestore": "すべての設定をクリアしてデフォルトに戻しますか？"
   },
   
   'ko': {
@@ -215,6 +347,8 @@ const i18n = {
     // 주요 기능
     'favorites_label': '단어장',
     'open_favorites': '영어 학습 즐겨찾기 열기',
+    'settings_title': '설정',
+    'settings_description': '번역 엔진, 언어 등 조정',
     
     // 번역 설정
     'source_language': '원본 언어',
@@ -232,6 +366,7 @@ const i18n = {
     'enter_deepseek_api_key': 'DeepSeek API 키를 입력하세요',
     'input_triple_space_tip': '팁: 텍스트 입력 후 스페이스 키를 연속 세 번 누르면 즉시 번역됩니다. ESC 키를 누르면 번역이 취소됩니다.',
     'input_space_translation_toggle': '입력 공간 번역',
+    'microsoftApiInfo': '시스템 내장 키, 설정 필요 없음',
     
     // 언어 옵션
     'auto_detect': '자동 감지',
@@ -267,12 +402,61 @@ const i18n = {
     'tag_script': '스크립트(script)',
     'tag_style': '스타일(style)',
     'tag_headings': '제목(h1-h6)',
-    'tag_links': '링크(a)'
+    'tag_links': '링크(a)',
+
+    // 设置页面
+    "settings": "설정",
+    "generalSettings": "일반 설정",
+    "generalSettingsDescription": "Transor의 기본 설정 및 번역 환경설정 구성",
+    "translationServices": "번역 서비스",
+    "translationServicesDescription": "다양한 번역 서비스 관리 및 구성",
+    "featureManagement": "기능 관리",
+    "featureManagementDescription": "Transor의 다양한 기능 활성화 또는 비활성화",
+    "about": "정보",
+    "aboutDescription": "Transor에 대해 자세히 알아보기",
+    "languageSettings": "언어 설정",
+    "uiLanguage": "인터페이스 언어",
+    "targetLanguage": "번역 대상 언어",
+    "translationOptions": "번역 옵션",
+    "defaultEngine": "기본 번역 엔진",
+    "translationStyle": "번역 스타일",
+    "inlineDisplay": "인라인 표시",
+    "bubbleDisplay": "버블 표시",
+    "replaceOriginal": "원문 대체",
+    "saveSettings": "설정 저장",
+    "restoreDefaults": "기본값 복원",
+    "apiKeys": "API 키",
+    "apiKeysDescription": "다양한 번역 서비스를 위한 API 키 구성",
+    "currentEngine": "현재 번역 엔진",
+    "functionSwitches": "기능 스위치",
+    "appInfo": "앱 정보",
+    "appDescription": "Transor는 웹 페이지 번역, 즐겨찾기 강조 표시, YouTube 자막 번역 등을 제공하는 강력한 브라우저 번역 확장 프로그램입니다.",
+    "version": "버전",
+    "supportUs": "지원하기",
+    "supportDescription": "Transor가 마음에 드신다면 좋은 평가를 주시거나 친구들과 공유해 주세요.",
+    "supportMotivation": "여러분의 지원이 저희가 계속 개선할 수 있는 동기가 됩니다!",
+    "enableWebTranslation": "웹 번역 활성화",
+    "enableWebTranslationDesc": "Transor가 웹 콘텐츠를 번역할 수 있도록 허용",
+    "highlightFavorites": "즐겨찾기 강조",
+    "highlightFavoritesDesc": "웹 페이지에서 저장된 단어와 구문 강조 표시",
+    "youtubeCinemaMode": "YouTube 시네마 모드",
+    "youtubeCinemaModeDesc": "YouTube에서 자막 번역 기능 활성화",
+    "settingsSaved": "설정이 저장됨",
+    "uiLanguageUpdated": "인터페이스 언어가 업데이트됨",
+    "confirmRestore": "모든 설정을 지우고 기본값을 복원하시겠습니까?"
   }
 };
 
 // 默认语言
 let currentLanguage = localStorage.getItem('transor-ui-language') || 'zh-CN';
+
+// 应用默认配置
+const defaultConfig = {
+  uiLanguage: 'zh-CN',
+  targetLanguage: 'zh-CN',
+  translationEngine: 'microsoft',
+  translationStyle: 'universal'
+};
 
 // 获取翻译文本
 function t(key, lang = currentLanguage) {
@@ -297,6 +481,11 @@ function setLanguage(lang) {
   if (i18n[lang]) {
     currentLanguage = lang;
     localStorage.setItem('transor-ui-language', lang);
+    
+    // 触发语言变更事件
+    const event = new CustomEvent('language-changed', { detail: { language: lang } });
+    window.dispatchEvent(event);
+    
     return true;
   }
   return false;
@@ -312,10 +501,23 @@ function getSupportedLanguages() {
   return Object.keys(i18n);
 }
 
-// 导出多语言功能
-window.i18n = {
+// 获取默认配置
+function getDefaultConfig() {
+  return defaultConfig;
+}
+
+// 创建i18n辅助对象
+const i18nHelper = {
   t,
   setLanguage,
   getCurrentLanguage,
-  getSupportedLanguages
-}; 
+  getSupportedLanguages,
+  getDefaultConfig,
+  defaultConfig
+};
+
+// 暴露i18n函数和对象给全局使用
+window.i18n = i18nHelper;
+
+// 触发i18n加载完成事件，用于其他脚本的协调
+window.dispatchEvent(new Event('i18n-loaded')); 

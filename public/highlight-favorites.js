@@ -31,8 +31,22 @@ class FavoritesHighlighter {
     // 监听DOM变化
     this.setupMutationObserver();
     
-    // 初始高亮
-    this.highlightPage();
+    // 读取用户开关后再决定是否高亮
+    chrome.storage.sync.get({ highlightFavoritesEnabled: true }, (res) => {
+      if (typeof res.highlightFavoritesEnabled === 'boolean') {
+        this.isEnabled = res.highlightFavoritesEnabled;
+      }
+      if (this.isEnabled) {
+        this.highlightPage();
+      }
+    });
+    
+    // 监听设置变化
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      if (namespace === 'sync' && changes.highlightFavoritesEnabled) {
+        this.setEnabled(changes.highlightFavoritesEnabled.newValue);
+      }
+    });
     
     console.log('收藏高亮功能初始化完成');
   }

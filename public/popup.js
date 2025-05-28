@@ -364,4 +364,9 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // 调用获取生词本数据的方法
   fetchWordsList();
+
+  // 设置按钮点击事件
+  document.getElementById('open-settings').addEventListener('click', function() {
+    chrome.runtime.openOptionsPage();
+  });
 }); 
