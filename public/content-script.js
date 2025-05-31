@@ -899,25 +899,29 @@ function setupScrollListener() {
   // 重新绑定所有tip元素的事件，确保功能正常
   const rebindAllTips = () => {
     if (window.transorTipSystem && window.transorTipSystem.initialized) {
-      window.transorTipSystem.tipElements.forEach(item => {
-        if (item.element && document.body.contains(item.element)) {
+      // 使用 tips Map 而不是 tipElements
+      if (!window.transorTipSystem.tips) return;
+      
+      // 遍历 tips Map
+      window.transorTipSystem.tips.forEach((info, element) => {
+        if (element && document.body.contains(element)) {
           // 重新绑定事件函数
           const onMouseEnter = function() {
             // 检查两种可能的ID属性
-            const popupId = item.element.getAttribute('data-tip-id') || item.element.getAttribute('data-popup-id');
+            const popupId = element.getAttribute('data-tip-id') || element.getAttribute('data-popup-id');
             if (!popupId) return;
             
             const popup = document.getElementById(popupId);
             if (!popup) return;
             
             // 标记为激活
-            item.element.setAttribute('data-active', 'true');
+            element.setAttribute('data-active', 'true');
             
             // 显示提示框
             popup.classList.add('active');
             
             // 更新位置
-            const rect = item.element.getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
             const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
             const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
             
@@ -952,56 +956,57 @@ function setupScrollListener() {
           
           const onMouseLeave = function() {
             // 检查两种可能的ID属性
-            const popupId = item.element.getAttribute('data-tip-id') || item.element.getAttribute('data-popup-id');
+            const popupId = element.getAttribute('data-tip-id') || element.getAttribute('data-popup-id');
             if (!popupId) return;
             
             const popup = document.getElementById(popupId);
             if (!popup) return;
             
             // 标记为非激活
-            item.element.setAttribute('data-active', 'false');
+            element.setAttribute('data-active', 'false');
             
             // 隐藏提示框
             popup.classList.remove('active');
           };
           
           const onTipClick = function() {
-            if (item.element.getAttribute('data-active') === 'true') {
-              onMouseLeave.call(item.element);
+            if (element.getAttribute('data-active') === 'true') {
+              onMouseLeave.call(element);
             } else {
-              window.transorTipSystem.tipElements.forEach(tip => {
-                if (tip !== item.element) {
+              // 这里也要修改，使用 tips 而不是 tipElements
+              window.transorTipSystem.tips.forEach((info, tip) => {
+                if (tip !== element) {
                   // 检查两种可能的ID属性
-                  const popupId = tip.element.getAttribute('data-tip-id') || tip.element.getAttribute('data-popup-id');
+                  const popupId = tip.getAttribute('data-tip-id') || tip.getAttribute('data-popup-id');
                   if (popupId) {
                     const popup = document.getElementById(popupId);
                     if (popup) {
-                      tip.element.setAttribute('data-active', 'false');
+                      tip.setAttribute('data-active', 'false');
                       popup.classList.remove('active');
                     }
                   }
                 }
               });
-              onMouseEnter.call(item.element);
+              onMouseEnter.call(element);
             }
           };
           
           // 移除旧的事件监听器
-          item.element.removeEventListener('mouseenter', onMouseEnter);
-          item.element.removeEventListener('mouseleave', onMouseLeave);
-          item.element.removeEventListener('click', onTipClick);
+          element.removeEventListener('mouseenter', onMouseEnter);
+          element.removeEventListener('mouseleave', onMouseLeave);
+          element.removeEventListener('click', onTipClick);
           
           // 添加新的事件监听器
-          item.element.addEventListener('mouseenter', onMouseEnter);
-          item.element.addEventListener('mouseleave', onMouseLeave);
-          item.element.addEventListener('click', onTipClick);
+          element.addEventListener('mouseenter', onMouseEnter);
+          element.addEventListener('mouseleave', onMouseLeave);
+          element.addEventListener('click', onTipClick);
           
           // 对于触摸设备
-          item.element.removeEventListener('touchstart', onTipClick);
-          item.element.addEventListener('touchstart', onTipClick, {passive: false});
+          element.removeEventListener('touchstart', onTipClick);
+          element.addEventListener('touchstart', onTipClick, {passive: false});
         } else {
           // 如果元素已不在DOM中，从集合移除
-          window.transorTipSystem.unregisterTip(item.element);
+          window.transorTipSystem.unregisterTip(element);
         }
       });
     }
@@ -1017,16 +1022,17 @@ function setupScrollListener() {
     lastScrollTop = currentScrollTop;
     
     // 在滚动过程中更新正在显示的提示位置
-    if (window.transorTipSystem && window.transorTipSystem.tipElements) {
-      window.transorTipSystem.tipElements.forEach(item => {
-        if (item.active) {
+    if (window.transorTipSystem && window.transorTipSystem.tips) {
+      window.transorTipSystem.tips.forEach((info, item) => {
+        // 检查元素是否激活
+        if (item.getAttribute('data-active') === 'true') {
           // 检查两种可能的ID属性
-          const popupId = item.element.getAttribute('data-tip-id') || item.element.getAttribute('data-popup-id');
+          const popupId = item.getAttribute('data-tip-id') || item.getAttribute('data-popup-id');
           if (popupId) {
             const popup = document.getElementById(popupId);
             if (popup && popup.classList.contains('active')) {
               // 更新位置
-              const rect = item.element.getBoundingClientRect();
+              const rect = item.getBoundingClientRect();
               const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
               const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
               
@@ -1088,13 +1094,15 @@ function setupScrollListener() {
           if (popupId) {
             const popup = document.getElementById(popupId);
             if (popup && window.transorTipSystem && window.transorTipSystem.initialized) {
-              // 检查是否已经注册
+              // 检查是否已经注册 - 使用 tips 而不是 tipElements
               let isRegistered = false;
-              window.transorTipSystem.tipElements.forEach(item => {
-                if (item.element === tipElement) {
-                  isRegistered = true;
-                }
-              });
+              if (window.transorTipSystem.tips) {
+                window.transorTipSystem.tips.forEach((info, element) => {
+                  if (element === tipElement) {
+                    isRegistered = true;
+                  }
+                });
+              }
               
               // 如果未注册，则添加到系统中
               if (!isRegistered) {
@@ -1210,7 +1218,13 @@ function createSelectionTranslator() {
   // 创建logo
   const logo = document.createElement('div');
   logo.className = 'transor-selection-logo no-translate';
-  logo.textContent = 'T';
+  // 使用图片替代文字T
+  const logoImg = document.createElement('img');
+  logoImg.src = chrome.runtime.getURL('logos/logo16.png');
+  logoImg.alt = 'Transor Logo';
+  logoImg.width = 16;
+  logoImg.height = 16;
+  logo.appendChild(logoImg);
   
   // 创建操作按钮容器
   const actions = document.createElement('div');
@@ -1221,16 +1235,19 @@ function createSelectionTranslator() {
   playBtn.className = 'transor-selection-action-btn transor-play-btn no-translate';
   playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>';
   playBtn.title = '朗读原文';
+  playBtn.style.display = 'none'; // 初始时隐藏
   
   const copyBtn = document.createElement('button');
   copyBtn.className = 'transor-selection-action-btn transor-copy-btn no-translate';
   copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>';
   copyBtn.title = '复制翻译结果';
+  copyBtn.style.display = 'none'; // 初始时隐藏
   
   const favoriteBtn = document.createElement('button');
   favoriteBtn.className = 'transor-selection-action-btn transor-favorite-btn no-translate';
   favoriteBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
   favoriteBtn.title = '收藏到词典';
+  favoriteBtn.style.display = 'none'; // 初始时隐藏
   
   const closeBtn = document.createElement('button');
   closeBtn.className = 'transor-selection-action-btn transor-close-btn no-translate';
@@ -1300,6 +1317,15 @@ function createSelectionTranslator() {
       color: #ff5588;
       font-size: 16px;
       letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .transor-selection-logo img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
     }
     
     .transor-selection-actions {
@@ -1822,6 +1848,17 @@ function initSelectionTranslator() {
     popup.classList.add('transor-fade-in');
     popup.style.display = 'block';
     
+    // 隐藏功能按钮，只保留关闭按钮
+    const playBtn = popup.querySelector('.transor-play-btn');
+    const copyBtn = popup.querySelector('.transor-copy-btn');
+    const favoriteBtn = popup.querySelector('.transor-favorite-btn');
+    const closeBtn = popup.querySelector('.transor-close-btn');
+    
+    if (playBtn) playBtn.style.display = 'none';
+    if (copyBtn) copyBtn.style.display = 'none';
+    if (favoriteBtn) favoriteBtn.style.display = 'none';
+    if (closeBtn) closeBtn.style.display = ''; // 关闭按钮始终显示
+    
     // 定位翻译窗口 - 使用最后的鼠标位置
     positionPopup();
     
@@ -1833,12 +1870,7 @@ function initSelectionTranslator() {
         <div class="transor-selection-translation no-translate">代码内容无需翻译</div>
       `;
       
-      // 将收藏按钮设为禁用
-      const favoriteBtn = popup.querySelector('.transor-favorite-btn');
-      if (favoriteBtn) {
-        favoriteBtn.classList.add('disabled');
-        favoriteBtn.title = '代码不可收藏';
-      }
+      // 保持按钮隐藏状态，代码不需要功能按钮
     } else {
       // 显示加载中
       popupContent.innerHTML = `
@@ -1847,13 +1879,6 @@ function initSelectionTranslator() {
           <div class="transor-loading-dots no-translate"><span></span><span></span><span></span></div>
         </div>
       `;
-      
-      // 恢复收藏按钮状态
-      let favoriteBtn = popup.querySelector('.transor-favorite-btn');
-      if (favoriteBtn) {
-        favoriteBtn.classList.remove('disabled');
-        favoriteBtn.title = '收藏到词典';
-      }
       
       // 使用后台脚本进行翻译
       let translation = text;
@@ -1989,10 +2014,16 @@ function initSelectionTranslator() {
         }
       });
       
-      favoriteBtn = popup.querySelector('.transor-favorite-btn');
-      if (favoriteBtn) {
-        const oldClone = favoriteBtn.cloneNode(true);
-        favoriteBtn.parentNode.replaceChild(oldClone, favoriteBtn);
+      // 显示功能按钮
+      if (playBtn) playBtn.style.display = '';
+      if (copyBtn) copyBtn.style.display = '';
+      if (favoriteBtn) favoriteBtn.style.display = '';
+      
+      // 设置功能按钮事件
+      const favoriteButtonEl = popup.querySelector('.transor-favorite-btn');
+      if (favoriteButtonEl) {
+        const oldClone = favoriteButtonEl.cloneNode(true);
+        favoriteButtonEl.parentNode.replaceChild(oldClone, favoriteButtonEl);
         oldClone.addEventListener('click', function() {
           this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></path></svg>';
           this.title = '正在收藏...';
@@ -2010,10 +2041,11 @@ function initSelectionTranslator() {
         });
       }
       
-      const playBtn = popup.querySelector('.transor-play-btn');
-      if (playBtn) {
-        const oldPlayBtn = playBtn.cloneNode(true);
-        playBtn.parentNode.replaceChild(oldPlayBtn, playBtn);
+      // 添加播放按钮功能
+      const playButtonEl = popup.querySelector('.transor-play-btn');
+      if (playButtonEl) {
+        const oldPlayBtn = playButtonEl.cloneNode(true);
+        playButtonEl.parentNode.replaceChild(oldPlayBtn, playButtonEl);
         oldPlayBtn.addEventListener('click', function() {
           const contentToRead = text;
           if (contentToRead) {
@@ -2038,6 +2070,29 @@ function initSelectionTranslator() {
               this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>';
               console.error('语音合成出错');
             };
+          }
+        });
+      }
+      
+      // 添加复制按钮功能
+      const copyButtonEl = popup.querySelector('.transor-copy-btn');
+      if (copyButtonEl) {
+        const oldCopyBtn = copyButtonEl.cloneNode(true);
+        copyButtonEl.parentNode.replaceChild(oldCopyBtn, copyButtonEl);
+        oldCopyBtn.addEventListener('click', function() {
+          const translationEl = popup.querySelector('.transor-selection-translation');
+          if (translationEl) {
+            const text = translationEl.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+              // 显示复制成功提示
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"></path></svg>';
+              this.style.color = '#ff5588';
+              
+              setTimeout(() => {
+                this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>';
+                this.style.color = '';
+              }, 1500);
+            });
           }
         });
       }

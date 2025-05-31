@@ -97,6 +97,16 @@
     {
       "resources": ["transor-bridge-injection.js"],
       "matches": ["http://localhost:8080/*", "https://localhost:8080/*"]
+    },
+    {
+      "resources": [
+        "logos/*",
+        "logos/logo16.png",
+        "logos/logo48.png",
+        "logos/logo128.png",
+        "logos/logo.png"
+      ],
+      "matches": ["<all_urls>"]
     }
   ],
   "commands": {
