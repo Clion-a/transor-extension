@@ -32,6 +32,7 @@ const i18n = {
     'input_triple_space_tip': '小技巧：在任意输入框中输入文本后，连续敲击三个空格可以立即翻译文本。按ESC键可取消翻译。',
     'input_space_translation_toggle': '输入框空格翻译',
     'microsoftApiInfo': '系统内置密钥，无需配置',
+    'customApiEndpoint': '自定义 API 接口地址：',
     
     // 语言选项
     'auto_detect': '自动检测',
@@ -46,7 +47,7 @@ const i18n = {
     
     // 翻译样式
     'general': '通用',
-    'universal': '通用(智能选择显示样式)',
+    'universal_style': '通用(智能选择显示样式)',
     'replace': '替换(直接替换原文)',
     'bilingual_above': '双语(原文上方显示译文)',
     'bilingual_below': '双语(原文下方显示译文)',
@@ -118,12 +119,43 @@ const i18n = {
     "requestLimitWarning": "请求数超过该限制时会进入排队状态，直到下一秒钟开始。由于AI服务的各种限制，请点击这里查看最新建议的数值",
     "enableAiContext": "启用 AI 智能上下文",
     "aiContextDesc": "启用后，系统将先理解全文内容与专业术语，让翻译更专业准确。支持文章网页（博客、新闻）、电子书、PDF和双语等。AI专家同伴支持智能上下文。目前为实验功能，仅Pro会员可用。",
-    "aiExpertStrategy": "你可以指定 AI 专家来提供翻译策略",
+    "aiExpertStrategy": "AI专家",
     "translationMaster": "意译大师",
     "literalExpert": "直译专家",
     "contextAnalyzer": "语境分析师",
     "culturalAdapter": "文化适配师",
-    "moreModels": "设置更多模型"
+    "universal": "通用",
+    "smartChoice": "智能选择",
+    "paragraphExpert": "段落总结专家",
+    "englishSimplifier": "英文简化大师",
+    "twitterEnhancer": "Twitter 翻译增强器",
+    "techTranslator": "科技类翻译大师",
+    "redditEnhancer": "Reddit 翻译增强器",
+    "academicTranslator": "学术论文翻译师",
+    "newsTranslator": "新闻媒体译者",
+    "musicExpert": "音乐专家",
+    "medicalTranslator": "医学翻译大师",
+    "legalTranslator": "法律行业译者",
+    "githubEnhancer": "GitHub 翻译增强器",
+    "gamingTranslator": "游戏译者",
+    "ecommerceTranslator": "电商翻译大师",
+    "financeTranslator": "金融翻译顾问",
+    "novelTranslator": "小说译者",
+    "ao3Translator": "AO3 译者",
+    "ebookTranslator": "电子书译者",
+    "designer": "设计师",
+    "cnEnPolisher": "中英夹杂",
+    "web3Translator": "Web3 翻译大师",
+    "moreModels": "设置更多模型",
+    'displayStyle': '显示样式',
+    'fontColor': '字体颜色',
+    'fontColorDesc': '设置译文的字体颜色，默认为粉色(#ff5588)',
+    'fontSize': '字体大小',
+    'fontSizeSmall': '小',
+    'fontSizeMedium': '中',
+    'fontSizeLarge': '大',
+    'showOriginalText': '显示原文',
+    'showOriginalTextDesc': '在替换模式下是否仍然保留原文'
   },
   
   'en': {
@@ -158,6 +190,7 @@ const i18n = {
     'input_triple_space_tip': 'Tip: In any input field, after typing text, press space three times in a row to instantly translate the text. Press ESC to cancel translation.',
     'input_space_translation_toggle': 'Input Space Translation',
     'microsoftApiInfo': 'System built-in key, no configuration needed',
+    'customApiEndpoint': 'Custom API Endpoint:',
     
     // Language options
     'auto_detect': 'Auto Detect',
@@ -172,7 +205,7 @@ const i18n = {
     
     // Translation styles
     'general': 'General',
-    'universal': 'Universal (Smart Style Selection)',
+    'universal_style': 'Universal (Smart Style Selection)',
     'replace': 'Replace (Direct Replacement)',
     'bilingual_above': 'Bilingual (Translation Above)',
     'bilingual_below': 'Bilingual (Translation Below)',
@@ -244,12 +277,43 @@ const i18n = {
     "requestLimitWarning": "Requests exceeding this limit will be queued until the next second begins. Due to various limitations of AI services, please click here to see the latest recommended values",
     "enableAiContext": "Enable AI Smart Context",
     "aiContextDesc": "When enabled, the system will first understand the full text content and professional terminology to make translations more professional and accurate. Supports article web pages (blogs, news), e-books, PDFs and bilingual content. AI expert companion supports smart context. Currently an experimental feature, available only to Pro members.",
-    "aiExpertStrategy": "You can specify AI experts to provide translation strategies",
+    "aiExpertStrategy": "AI Expert",
     "translationMaster": "Translation Master",
     "literalExpert": "Literal Expert",
     "contextAnalyzer": "Context Analyzer",
     "culturalAdapter": "Cultural Adapter",
-    "moreModels": "Configure more models"
+    "universal": "Universal",
+    "smartChoice": "Smart Choice",
+    "paragraphExpert": "Paragraph Summary Expert",
+    "englishSimplifier": "English Simplifier",
+    "twitterEnhancer": "Twitter Translation Enhancer",
+    "techTranslator": "Tech Translation Master",
+    "redditEnhancer": "Reddit Translation Enhancer",
+    "academicTranslator": "Academic Paper Translator",
+    "newsTranslator": "News Media Translator",
+    "musicExpert": "Music Expert",
+    "medicalTranslator": "Medical Translation Master",
+    "legalTranslator": "Legal Industry Translator",
+    "githubEnhancer": "GitHub Translation Enhancer",
+    "gamingTranslator": "Gaming Translator",
+    "ecommerceTranslator": "E-commerce Translation Master",
+    "financeTranslator": "Financial Translation Consultant",
+    "novelTranslator": "Novel Translator",
+    "ao3Translator": "AO3 Translator",
+    "ebookTranslator": "E-book Translator",
+    "designer": "Designer",
+    "cnEnPolisher": "Chinese-English Polisher",
+    "web3Translator": "Web3 Translation Master",
+    "moreModels": "Configure more models",
+    'displayStyle': 'Display Style',
+    'fontColor': 'Font Color',
+    'fontColorDesc': 'Set the font color for translations, default is pink(#ff5588)',
+    'fontSize': 'Font Size',
+    'fontSizeSmall': 'Small',
+    'fontSizeMedium': 'Medium',
+    'fontSizeLarge': 'Large',
+    'showOriginalText': 'Show Original Text',
+    'showOriginalTextDesc': 'Whether to keep the original text in replacement mode'
   },
   
   'ja': {
@@ -284,6 +348,7 @@ const i18n = {
     'input_triple_space_tip': 'ヒント：任意の入力フィールドでテキストを入力した後、スペースを3回連続で押すと即座にテキストが翻訳されます。ESCキーを押すとキャンセルできます。',
     'input_space_translation_toggle': '入力スペース翻訳',
     'microsoftApiInfo': 'システム組み込みキー、設定不要',
+    'customApiEndpoint': 'カスタム API エンドポイント：',
     
     // 言語オプション
     'auto_detect': '自動検出',
@@ -298,6 +363,7 @@ const i18n = {
     
     // 翻訳スタイル
     'general': '一般',
+    'universal_style': 'ユニバーサル（スマートスタイル選択）',
     'replace': '置換（直接置換）',
     'bilingual_above': '二言語（翻訳を上に表示）',
     'bilingual_below': '二言語（翻訳を下に表示）',
@@ -321,7 +387,7 @@ const i18n = {
     'tag_headings': '見出し(h1-h6)',
     'tag_links': 'リンク(a)',
 
-    // 设置页面
+    // 設定ページ
     "settings": "設定",
     "generalSettings": "一般設定",
     "generalSettingsDescription": "Transorの基本設定と翻訳設定を構成する",
@@ -362,19 +428,50 @@ const i18n = {
     "uiLanguageUpdated": "インターフェース言語が更新されました",
     "confirmRestore": "すべての設定をクリアしてデフォルトに戻しますか？",
     
-    // AI模块配置
+    // AIモジュール設定
     "model": "モデル",
     "inputCustomModel": "カスタムモデル名を入力",
     "maxRequestsPerSecond": "1秒あたりの最大リクエスト数",
     "requestLimitWarning": "このリミットを超えるリクエストは次の秒まで待機状態になります。AIサービスの様々な制限により、最新の推奨値については<span style=\"color: var(--danger-color);\">こちら</span>をクリックしてください",
     "enableAiContext": "AIスマートコンテキストを有効にする",
     "aiContextDesc": "有効にすると、システムはまず全文の内容と専門用語を理解し、より専門的で正確な翻訳を提供します。記事ウェブページ（ブログ、ニュース）、電子書籍、PDF、バイリンガルコンテンツをサポートします。AIエキスパートコンパニオンはスマートコンテキストをサポートします。現在は実験的な機能で、Proメンバーのみが利用できます。",
-    "aiExpertStrategy": "翻訳戦略を提供するAI専門家を指定できます",
+    "aiExpertStrategy": "AI専門家",
     "translationMaster": "意訳マスター",
     "literalExpert": "直訳エキスパート",
     "contextAnalyzer": "コンテキスト分析者",
     "culturalAdapter": "文化適応者",
-    "moreModels": "その他のモデルを設定"
+    "universal": "ユニバーサル",
+    "smartChoice": "スマート選択",
+    "paragraphExpert": "段落要約エキスパート",
+    "englishSimplifier": "英語シンプル化マスター",
+    "twitterEnhancer": "Twitter翻訳エンハンサー",
+    "techTranslator": "技術翻訳マスター",
+    "redditEnhancer": "Reddit翻訳エンハンサー",
+    "academicTranslator": "学術論文翻訳者",
+    "newsTranslator": "ニュースメディア翻訳者",
+    "musicExpert": "音楽専門家",
+    "medicalTranslator": "医学翻訳マスター",
+    "legalTranslator": "法律業界翻訳者",
+    "githubEnhancer": "GitHub翻訳エンハンサー",
+    "gamingTranslator": "ゲーム翻訳者",
+    "ecommerceTranslator": "Eコマース翻訳マスター",
+    "financeTranslator": "金融翻訳コンサルタント",
+    "novelTranslator": "小説翻訳者",
+    "ao3Translator": "AO3翻訳者",
+    "ebookTranslator": "電子書籍翻訳者",
+    "designer": "デザイナー",
+    "cnEnPolisher": "中英混合",
+    "web3Translator": "Web3翻訳マスター",
+    "moreModels": "その他のモデルを設定",
+    'displayStyle': '表示スタイル',
+    'fontColor': 'フォントカラー',
+    'fontColorDesc': '翻訳のフォント色を設定します。デフォルトはピンク色(#ff5588)です',
+    'fontSize': 'フォントサイズ',
+    'fontSizeSmall': '小',
+    'fontSizeMedium': '中',
+    'fontSizeLarge': '大',
+    'showOriginalText': '原文を表示',
+    'showOriginalTextDesc': '置換モードにて原文を保持するかどうか'
   },
   
   'ko': {
@@ -409,6 +506,7 @@ const i18n = {
     'input_triple_space_tip': '팁: 텍스트 입력 후 스페이스 키를 연속 세 번 누르면 즉시 번역됩니다. ESC 키를 누르면 번역이 취소됩니다.',
     'input_space_translation_toggle': '입력 공간 번역',
     'microsoftApiInfo': '시스템 내장 키, 설정 필요 없음',
+    'customApiEndpoint': '사용자 정의 API 엔드포인트:',
     
     // 언어 옵션
     'auto_detect': '자동 감지',
@@ -423,6 +521,7 @@ const i18n = {
     
     // 번역 스타일
     'general': '일반',
+    'universal_style': '범용(스마트 스타일 선택)',
     'replace': '대체 (직접 대체)',
     'bilingual_above': '이중 언어 (번역문 위)',
     'bilingual_below': '이중 언어 (번역문 아래)',
@@ -446,7 +545,7 @@ const i18n = {
     'tag_headings': '제목(h1-h6)',
     'tag_links': '링크(a)',
 
-    // 设置页面
+    // 설정 페이지
     "settings": "설정",
     "generalSettings": "일반 설정",
     "generalSettingsDescription": "Transor의 기본 설정 및 번역 환경설정 구성",
@@ -487,19 +586,50 @@ const i18n = {
     "uiLanguageUpdated": "인터페이스 언어가 업데이트됨",
     "confirmRestore": "모든 설정을 지우고 기본값을 복원하시겠습니까?",
     
-    // AI模块配置
+    // AI모듈 설정
     "model": "모델",
     "inputCustomModel": "사용자 정의 모델 이름 입력",
     "maxRequestsPerSecond": "초당 최대 요청 수",
     "requestLimitWarning": "이 제한을 초과하는 요청은 다음 초까지 대기열에 들어갑니다. AI 서비스의 다양한 제한으로 인해 최신 권장 값을 보려면 <span style=\"color: var(--danger-color);\">여기</span>를 클릭하세요",
     "enableAiContext": "AI 스마트 컨텍스트 활성화",
-    "aiContextDesc": "활성화하면 시스템이 먼저 전체 텍스트 내용과 전문 용어를 이해하여 번역을 더 전문적이고 정확하게 만듭니다. 기사 웹 페이지(블로그, 뉴스), 전자책, PDF 및 이중 언어 콘텐츠를 지원합니다. AI 전문가 동반자는 스마트 컨텍스트를 지원합니다. 현재 실험적 기능으로, Pro 회원만 사용할 수 있습니다.",
-    "aiExpertStrategy": "번역 전략을 제공할 AI 전문가를 지정할 수 있습니다",
-    "translationMaster": "의역 마스터",
-    "literalExpert": "직역 전문가",
-    "contextAnalyzer": "컨텍스트 분석가",
-    "culturalAdapter": "문화 적응자",
-    "moreModels": "더 많은 모델 설정"
+    "aiContextDesc": "활성화하면 시스템이 먼저 전체 텍스트 내용과 전문 용어를 이해하여 번역을 더 전문적이고 정확하게 만듭니다. 기사 웹 페이지(블로그, 뉴스), 전자책, PDF, 이중 언어 콘텐츠를 지원합니다. AI 전문가 동반자는 스마트 컨텍스트를 지원합니다. 현재 실험적 기능으로, Pro 회원만 사용할 수 있습니다.",
+    "aiExpertStrategy": "AI 전문가",
+    "translationMaster": "Translation Master",
+    "literalExpert": "直译专家",
+    "contextAnalyzer": "语境分析师",
+    "culturalAdapter": "文化适配师",
+    "universal": "通用",
+    "smartChoice": "智能选择",
+    "paragraphExpert": "段落总结专家",
+    "englishSimplifier": "英文简化大师",
+    "twitterEnhancer": "Twitter 翻译增强器",
+    "techTranslator": "科技类翻译大师",
+    "redditEnhancer": "Reddit 翻译增强器",
+    "academicTranslator": "学术论文翻译师",
+    "newsTranslator": "新闻媒体译者",
+    "musicExpert": "音乐专家",
+    "medicalTranslator": "医学翻译大师",
+    "legalTranslator": "法律行业译者",
+    "githubEnhancer": "GitHub 翻译增强器",
+    "gamingTranslator": "游戏译者",
+    "ecommerceTranslator": "电商翻译大师",
+    "financeTranslator": "金融翻译顾问",
+    "novelTranslator": "小说译者",
+    "ao3Translator": "AO3 译者",
+    "ebookTranslator": "电子书译者",
+    "designer": "设计师",
+    "cnEnPolisher": "中英夹杂",
+    "web3Translator": "Web3 翻译大师",
+    "moreModels": "设置更多模型",
+    'displayStyle': '显示样式',
+    'fontColor': '字体颜色',
+    'fontColorDesc': '设置译文的字体颜色，默认为粉色(#ff5588)',
+    'fontSize': '字体大小',
+    'fontSizeSmall': '小',
+    'fontSizeMedium': '中',
+    'fontSizeLarge': '大',
+    'showOriginalText': '显示原文',
+    'showOriginalTextDesc': '在替换模式下是否仍然保留原文'
   }
 };
 

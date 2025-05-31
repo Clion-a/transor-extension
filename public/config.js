@@ -6,7 +6,16 @@ const transorDefaultConfig = {
   uiLanguage: 'zh-CN',
   targetLanguage: 'zh-CN',
   translationEngine: 'microsoft',
-  translationStyle: 'universal',
+  translationStyle: 'universal_style',
+  
+  // 显示样式配置
+  fontColor: '#ff5588',
+  
+  // 功能设置
+  isEnabled: true,
+  highlightFavoritesEnabled: true,
+  youtubeCinemaEnabled: true,
+  enableInputSpaceTranslation: true,
   
   // OpenAI 配置
   openaiConfig: {
@@ -15,7 +24,8 @@ const transorDefaultConfig = {
     customModel: '',
     maxRequests: 10,
     aiContext: false,
-    expertStrategy: 'translation-master'  // 默认使用 "意译大师"
+    expertStrategy: 'translation-master',
+    apiEndpoint: 'https://api.openai.com/v1/chat/completions'
   },
   
   // DeepSeek 配置
@@ -25,7 +35,8 @@ const transorDefaultConfig = {
     customModel: '',
     maxRequests: 10,
     aiContext: false,
-    expertStrategy: 'translation-master'  // 默认使用 "意译大师"
+    expertStrategy: 'translation-master',
+    apiEndpoint: 'https://api.deepseek.com/chat/completions'
   }
 };
 
@@ -48,10 +59,7 @@ function getDefaultConfig() {
 }
 
 // 将配置暴露给全局
-window.transorConfig = {
-  getDefaultConfig,
-  defaultConfig: transorDefaultConfig
-};
+window.transorConfig = getDefaultConfig();
 
 // 触发配置加载完成事件
 window.dispatchEvent(new Event('transor-config-loaded')); 

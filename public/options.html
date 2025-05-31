@@ -387,7 +387,7 @@
       <span data-i18n="generalSettings">常规设置</span>
     </div>
     
-    <div class="nav-item" data-section="translation">
+    <!-- <div class="nav-item" data-section="translation">
       <div class="icon"><i class="fas fa-language"></i></div>
       <span data-i18n="translationServices">翻译服务</span>
     </div>
@@ -395,7 +395,7 @@
     <div class="nav-item" data-section="features">
       <div class="icon"><i class="fas fa-th-large"></i></div>
       <span data-i18n="featureManagement">功能管理</span>
-    </div>
+    </div> -->
     
     <div class="nav-item" data-section="about">
       <div class="icon"><i class="fas fa-info-circle"></i></div>
@@ -457,16 +457,6 @@
           </select>
         </div>
         
-        <div class="form-group">
-          <label for="translation-style" data-i18n="translationStyle">翻译样式</label>
-          <select id="translation-style">
-            <option value="universal" selected data-i18n="universal">通用(智能选择显示样式)</option>
-            <option value="inline" data-i18n="inline">双语(原文后方显示译文)</option>
-            <option value="bilingual" data-i18n="bilingual_below">双语(原文下方显示译文)</option>
-            <option value="replace" data-i18n="replace">替换(仅显示译文)</option>
-          </select>
-        </div>
-        
         <div id="api-key-container" class="form-group">
           <label id="api-key-label" for="api-key-input">API Key</label>
           <div class="api-key-wrapper">
@@ -479,6 +469,11 @@
         
         <!-- OpenAI 配置模块 -->
         <div id="openai-config" class="ai-config" style="display: none; margin-top: 15px; padding: 15px; background-color: var(--bg-color); border-radius: 6px; border: 1px solid var(--border-color);">
+          <div class="form-group">
+            <label for="openai-api-endpoint" data-i18n="customApiEndpoint">自定义 API 接口地址：</label>
+            <input type="text" id="openai-api-endpoint" placeholder="https://api.openai.com/v1/chat/completions" value="https://api.openai.com/v1/chat/completions">
+          </div>
+          
           <div class="form-group">
             <label for="openai-model" data-i18n="model">模型:</label>
             <select id="openai-model">
@@ -562,6 +557,11 @@
         <!-- DeepSeek 配置模块 -->
         <div id="deepseek-config" class="ai-config" style="display: none; margin-top: 15px; padding: 15px; background-color: var(--bg-color); border-radius: 6px; border: 1px solid var(--border-color);">
           <div class="form-group">
+            <label for="deepseek-api-endpoint" data-i18n="customApiEndpoint">自定义 API 接口地址：</label>
+            <input type="text" id="deepseek-api-endpoint" placeholder="https://api.deepseek.com/chat/completions" value="https://api.deepseek.com/chat/completions">
+          </div>
+          
+          <div class="form-group">
             <label for="deepseek-model" data-i18n="model">模型:</label>
             <select id="deepseek-model">
               <option value="deepseek-chat">deepseek-chat</option>
@@ -634,6 +634,32 @@
         </div>
       </div>
       
+      <!-- 新增显示样式模块 -->
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-paint-brush"></i> <span data-i18n="displayStyle">显示样式</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="translation-style" data-i18n="translationStyle">翻译样式</label>
+          <select id="translation-style">
+            <option value="universal_style" selected data-i18n="universal_style">通用(智能选择显示样式)</option>
+            <option value="inline" data-i18n="inline">双语(原文后方显示译文)</option>
+            <option value="bilingual" data-i18n="bilingual_below">双语(原文下方显示译文)</option>
+            <option value="replace" data-i18n="replace">替换(仅显示译文)</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="font-color" data-i18n="fontColor">字体颜色</label>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="color" id="font-color-picker" value="#ff5588" style="width: 40px; height: 40px; border: none; cursor: pointer; border-radius: 4px;">
+            <input type="text" id="font-color" value="#ff5588" placeholder="#ff5588" style="flex: 1;">
+          </div>
+          <p style="font-size: 12px; color: var(--text-color); opacity: 0.7; margin-top: 5px;" data-i18n="fontColorDesc">设置译文的字体颜色，默认为粉色(#ff5588)</p>
+        </div>
+      </div>
+      
       <div class="buttons">
         <button id="save-settings" class="btn btn-primary">
           <i class="fas fa-save"></i> <span data-i18n="saveSettings">保存设置</span>
@@ -675,40 +701,8 @@
         
         <p style="margin-bottom: 20px;" data-i18n="apiKeysDescription">为各翻译服务配置 API 密钥</p>
         
-        <div class="api-services">
-          <div class="form-group">
-            <div class="api-service-title">
-              <img src="https://www.microsoft.com/favicon.ico" alt="Microsoft">
-              <label>Microsoft Translator API</label>
-            </div>
-            <p style="font-size: 12px; color: var(--text-color); opacity: 0.8; margin-top: 5px;" data-i18n="microsoftApiInfo">系统内置密钥，无需配置</p>
-          </div>
-          
-          <div class="form-group">
-            <div class="api-service-title">
-              <img src="https://openai.com/favicon.ico" alt="OpenAI">
-              <label for="openai-api-key">OpenAI API</label>
-            </div>
-            <div class="api-key-wrapper">
-              <input type="password" id="openai-api-key" placeholder="OpenAI API Key">
-              <button type="button" class="api-key-toggle" id="toggle-openai-key">
-                <i class="fas fa-eye"></i>
-              </button>
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <div class="api-service-title">
-              <img src="https://www.deepseek.com/favicon.ico" alt="DeepSeek" id="deepseek-icon" data-fallback="https://placehold.co/20x20?text=DS">
-              <label for="deepseek-api-key">DeepSeek API</label>
-            </div>
-            <div class="api-key-wrapper">
-              <input type="password" id="deepseek-api-key" placeholder="DeepSeek API Key">
-              <button type="button" class="api-key-toggle" id="toggle-deepseek-key">
-                <i class="fas fa-eye"></i>
-              </button>
-            </div>
-          </div>
+        <div class="api-services" id="api-services-container">
+          <!-- 服务列表将通过JavaScript动态生成 -->
         </div>
       </div>
     </div>

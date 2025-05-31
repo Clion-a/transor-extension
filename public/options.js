@@ -12,7 +12,7 @@ function getDefaultConfig() {
     uiLanguage: 'zh-CN',
     targetLanguage: 'zh-CN',
     translationEngine: 'microsoft',
-    translationStyle: 'universal'
+    translationStyle: 'universal_style'
   };
 }
 
@@ -27,13 +27,27 @@ function getI18n(key, lang) {
   const fallbackMap = {
     'zh-CN': {
       'settingsSaved': '设置已保存',
+      'apiKeySaved': 'API Key 已保存',
       'uiLanguageUpdated': '界面语言已更新',
       'confirmRestore': '确定要清除所有设置并恢复默认值吗？'
     },
     'en': {
       'settingsSaved': 'Settings Saved',
+      'apiKeySaved': 'API Key saved',
       'uiLanguageUpdated': 'UI Language Updated',
       'confirmRestore': 'Are you sure you want to clear all settings and restore defaults?'
+    },
+    'ja': {
+      'settingsSaved': '設定が保存されました',
+      'apiKeySaved': 'API キーが保存されました',
+      'uiLanguageUpdated': 'UI言語が更新されました',
+      'confirmRestore': 'デフォルト設定に戻しますか？すべてのカスタマイズがクリアされます。'
+    },
+    'ko': {
+      'settingsSaved': '설정이 저장되었습니다',
+      'apiKeySaved': 'API 키가 저장되었습니다',
+      'uiLanguageUpdated': 'UI 언어가 업데이트되었습니다',
+      'confirmRestore': '기본 설정으로 복원하시겠습니까? 모든 사용자 정의 설정이 지워집니다.'
     }
   };
   
@@ -45,15 +59,101 @@ function getI18n(key, lang) {
 }
 
 // 保存修改到 chrome.storage.sync
-function saveSettings(changes) {
-  if (!changes || typeof changes !== 'object') return;
-  chrome.storage.sync.set(changes, () => {
-    if (chrome.runtime.lastError) {
-      console.error('保存设置出错:', chrome.runtime.lastError.message);
-    } else {
-      console.log('已保存设置:', changes);
-      showSaveNotification(getI18n('settingsSaved', userInterfaceLanguage));
+function saveSettings(config = {}) {
+  // 获取基本设置
+  const uiLanguage = document.getElementById('ui-language').value;
+  const targetLanguage = document.getElementById('target-language').value;
+  const translationEngine = document.getElementById('translation-engine').value;
+  const translationStyle = document.getElementById('translation-style').value;
+  const apiKey = document.getElementById('api-key-input').value;
+  
+  // 获取显示样式设置
+  const fontColor = document.getElementById('font-color').value;
+
+  // 获取OpenAI配置
+  const openaiModel = document.getElementById('openai-model').value;
+  const openaiCustomModelEnabled = document.getElementById('openai-custom-model-enabled').checked;
+  const openaiCustomModel = document.getElementById('openai-custom-model').value;
+  const openaiMaxRequests = parseInt(document.getElementById('openai-max-requests').value) || 10;
+  const openaiAiContext = document.getElementById('openai-ai-context').checked;
+  const openaiExpertStrategy = document.getElementById('openai-expert-strategy').value;
+  const openaiApiKey = document.getElementById('openai-api-key').value;
+  const openaiApiEndpoint = document.getElementById('openai-api-endpoint').value;
+
+  // 获取DeepSeek配置
+  const deepseekModel = document.getElementById('deepseek-model').value;
+  const deepseekCustomModelEnabled = document.getElementById('deepseek-custom-model-enabled').checked;
+  const deepseekCustomModel = document.getElementById('deepseek-custom-model').value;
+  const deepseekMaxRequests = parseInt(document.getElementById('deepseek-max-requests').value) || 10;
+  const deepseekAiContext = document.getElementById('deepseek-ai-context').checked;
+  const deepseekExpertStrategy = document.getElementById('deepseek-expert-strategy').value;
+  const deepseekApiKey = document.getElementById('deepseek-api-key').value;
+  const deepseekApiEndpoint = document.getElementById('deepseek-api-endpoint').value;
+
+  // 先获取现有的API Keys，然后再构建saveData
+  chrome.storage.sync.get(['apiKeys'], (res) => {
+    // 获取现有的API Keys
+    const existingApiKeys = res.apiKeys || {};
+    
+    // 更新当前引擎的API Key（如果API Key输入框可见）
+    if (document.getElementById('api-key-container').style.display !== 'none') {
+      existingApiKeys[translationEngine] = apiKey;
     }
+    
+    // 更新单独的API密钥
+    if (openaiApiKey) {
+      existingApiKeys.openai = openaiApiKey;
+    }
+    
+    if (deepseekApiKey) {
+      existingApiKeys.deepseek = deepseekApiKey;
+    }
+    
+    // 准备保存数据
+    const saveData = {
+      'transor-ui-language': uiLanguage,
+      targetLanguage: targetLanguage,
+      translationEngine: translationEngine,
+      translationStyle: translationStyle,
+      fontColor: fontColor,
+      openaiConfig: {
+        model: openaiModel,
+        customModelEnabled: openaiCustomModelEnabled,
+        customModel: openaiCustomModel,
+        maxRequests: openaiMaxRequests,
+        aiContext: openaiAiContext,
+        expertStrategy: openaiExpertStrategy,
+        apiEndpoint: openaiApiEndpoint
+      },
+      deepseekConfig: {
+        model: deepseekModel,
+        customModelEnabled: deepseekCustomModelEnabled,
+        customModel: deepseekCustomModel,
+        maxRequests: deepseekMaxRequests,
+        aiContext: deepseekAiContext,
+        expertStrategy: deepseekExpertStrategy,
+        apiEndpoint: deepseekApiEndpoint
+      },
+      apiKeys: existingApiKeys
+    };
+
+    // 合并可能从函数参数传入的配置
+    const finalConfig = Object.assign({}, saveData, config);
+    
+    // 确保apiKeys被正确合并
+    if (config.apiKeys) {
+      finalConfig.apiKeys = Object.assign({}, existingApiKeys, config.apiKeys);
+    }
+
+    console.log('保存设置:', finalConfig);
+
+    // 保存设置到Chrome存储
+    chrome.storage.sync.set(finalConfig, function() {
+      showSaveNotification(getI18n('settingsSaved', userInterfaceLanguage));
+    });
+
+    // 将界面语言保存到localStorage
+    localStorage.setItem('transor-ui-language', uiLanguage);
   });
 }
 
@@ -230,22 +330,210 @@ function updateI18n() {
   });
 }
 
+// 动态生成翻译服务列表
+function generateTranslationServicesList() {
+  const container = document.getElementById('api-services-container');
+  if (!container) return;
+  
+  // 清空容器
+  container.innerHTML = '';
+  
+  // 获取配置的翻译服务
+  const config = window.transorConfig || getDefaultConfig();
+  
+  // 定义服务图标映射
+  const serviceIcons = {
+    microsoftapi: 'https://www.microsoft.com/favicon.ico',
+    microsoft: 'https://www.microsoft.com/favicon.ico',
+    google: 'https://www.google.com/favicon.ico',
+    openai: 'https://openai.com/favicon.ico',
+    deepseek: 'https://www.deepseek.com/favicon.ico'
+  };
+  
+  // 定义翻译服务配置
+  const services = [
+    {
+      id: 'microsoftapi',
+      name: 'Microsoft Translator API',
+      icon: serviceIcons.microsoftapi,
+      needsKey: false,
+      infoKey: 'microsoftApiInfo'
+    },
+    {
+      id: 'microsoft',
+      name: 'Microsoft Edge',
+      icon: serviceIcons.microsoft,
+      needsKey: false,
+      infoKey: 'microsoftApiInfo'
+    },
+    {
+      id: 'google',
+      name: 'Google Translate',
+      icon: serviceIcons.google,
+      needsKey: false
+    },
+    {
+      id: 'openai',
+      name: 'OpenAI API',
+      icon: serviceIcons.openai,
+      needsKey: true,
+      inputId: 'openai-api-key',
+      toggleId: 'toggle-openai-key'
+    },
+    {
+      id: 'deepseek',
+      name: 'DeepSeek API',
+      icon: serviceIcons.deepseek,
+      needsKey: true,
+      inputId: 'deepseek-api-key',
+      toggleId: 'toggle-deepseek-key',
+      iconFallback: 'https://placehold.co/20x20?text=DS'
+    }
+  ];
+  
+  // 从配置中获取当前引擎
+  const currentEngine = config.translationEngine || 'microsoft';
+  
+  // 生成服务列表HTML
+  services.forEach(service => {
+    const serviceElement = document.createElement('div');
+    serviceElement.className = 'form-group';
+    serviceElement.classList.add('translation-service-item');
+    
+    // 如果是当前使用的服务，添加活跃类
+    if (service.id === currentEngine) {
+      serviceElement.classList.add('active-service');
+    }
+    
+    // 创建服务标题
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'api-service-title';
+    
+    // 添加图标
+    const icon = document.createElement('img');
+    icon.src = service.icon;
+    icon.alt = service.name;
+    if (service.iconFallback) {
+      icon.id = `${service.id}-icon`;
+      icon.setAttribute('data-fallback', service.iconFallback);
+      // 添加图片加载失败处理
+      icon.onerror = function() {
+        this.src = this.getAttribute('data-fallback');
+      };
+    }
+    titleDiv.appendChild(icon);
+    
+    // 添加标签
+    const label = document.createElement('label');
+    if (service.inputId) {
+      label.setAttribute('for', service.inputId);
+    }
+    label.textContent = service.name;
+    titleDiv.appendChild(label);
+    
+    serviceElement.appendChild(titleDiv);
+    
+    // 添加API Key输入框或信息文本
+    if (service.needsKey) {
+      const keyWrapper = document.createElement('div');
+      keyWrapper.className = 'api-key-wrapper';
+      
+      const input = document.createElement('input');
+      input.type = 'password';
+      input.id = service.inputId;
+      input.placeholder = `${service.name} Key`;
+      keyWrapper.appendChild(input);
+      
+      const toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.className = 'api-key-toggle';
+      toggleBtn.id = service.toggleId;
+      toggleBtn.innerHTML = '<i class="fas fa-eye"></i>';
+      keyWrapper.appendChild(toggleBtn);
+      
+      serviceElement.appendChild(keyWrapper);
+    } else if (service.infoKey) {
+      const infoText = document.createElement('p');
+      infoText.style.fontSize = '12px';
+      infoText.style.color = 'var(--text-color)';
+      infoText.style.opacity = '0.8';
+      infoText.style.marginTop = '5px';
+      infoText.setAttribute('data-i18n', service.infoKey);
+      infoText.textContent = getI18n(service.infoKey, userInterfaceLanguage);
+      serviceElement.appendChild(infoText);
+    }
+    
+    container.appendChild(serviceElement);
+  });
+  
+  // 为新生成的切换按钮添加事件处理
+  setupPasswordToggleButtons();
+}
+
+// 设置密码显示/隐藏切换按钮的事件处理
+function setupPasswordToggleButtons() {
+  const toggleButtons = document.querySelectorAll('.api-key-toggle');
+  toggleButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const inputId = this.id.replace('toggle-', '');
+      const input = document.getElementById(inputId);
+      
+      if (input.type === 'password') {
+        input.type = 'text';
+        this.innerHTML = '<i class="fas fa-eye-slash"></i>';
+      } else {
+        input.type = 'password';
+        this.innerHTML = '<i class="fas fa-eye"></i>';
+      }
+    });
+  });
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   // 获取DOM元素
   const uiLangSel = document.getElementById('ui-language');
   const targetLangSel = document.getElementById('target-language');
   const engineSel = document.getElementById('translation-engine');
-  const engine2Sel = document.getElementById('translation-engine-2'); // 翻译服务页面中的引擎选择器
+  const engine2Sel = document.getElementById('translation-engine-2');
+  const apiKeyInput = document.getElementById('api-key-input');
+  const apiKeyLabel = document.getElementById('api-key-label');
+  const toggleApiKeyBtn = document.getElementById('toggle-api-key');
   const styleSel = document.getElementById('translation-style');
   const enableTranslationChk = document.getElementById('enable-translation');
   const enableHighlightChk = document.getElementById('enable-highlight');
   const enableYouTubeCinemaChk = document.getElementById('enable-youtube-cinema');
-  const apiKeyInput = document.getElementById('api-key-input');
-  const openaiApiKeyInput = document.getElementById('openai-api-key');
-  const deepseekApiKeyInput = document.getElementById('deepseek-api-key');
   const saveSettingsBtn = document.getElementById('save-settings');
   const restoreDefaultsBtn = document.getElementById('restore-defaults');
-
+  const fontColorPicker = document.getElementById('font-color-picker');
+  const fontColorInput = document.getElementById('font-color');
+  
+  // OpenAI配置元素
+  const openaiConfig = document.getElementById('openai-config');
+  const openaiModel = document.getElementById('openai-model');
+  const openaiCustomModelEnabled = document.getElementById('openai-custom-model-enabled');
+  const openaiCustomModel = document.getElementById('openai-custom-model');
+  const openaiCustomModelGroup = document.getElementById('openai-custom-model-group');
+  const openaiMaxRequests = document.getElementById('openai-max-requests');
+  const openaiAiContext = document.getElementById('openai-ai-context');
+  const openaiExpertStrategy = document.getElementById('openai-expert-strategy');
+  const openaiApiKey = document.getElementById('openai-api-key');
+  const openaiApiEndpoint = document.getElementById('openai-api-endpoint');
+  
+  // DeepSeek配置元素
+  const deepseekConfig = document.getElementById('deepseek-config');
+  const deepseekModel = document.getElementById('deepseek-model');
+  const deepseekCustomModelEnabled = document.getElementById('deepseek-custom-model-enabled');
+  const deepseekCustomModel = document.getElementById('deepseek-custom-model');
+  const deepseekCustomModelGroup = document.getElementById('deepseek-custom-model-group');
+  const deepseekMaxRequests = document.getElementById('deepseek-max-requests');
+  const deepseekAiContext = document.getElementById('deepseek-ai-context');
+  const deepseekExpertStrategy = document.getElementById('deepseek-expert-strategy');
+  const deepseekApiKey = document.getElementById('deepseek-api-key');
+  const deepseekApiEndpoint = document.getElementById('deepseek-api-endpoint');
+  
+  // 动态生成翻译服务列表
+  generateTranslationServicesList();
+  
   // 首先加载UI语言
   chrome.storage.local.get('transor-ui-language', (res) => {
     const defaultConfig = getDefaultConfig();
@@ -284,7 +572,40 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 加载现有设置
+  // 字体颜色输入和选择器相关事件
+  if (fontColorInput && fontColorPicker) {
+    // 当颜色选择器变化时，更新输入框
+    fontColorPicker.addEventListener('input', () => {
+      fontColorInput.value = fontColorPicker.value;
+    });
+    
+    // 当颜色选择器变化完成时，保存设置
+    fontColorPicker.addEventListener('change', () => {
+      fontColorInput.value = fontColorPicker.value;
+      saveSettings({ fontColor: fontColorPicker.value });
+    });
+    
+    // 当输入框变化时，更新颜色选择器并保存设置
+    fontColorInput.addEventListener('input', () => {
+      // 验证是否为有效的颜色格式
+      if (/^#[0-9A-F]{6}$/i.test(fontColorInput.value)) {
+        fontColorPicker.value = fontColorInput.value;
+      }
+    });
+    
+    // 当输入框失去焦点时，保存设置
+    fontColorInput.addEventListener('blur', () => {
+      // 验证是否为有效的颜色格式
+      if (/^#[0-9A-F]{6}$/i.test(fontColorInput.value)) {
+        saveSettings({ fontColor: fontColorInput.value });
+      } else {
+        // 恢复为颜色选择器的值
+        fontColorInput.value = fontColorPicker.value;
+      }
+    });
+  }
+
+  // 加载存储中的数据
   chrome.storage.sync.get(null, (settings) => {
     const defaultConfig = getDefaultConfig();
     // 基本设置
@@ -297,6 +618,14 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     
     styleSel.value = settings.translationStyle || defaultConfig.translationStyle;
+    
+    // 显示样式设置
+    if (fontColorInput && fontColorPicker) {
+      const savedColor = settings.fontColor || '#ff5588';
+      fontColorInput.value = savedColor;
+      fontColorPicker.value = savedColor;
+    }
+    
     enableTranslationChk.checked = settings.isEnabled !== false;
     enableHighlightChk.checked = settings.highlightFavoritesEnabled !== false;
     enableYouTubeCinemaChk.checked = settings.youtubeCinemaEnabled !== false;
@@ -306,11 +635,11 @@ window.addEventListener('DOMContentLoaded', () => {
       apiKeyInput.value = settings.apiKeys[engineSel.value] || '';
       
       // 同步单独的API密钥输入框
-      if (openaiApiKeyInput) {
-        openaiApiKeyInput.value = settings.apiKeys.openai || '';
+      if (openaiApiKey) {
+        openaiApiKey.value = settings.apiKeys.openai || '';
       }
-      if (deepseekApiKeyInput) {
-        deepseekApiKeyInput.value = settings.apiKeys.deepseek || '';
+      if (deepseekApiKey) {
+        deepseekApiKey.value = settings.apiKeys.deepseek || '';
       }
     }
 
@@ -443,17 +772,27 @@ window.addEventListener('DOMContentLoaded', () => {
     // 立即更新API Key和配置模块的显示
     updateApiKeyVisibility(engineSel.value);
     
-    saveSettings({ translationEngine: engineSel.value });
-    
     // 同步两个页面的翻译引擎选择器
     if (engine2Sel) {
       engine2Sel.value = engineSel.value;
     }
 
-    // 同步显示对应 key
-    chrome.storage.sync.get('apiKeys', (res) => {
-      const key = res.apiKeys ? res.apiKeys[engineSel.value] : '';
-      apiKeyInput.value = key || '';
+    // 获取现有的API Keys，确保在切换引擎时不会丢失之前保存的密钥
+    chrome.storage.sync.get(['apiKeys', 'translationEngine'], (res) => {
+      const apiKeys = res.apiKeys || {};
+      const oldEngine = res.translationEngine;
+      const newEngine = engineSel.value;
+      
+      // 如果有对应的API Key，显示在输入框中
+      apiKeyInput.value = apiKeys[newEngine] || '';
+      
+      // 保存新的翻译引擎设置，但保留所有API Keys
+      saveSettings({ 
+        translationEngine: newEngine,
+        apiKeys: apiKeys
+      });
+      
+      console.log(`已切换翻译引擎从 ${oldEngine} 到 ${newEngine}，保留所有API Keys`);
     });
   });
 
@@ -466,7 +805,24 @@ window.addEventListener('DOMContentLoaded', () => {
       if (engineSel) {
         engineSel.value = engine2Sel.value;
       }
-      saveSettings({ translationEngine: engine2Sel.value });
+      
+      // 获取现有的API Keys，确保在切换引擎时不会丢失之前保存的密钥
+      chrome.storage.sync.get(['apiKeys', 'translationEngine'], (res) => {
+        const apiKeys = res.apiKeys || {};
+        const oldEngine = res.translationEngine;
+        const newEngine = engine2Sel.value;
+        
+        // 如果有对应的API Key，显示在输入框中
+        apiKeyInput.value = apiKeys[newEngine] || '';
+        
+        // 保存新的翻译引擎设置，但保留所有API Keys
+        saveSettings({ 
+          translationEngine: newEngine,
+          apiKeys: apiKeys
+        });
+        
+        console.log(`已切换翻译引擎从 ${oldEngine} 到 ${newEngine}，保留所有API Keys`);
+      });
     });
   }
 
@@ -494,27 +850,42 @@ window.addEventListener('DOMContentLoaded', () => {
     chrome.storage.sync.get(['apiKeys'], (res) => {
       const apiKeys = res.apiKeys || {};
       apiKeys[type] = apiKeyInput.value;
-      saveSettings({ apiKeys });
+      
+      // 只传入apiKeys，避免覆盖其他设置
+      chrome.storage.sync.set({ apiKeys }, function() {
+        showSaveNotification(getI18n('apiKeySaved', userInterfaceLanguage));
+        console.log(`已保存${type} API Key`);
+      });
     });
   });
 
   // 单独的API密钥输入框事件
-  if (openaiApiKeyInput) {
-    openaiApiKeyInput.addEventListener('change', () => {
+  if (openaiApiKey) {
+    openaiApiKey.addEventListener('change', () => {
       chrome.storage.sync.get(['apiKeys'], (res) => {
         const apiKeys = res.apiKeys || {};
-        apiKeys.openai = openaiApiKeyInput.value;
-        saveSettings({ apiKeys });
+        apiKeys.openai = openaiApiKey.value;
+        
+        // 只传入apiKeys，避免覆盖其他设置
+        chrome.storage.sync.set({ apiKeys }, function() {
+          showSaveNotification(getI18n('apiKeySaved', userInterfaceLanguage));
+          console.log('已保存OpenAI API Key');
+        });
       });
     });
   }
 
-  if (deepseekApiKeyInput) {
-    deepseekApiKeyInput.addEventListener('change', () => {
+  if (deepseekApiKey) {
+    deepseekApiKey.addEventListener('change', () => {
       chrome.storage.sync.get(['apiKeys'], (res) => {
         const apiKeys = res.apiKeys || {};
-        apiKeys.deepseek = deepseekApiKeyInput.value;
-        saveSettings({ apiKeys });
+        apiKeys.deepseek = deepseekApiKey.value;
+        
+        // 只传入apiKeys，避免覆盖其他设置
+        chrome.storage.sync.set({ apiKeys }, function() {
+          showSaveNotification(getI18n('apiKeySaved', userInterfaceLanguage));
+          console.log('已保存DeepSeek API Key');
+        });
       });
     });
   }

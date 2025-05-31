@@ -49,7 +49,7 @@ const defaultSettings = {
   enabled: true,
   targetLanguage: 'zh-CN',
   sourceLanguage: 'auto',
-  translationStyle: 'universal',
+  translationStyle: 'universal_style',
   enabledSelectors: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'span', 'a'],
   excludedClasses: ['no-translate'],
   excludedUrls: [],
@@ -108,14 +108,32 @@ const TRANSLATION_CONFIG = {
     // microsoft: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // 微软翻译API密钥
     microsoftapi: 'AZPa1kcEw7ns0flRDUzAxCpPTSbBSTsUH1lZkrO6FhpxTAyxgg7nJQQJ99BEAC3pKaRXJ3w3AAAbACOGFYoI',  // Microsoft API翻译API密钥
     deepseek: '',    // DeepSeek翻译API密钥
-    openai: '',      // OpenAI翻译API密钥
+    openai: ''       // OpenAI翻译API密钥
   },
   // 区域配置
   regions: {
-    microsoft: 'eastasia',  // 微软翻译API区域
-    microsoftapi: 'eastasia'  // Microsoft API翻译区域
+    microsoftapi: 'global'
   }
 };
+
+// 声明全局变量存储配置
+let openaiConfig = {};
+let deepseekConfig = {};
+
+// 获取特定翻译服务的端点
+function getEndpoint(service) {
+  // 如果是OpenAI或DeepSeek，先检查是否有自定义端点
+  if (service === 'openai' && openaiConfig && openaiConfig.apiEndpoint) {
+    return openaiConfig.apiEndpoint;
+  }
+  
+  if (service === 'deepseek' && deepseekConfig && deepseekConfig.apiEndpoint) {
+    return deepseekConfig.apiEndpoint;
+  }
+  
+  // 否则使用默认端点
+  return TRANSLATION_CONFIG.endpoints[service];
+}
 
 // 辅助函数：清理和标准化文本用于缓存匹配
 function cleanTextForCaching(text) {
@@ -348,6 +366,9 @@ function init() {
       });
     });
   });
+
+  // 初始化Netflix字幕功能
+  NetflixSubtitleHandler.initialize();
 }
 
 // 初始化存储
@@ -375,7 +396,7 @@ function handleInstalled(details) {
 
 // 处理消息
 function handleMessage(message, sender, sendResponse) {
-  console.log('收到消息:', message.action);
+  console.log('收到消息:', message.action || message.type);
   
   // 添加连接状态验证，防止context invalidated错误
   if (!chrome.runtime.id) {
@@ -384,230 +405,225 @@ function handleMessage(message, sender, sendResponse) {
     return false;
   }
   
-  const messageHandlers = {
-    // 获取设置
-    getSettings: () => {
-      getSettings()
-        .then(settings => sendResponse({ success: true, settings }))
-        .catch(error => sendResponse({ success: false, error: error.message }));
-      return true;
-    },
-    
-    // 注册快捷键
-    registerShortcut: () => {
-      UI.registerShortcutForTab(sender.tab?.id, message.shortcut);
-      sendResponse({ success: true });
-      return true;
-    },
-    
-    // 打开收藏夹
-    openFavorites: () => {
-      UI.openFavoritesPage();
-      sendResponse({ success: true });
-      return true;
-    },
-    
-    // 收藏单词
-    collectWord: () => {
-      collectWord(message.source_text, message.source_lang)
-        .then(result => sendResponse({ success: true, data: result }))
-        .catch(error => sendResponse({ success: false, error: error.message }));
-      return true;
-    },
-    
-    // 获取词典数据
-    fetchDictionary: () => {
-      const word = message.word;
-      const sourceLang = message.sourceLang || 'auto';
-      const targetLang = message.targetLang || 'zh-CN';
-      const timestamp = message.timestamp || Date.now(); // 获取时间戳，用于避免缓存
+  // 首先尝试使用Netflix字幕处理器处理消息
+  if (message.type && NetflixSubtitleHandler.handleMessage(message, sender, sendResponse)) {
+    return true;
+  }
+  
+  // 原有的消息处理逻辑
+  try {
+    // 执行对应处理函数或返回false
+    const messageHandlers = {
+      // 获取设置
+      getSettings: () => {
+        getSettings()
+          .then(settings => sendResponse({ success: true, settings }))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+      },
       
-      console.log(`获取词典数据: ${word}, 源语言: ${sourceLang}, 目标语言: ${targetLang}, 时间戳: ${timestamp}`);
+      // 注册快捷键
+      registerShortcut: () => {
+        UI.registerShortcutForTab(sender.tab?.id, message.shortcut);
+        sendResponse({ success: true });
+        return true;
+      },
       
-      // 将时间戳传递给fetchDictionaryData
-      fetchDictionaryData(word, sourceLang, targetLang, timestamp)
-        .then(result => {
-          // 确保扩展上下文有效再发送响应
-          if (chrome.runtime.id) {
-            // 添加时间戳和单词到响应中，便于调试
-            result.timestamp = timestamp;
-            result.queriedWord = word;
-            sendResponse(result);
-          }
-        })
-        .catch(error => {
-          console.error('获取词典数据失败:', error);
-          // 确保扩展上下文有效再发送响应
-          if (chrome.runtime.id) {
-            sendResponse({ 
-              success: false, 
-              error: error.message || '获取词典数据失败',
-              timestamp: timestamp,
-              queriedWord: word
-            });
-          }
-        });
-      return true;
-    },
-    
-    // 批量翻译文本
-    translateTexts: () => {
-      const texts = Array.isArray(message.texts) ? message.texts : [message.texts];
-      console.log('收到批量翻译请求，文本数量:', texts.length);
+      // 打开收藏夹
+      openFavorites: () => {
+        UI.openFavoritesPage();
+        sendResponse({ success: true });
+        return true;
+      },
       
-      getSettings()
-        .then(async (settings) => {
-          try {
-            const sourceLanguage = message.sourceLanguage || settings.sourceLanguage || 'auto';
-            const targetLanguage = message.targetLanguage || settings.targetLanguage || 'zh-CN';
-            const engine = message.engine || settings.translationEngine || 'google';
-            
-            const result = await handleBatchTranslation(texts, sourceLanguage, targetLanguage, {
-              isSubtitleRequest: message.isSubtitleRequest,
-              batchSize: message.batchSize,
-              engine: engine
-            });
-            
-            // 检查扩展上下文是否还有效
-            if (!chrome.runtime.id) {
-              console.error('扩展上下文已失效，无法发送翻译结果');
-              // 上下文已失效，无法发送响应
-              return;
+      // 收藏单词
+      collectWord: () => {
+        collectWord(message.source_text, message.source_lang)
+          .then(result => sendResponse({ success: true, data: result }))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+      },
+      
+      // 获取词典数据
+      fetchDictionary: () => {
+        const word = message.word;
+        const sourceLang = message.sourceLang || 'auto';
+        const targetLang = message.targetLang || 'zh-CN';
+        const timestamp = message.timestamp || Date.now(); // 获取时间戳，用于避免缓存
+        
+        console.log(`获取词典数据: ${word}, 源语言: ${sourceLang}, 目标语言: ${targetLang}, 时间戳: ${timestamp}`);
+        
+        // 将时间戳传递给fetchDictionaryData
+        fetchDictionaryData(word, sourceLang, targetLang, timestamp)
+          .then(result => {
+            // 确保扩展上下文有效再发送响应
+            if (chrome.runtime.id) {
+              // 添加时间戳和单词到响应中，便于调试
+              result.timestamp = timestamp;
+              result.queriedWord = word;
+              sendResponse(result);
             }
-            
-            sendResponse(result);
-          } catch (error) {
-            console.error('批量翻译过程出错:', error);
+          })
+          .catch(error => {
+            console.error('获取词典数据失败:', error);
+            // 确保扩展上下文有效再发送响应
+            if (chrome.runtime.id) {
+              sendResponse({ 
+                success: false, 
+                error: error.message || '获取词典数据失败',
+                timestamp: timestamp,
+                queriedWord: word
+              });
+            }
+          });
+        return true;
+      },
+      
+      // 批量翻译文本
+      translateTexts: () => {
+        const texts = Array.isArray(message.texts) ? message.texts : [message.texts];
+        console.log('收到批量翻译请求，文本数量:', texts.length);
+        
+        getSettings()
+          .then(async (settings) => {
+            try {
+              const sourceLanguage = message.sourceLanguage || settings.sourceLanguage || 'auto';
+              const targetLanguage = message.targetLanguage || settings.targetLanguage || 'zh-CN';
+              const engine = message.engine || settings.translationEngine || 'google';
+              
+              const result = await handleBatchTranslation(texts, sourceLanguage, targetLanguage, {
+                isSubtitleRequest: message.isSubtitleRequest,
+                batchSize: message.batchSize,
+                engine: engine
+              });
+              
+              // 检查扩展上下文是否还有效
+              if (!chrome.runtime.id) {
+                console.error('扩展上下文已失效，无法发送翻译结果');
+                // 上下文已失效，无法发送响应
+                return;
+              }
+              
+              sendResponse(result);
+            } catch (error) {
+              console.error('批量翻译过程出错:', error);
+              // 确保扩展上下文有效再发送响应
+              if (chrome.runtime.id) {
+                sendResponse({ 
+                  success: true, 
+                  translations: generateMockTranslations(texts) 
+                });
+              }
+            }
+          })
+          .catch((error) => {
+            console.error('获取设置失败:', error);
             // 确保扩展上下文有效再发送响应
             if (chrome.runtime.id) {
               sendResponse({ 
                 success: true, 
-                translations: generateMockTranslations(texts) 
+                translations: generateMockTranslations(texts), 
+                error: error.message || '获取设置失败' 
               });
             }
-          }
-        })
-        .catch((error) => {
-          console.error('获取设置失败:', error);
-          // 确保扩展上下文有效再发送响应
-          if (chrome.runtime.id) {
-            sendResponse({ 
-              success: true, 
-              translations: generateMockTranslations(texts), 
-              error: error.message || '获取设置失败' 
-            });
-          }
-        });
-      
-      return true;
-    },
-    
-    // 设置上下文图片URL
-    setContextImage: () => {
-      contextImageUrl = message.imageUrl;
-      sendResponse({ success: true });
-      return true;
-    },
-    
-    // 执行OCR识别
-    performOCR: () => {
-      performOCR(message.imageUrl)
-        .then(text => {
-          // 检查扩展上下文是否还有效
-          if (chrome.runtime.id) {
-            sendResponse({ success: true, text });
-          }
-        })
-        .catch(error => {
-          console.error('OCR识别失败:', error);
-          // 确保扩展上下文有效再发送响应
-          if (chrome.runtime.id) {
-            sendResponse({ success: false, error: error.message });
-          }
-        });
-      return true;
-    },
-    
-    // 从图片URL识别文字
-    OCR_FROM_IMAGE_URL: () => {
-      console.log("收到图片URL的OCR请求: ", message.imageUrl);
-      handleImageUrlOCR(message.imageUrl, message.ocrLang || 'auto')
-        .then(result => {
-          // 检查扩展上下文是否还有效
-          if (chrome.runtime.id) {
-            sendResponse({ success: true, text: result });
-          }
-        })
-        .catch(error => {
-          console.error("OCR处理失败:", error);
-          // 确保扩展上下文有效再发送响应
-          if (chrome.runtime.id) {
-            sendResponse({ success: false, error: error.toString() });
-          }
-        });
-      return true;
-    },
-    
-    // 设置API密钥
-    setApiKey: () => {
-      if (message.type && message.key) {
-        chrome.storage.sync.get(['apiKeys'], (result) => {
-          const apiKeys = result.apiKeys || {};
-          apiKeys[message.type] = message.key;
-          
-          chrome.storage.sync.set({ apiKeys }, () => {
-            console.log(`已更新 ${message.type} API密钥`);
-            
-            // 同步更新TRANSLATION_CONFIG配置
-            if (TRANSLATION_CONFIG.apiKeys) {
-              TRANSLATION_CONFIG.apiKeys[message.type] = message.key;
-            }
-            
-            sendResponse({ success: true });
           });
-        });
-        return true;
-      }
-      sendResponse({ success: false, error: '无效的API密钥数据' });
-      return true;
-    },
-    
-    // 更新AI配置
-    updateAiConfig: () => {
-      if (message.engine && message.config) {
-        console.log(`接收到${message.engine}配置更新:`, message.config);
         
-        // 更新本地配置
-        if (message.engine === 'openai') {
-          chrome.storage.sync.get(['openaiConfig'], (result) => {
-            const updatedConfig = { ...result.openaiConfig || {}, ...message.config };
-            
-            chrome.storage.sync.set({ openaiConfig: updatedConfig }, () => {
-              console.log('已更新OpenAI配置', updatedConfig);
-              sendResponse({ success: true });
-            });
-          });
-        } else if (message.engine === 'deepseek') {
-          chrome.storage.sync.get(['deepseekConfig'], (result) => {
-            const updatedConfig = { ...result.deepseekConfig || {}, ...message.config };
-            
-            chrome.storage.sync.set({ deepseekConfig: updatedConfig }, () => {
-              console.log('已更新DeepSeek配置', updatedConfig);
-              sendResponse({ success: true });
-            });
-          });
-        } else {
-          sendResponse({ success: false, error: '不支持的AI引擎类型' });
-        }
         return true;
-      }
-      sendResponse({ success: false, error: '无效的AI配置数据' });
-      return true;
-    },
-  };
-  
-  try {
-    // 执行对应处理函数或返回false
+      },
+      
+      // 设置上下文图片URL
+      setContextImage: () => {
+        contextImageUrl = message.imageUrl;
+        sendResponse({ success: true });
+        return true;
+      },
+      
+      // 执行OCR识别
+      performOCR: () => {
+        performOCR(message.imageUrl)
+          .then(text => {
+            // 检查扩展上下文是否还有效
+            if (chrome.runtime.id) {
+              sendResponse({ success: true, text });
+            }
+          })
+          .catch(error => {
+            console.error('OCR识别失败:', error);
+            // 确保扩展上下文有效再发送响应
+            if (chrome.runtime.id) {
+              sendResponse({ success: false, error: error.message });
+            }
+          });
+        return true;
+      },
+      
+      // 从图片URL识别文字
+      OCR_FROM_IMAGE_URL: () => {
+        console.log("收到图片URL的OCR请求: ", message.imageUrl);
+        handleImageUrlOCR(message.imageUrl, message.ocrLang || 'auto')
+          .then(result => {
+            // 检查扩展上下文是否还有效
+            if (chrome.runtime.id) {
+              sendResponse({ success: true, text: result });
+            }
+          })
+          .catch(error => {
+            console.error("OCR处理失败:", error);
+            // 确保扩展上下文有效再发送响应
+            if (chrome.runtime.id) {
+              sendResponse({ success: false, error: error.toString() });
+            }
+          });
+        return true;
+      },
+      
+      // 设置API密钥
+      setApiKey: () => {
+        if (message.type && message.key) {
+          chrome.storage.sync.get(['apiKeys'], (result) => {
+            const apiKeys = result.apiKeys || {};
+            apiKeys[message.type] = message.key;
+            
+            chrome.storage.sync.set({ apiKeys }, () => {
+              console.log(`已更新 ${message.type} API密钥`);
+              
+              // 同步更新TRANSLATION_CONFIG配置
+              if (TRANSLATION_CONFIG.apiKeys) {
+                TRANSLATION_CONFIG.apiKeys[message.type] = message.key;
+              }
+              
+              sendResponse({ success: true });
+            });
+          });
+          return true;
+        }
+        sendResponse({ success: false, error: '无效的API密钥数据' });
+        return true;
+      },
+      
+      // 更新AI配置
+      updateAiConfig: () => {
+        if (message.engine && message.config) {
+          console.log(`接收到${message.engine}配置更新:`, message.config);
+          
+          // 更新本地配置
+          if (message.engine === 'openai') {
+            openaiConfig = message.config || {};
+            console.log('更新OpenAI配置:', openaiConfig);
+          } else if (message.engine === 'deepseek') {
+            deepseekConfig = message.config || {};
+            console.log('更新DeepSeek配置:', deepseekConfig);
+          } else {
+            sendResponse({ success: false, error: '不支持的AI引擎类型' });
+          }
+          sendResponse({ success: true });
+          return true;
+        }
+        sendResponse({ success: false, error: '无效的AI配置数据' });
+        return true;
+      },
+    };
+    
     const handler = messageHandlers[message.action];
     return handler ? handler() : false;
   } catch (error) {
@@ -1455,10 +1471,14 @@ async function translateWithDeepSeek(texts, sourceLanguage, targetLanguage) {
                 content: userPrompt,
               },
             ],
+            // temperature: 0
             temperature: deepseekConfig.aiContext ? 0.4 : 0.7, // 根据上下文需求调整温度
           };
           
-          const response = await fetch(TRANSLATION_CONFIG.endpoints.deepseek, {
+          // 使用getEndpoint获取API端点
+          const apiUrl = getEndpoint('deepseek');
+          
+          const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2312,10 +2332,14 @@ async function translateWithOpenAI(texts, sourceLanguage, targetLanguage) {
                 content: userPrompt
               },
             ],
+            // temperature: 0
             temperature: openaiConfig.aiContext ? 0.4 : 0.3, // 根据上下文需求调整温度
           };
           
-          const response = await fetch(TRANSLATION_CONFIG.endpoints.openai, {
+          // 使用getEndpoint获取API端点
+          const apiUrl = getEndpoint('openai');
+          
+          const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2462,81 +2486,6 @@ async function translateWithOpenAI(texts, sourceLanguage, targetLanguage) {
     }
   }
 }
-
-// 初始化扩展
-init();
-
-// 监听来自content-script的消息
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // 支持简易的翻译请求格式
-  if (message.action === 'translate') {
-    console.log('收到简易翻译请求:', message);
-    
-    const text = message.text;
-    const sourceLanguage = message.from || 'auto';
-    const targetLanguage = message.to || 'zh-CN';
-    
-    // 获取存储的设置
-    chrome.storage.sync.get(null, (settings) => {
-      const engine = settings.translationEngine || 'google';
-      console.log('使用翻译引擎:', engine);
-      
-      // 根据引擎选择翻译方法
-      let translateFunction;
-      switch (engine.toLowerCase()) {
-        case 'microsoft':
-          translateFunction = translateWithMicrosoft;
-          break;
-        case 'microsoftapi':
-          translateFunction = translateWithMicrosoftAPI;
-          break;
-        case 'deepseek':
-          translateFunction = translateWithDeepSeek;
-          break;
-        case 'openai':
-          translateFunction = translateWithOpenAI;
-          break;
-        case 'google':
-        default:
-          translateFunction = translateWithGoogle;
-          break;
-      }
-      
-      // 调用选定的翻译方法
-      translateFunction(text, sourceLanguage, targetLanguage)
-        .then(translation => {
-          console.log('翻译成功:', translation);
-          sendResponse({
-            success: true,
-            translation: translation,
-            originalText: text,
-            source: engine
-          });
-        })
-        .catch(error => {
-          console.error('翻译失败:', error);
-          sendResponse({
-            success: false,
-            error: error.message || '翻译失败',
-            originalText: text
-          });
-        });
-      
-      // 返回true表示sendResponse将被异步调用
-      return true;
-    });
-    
-    // 返回true以保持消息通道开放，允许异步响应
-    return true;
-  } else if (message.action === 'translateTexts') {
-    // 处理现有的批量翻译请求
-    // (已有的代码会处理这种情况)
-    return handleMessage(message, sender, sendResponse);
-  } else {
-    // 其他消息类型
-    return handleMessage(message, sender, sendResponse);
-  }
-}); 
 
 // 字典API配置
 const DICTIONARY_CONFIG = {
@@ -3056,3 +3005,403 @@ function generateMockDictionaryData(word) {
     };
   }
 } 
+
+// Netflix 字幕获取器功能封装
+const NetflixSubtitleHandler = {
+  // 字幕 URL 正则表达式
+  SUBTITLE_URL_REGEX: /^https:\/\/.+?\.oca\.nflxvideo\.net\/\?([ovet]=[^=]+){4}$/,
+
+  // 保存当前找到的字幕
+  subtitles: {},
+  movieMetadata: {},
+  // 保存最新捕获的字幕URL - 仅在内存中保存，不存储到storage
+  latestSubtitleUrl: '',
+  // 保存当前活动的Netflix标签页ID
+  activeNetflixTabId: null,
+  // 字幕URL的捕获时间
+  captureTime: 0,
+
+  // 处理Netflix相关消息
+  handleMessage: function(message, sender, sendResponse) {
+    console.log('[Netflix 字幕获取器] 收到消息:', message);
+    
+    if (!message || typeof message !== 'object') {
+      console.log('[Netflix 字幕获取器] 收到无效消息');
+      return false;
+    }
+
+    // 记录消息类型，即使是undefined
+    console.log('[Netflix 字幕获取器] 收到消息类型:', message.type || 'undefined');
+    
+    switch (message.type) {
+      case 'METADATA_FOUND': {
+        // 保存视频元数据
+        this.movieMetadata[message.data.movieId] = message.data;
+        console.log('[Netflix 字幕获取器] 保存了视频元数据:', message.data);
+        break;
+      }
+        
+      case 'SUBTITLE_FOUND': {
+        // 保存字幕数据
+        const { url, content } = message.data;
+        this.subtitles[url] = content;
+        console.log('[Netflix 字幕获取器] 保存了字幕:', url);
+        
+        // 字幕数据仅保存在内存中，不再存储到storage
+        break;
+      }
+        
+      case 'GET_SUBTITLE_AS_SRT': {
+        // 获取 SRT 格式的字幕
+        const subtitleUrl = message.data.url;
+        const subtitleContent = this.subtitles[subtitleUrl];
+        
+        if (subtitleContent) {
+          try {
+            // 使用字幕解析器解析
+            const parsedSubtitles = this.parseNetflixSubtitle(subtitleContent);
+            // 转换为 SRT 格式
+            const srtContent = this.convertToSRT(parsedSubtitles);
+            sendResponse({ success: true, srtContent });
+          } catch (error) {
+            console.error('[Netflix 字幕获取器] 转换字幕错误:', error);
+            sendResponse({ success: false, error: error.message });
+          }
+        } else {
+          sendResponse({ success: false, error: '字幕不存在' });
+        }
+        return true;
+      }
+        
+      case 'GET_METADATA': {
+        // 处理获取元数据的请求
+        sendResponse({ metadata: this.movieMetadata });
+        return true;
+      }
+        
+      case 'GET_NETFLIX_SUBTITLES': {
+        // 处理获取Netflix字幕的请求
+        sendResponse({ 
+          success: true, 
+          subtitles: this.subtitles,
+          metadata: this.movieMetadata
+        });
+        return true;
+      }
+        
+      case 'CHECK_SUBTITLE_AVAILABLE': {
+        // 检查是否有可用的字幕
+        const hasSubtitles = Object.keys(this.subtitles).length > 0;
+        sendResponse({ 
+          success: true, 
+          available: hasSubtitles,
+          count: Object.keys(this.subtitles).length
+        });
+        return true;
+      }
+        
+      case 'GET_LATEST_SUBTITLE_URL': {
+        // 提供最新捕获的字幕URL (仅从内存中获取)
+        // 检查URL是否过期 (10分钟)
+        const isExpired = this.captureTime && (Date.now() - this.captureTime > 10 * 60 * 1000);
+        
+        if (isExpired) {
+          console.log('[Netflix 字幕获取器] 字幕URL已过期，需要刷新页面');
+          this.latestSubtitleUrl = '';
+        }
+        
+        sendResponse({ 
+          success: true, 
+          url: this.latestSubtitleUrl,
+          hasUrl: !!this.latestSubtitleUrl,
+          captureTime: this.captureTime,
+          timeAgo: this.captureTime ? Math.round((Date.now() - this.captureTime) / 1000) + '秒前' : '未知'
+        });
+        return true;
+      }
+      
+      case 'NETFLIX_PAGE_LOADED': {
+        // Netflix页面加载完成，设置当前活动标签页
+        if (sender.tab && sender.tab.id) {
+          this.activeNetflixTabId = sender.tab.id;
+          console.log('[Netflix 字幕获取器] Netflix页面加载，标签页ID:', sender.tab.id);
+          
+          // 页面加载后清理字幕URL，强制重新捕获
+          this.clearSubtitleUrl();
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+      
+      case 'CLEAR_SUBTITLE_CACHE': {
+        // 清理字幕缓存
+        this.clearSubtitleData();
+        sendResponse({ success: true });
+        return true;
+      }
+        
+      default:
+        // 不是Netflix相关消息，让其他处理器处理
+        return false;
+    }
+    
+    // 默认情况下返回true，表示已处理
+    return true;
+  },
+
+  // 清理字幕数据
+  clearSubtitleData: function() {
+    console.log('[Netflix 字幕获取器] 清理字幕数据');
+    this.clearSubtitleUrl();
+    this.subtitles = {};
+    this.movieMetadata = {};
+  },
+  
+  // 仅清理字幕URL
+  clearSubtitleUrl: function() {
+    console.log('[Netflix 字幕获取器] 清理字幕URL');
+    this.latestSubtitleUrl = '';
+    this.captureTime = 0;
+  },
+
+  // 处理请求
+  handleRequest: function(details) {
+    if (this.isSubtitleRequest(details.url)) {
+      const now = Date.now();
+      console.log('[Netflix 字幕获取器] 发现字幕请求:', details.url);
+      console.log('[Netflix 字幕获取器] 请求详情:', {
+        tabId: details.tabId,
+        frameId: details.frameId,
+        requestId: details.requestId,
+        timeStamp: new Date(details.timeStamp).toISOString()
+      });
+      
+      // 仅在内存中保存最新的字幕URL
+      this.latestSubtitleUrl = details.url;
+      this.captureTime = now;
+      
+      // 通知内容脚本有新的字幕URL
+      if (details.tabId > 0) {
+        chrome.tabs.sendMessage(details.tabId, {
+          type: 'NEW_SUBTITLE_URL_CAPTURED',
+          url: details.url,
+          captureTime: now
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.log('[Netflix 字幕获取器] 无法通知内容脚本:', chrome.runtime.lastError.message);
+          }
+        });
+      }
+    }
+    return { cancel: false };
+  },
+
+  // 处理响应
+  handleResponse: function(details) {
+    if (this.isSubtitleRequest(details.url)) {
+      console.log('[Netflix 字幕获取器] 接收到字幕响应:', details.url);
+      console.log('[Netflix 字幕获取器] 响应详情:', {
+        tabId: details.tabId,
+        statusCode: details.statusCode,
+        timeStamp: new Date(details.timeStamp).toISOString()
+      });
+    }
+  },
+
+  // 检查 URL 是否是字幕请求
+  isSubtitleRequest: function(url) {
+    const isSubtitle = this.SUBTITLE_URL_REGEX.test(url);
+    if (isSubtitle) {
+      console.log('[Netflix 字幕获取器] URL匹配字幕模式:', url);
+    }
+    return isSubtitle;
+  },
+
+  // 从 subtitle-parser.js 中引入的函数
+  parseNetflixSubtitle: function(content) {
+    try {
+      return window.parseNetflixSubtitle ? window.parseNetflixSubtitle(content) : [];
+    } catch (e) {
+      console.warn('[Netflix 字幕获取器] 字幕解析器尚未加载');
+      return [];
+    }
+  },
+
+  convertToSRT: function(subtitles) {
+    try {
+      return window.convertToSRT ? window.convertToSRT(subtitles) : '';
+    } catch (e) {
+      console.warn('[Netflix 字幕获取器] 字幕解析器尚未加载');
+      return '';
+    }
+  },
+
+  // 设置网络请求监听器
+  setupNetworkListeners: function() {
+    console.log('[Netflix 字幕获取器] 设置网络请求监听器');
+    
+    // 检查webRequest API是否可用
+    if (!chrome.webRequest) {
+      console.error('[Netflix 字幕获取器] webRequest API不可用，无法监听网络请求');
+      return;
+    }
+    
+    const boundHandleRequest = this.handleRequest.bind(this);
+    const boundHandleResponse = this.handleResponse.bind(this);
+    
+    // 移除旧的监听器（如果存在）
+    chrome.webRequest.onBeforeRequest.removeListener(boundHandleRequest);
+    chrome.webRequest.onCompleted.removeListener(boundHandleResponse);
+    
+    // 添加新的监听器
+    chrome.webRequest.onBeforeRequest.addListener(
+      boundHandleRequest,
+      { urls: ["*://*.nflxvideo.net/*"] },
+      ["requestBody"]
+    );
+    
+    chrome.webRequest.onCompleted.addListener(
+      boundHandleResponse,
+      { urls: ["*://*.nflxvideo.net/*"] },
+      ["responseHeaders"]
+    );
+    
+    console.log('[Netflix 字幕获取器] 网络请求监听器设置完成');
+  },
+
+  // 设置标签页监听器
+  setupTabListeners: function() {
+    console.log('[Netflix 字幕获取器] 设置标签页监听器');
+    
+    // 监听标签页更新事件
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      // 检查是否是Netflix页面
+      if (tab.url && tab.url.includes('netflix.com/watch/')) {
+        if (changeInfo.status === 'loading') {
+          console.log('[Netflix 字幕获取器] Netflix页面正在加载，清理旧数据');
+          // 页面开始加载时清理旧的字幕URL
+          this.clearSubtitleUrl();
+        } else if (changeInfo.status === 'complete') {
+          console.log('[Netflix 字幕获取器] Netflix页面加载完成');
+          this.activeNetflixTabId = tabId;
+        }
+      }
+    });
+    
+    // 监听标签页关闭事件
+    chrome.tabs.onRemoved.addListener((tabId) => {
+      if (tabId === this.activeNetflixTabId) {
+        console.log('[Netflix 字幕获取器] Netflix标签页已关闭，清理数据');
+        this.clearSubtitleData();
+        this.activeNetflixTabId = null;
+      }
+    });
+    
+    // 监听导航事件
+    chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+      // 检查是否是Netflix页面内的导航（切换视频）
+      if (details.url && details.url.includes('netflix.com/watch/')) {
+        console.log('[Netflix 字幕获取器] 检测到Netflix页面内导航，清理字幕URL');
+        this.clearSubtitleUrl();
+      }
+    }, { url: [{ hostContains: 'netflix.com' }] });
+  },
+
+  // 初始化Netflix字幕功能
+  initialize: async function() {
+    console.log('[Netflix 字幕获取器] 后台脚本已加载');
+    
+    try {
+      // 设置网络请求监听器
+      try {
+        this.setupNetworkListeners();
+      } catch (error) {
+        console.error('[Netflix 字幕获取器] 设置网络请求监听器失败:', error);
+      }
+      
+      // 设置标签页监听器
+      try {
+        this.setupTabListeners();
+      } catch (error) {
+        console.error('[Netflix 字幕获取器] 设置标签页监听器失败:', error);
+      }
+    } catch (error) {
+      console.error('[Netflix 字幕获取器] 初始化过程出错:', error);
+    }
+  }
+};
+
+// 初始化扩展
+init();
+
+// 添加支持简易的翻译请求格式
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // 支持简易的翻译请求格式
+  if (message.action === 'translate') {
+    console.log('收到简易翻译请求:', message);
+    
+    const text = message.text;
+    const sourceLanguage = message.from || 'auto';
+    const targetLanguage = message.to || 'zh-CN';
+    
+    // 获取存储的设置
+    chrome.storage.sync.get(null, (settings) => {
+      const engine = settings.translationEngine || 'google';
+      console.log('使用翻译引擎:', engine);
+      
+      // 根据引擎选择翻译方法
+      let translateFunction;
+      switch (engine.toLowerCase()) {
+        case 'microsoft':
+          translateFunction = translateWithMicrosoft;
+          break;
+        case 'microsoftapi':
+          translateFunction = translateWithMicrosoftAPI;
+          break;
+        case 'deepseek':
+          translateFunction = translateWithDeepSeek;
+          break;
+        case 'openai':
+          translateFunction = translateWithOpenAI;
+          break;
+        case 'google':
+        default:
+          translateFunction = translateWithGoogle;
+          break;
+      }
+      
+      // 调用选定的翻译方法
+      translateFunction(text, sourceLanguage, targetLanguage)
+        .then(translation => {
+          console.log('翻译成功:', translation);
+          sendResponse({
+            success: true,
+            translation: translation,
+            originalText: text,
+            source: engine
+          });
+        })
+        .catch(error => {
+          console.error('翻译失败:', error);
+          sendResponse({
+            success: false,
+            error: error.message || '翻译失败',
+            originalText: text
+          });
+        });
+      
+      // 返回true表示sendResponse将被异步调用
+      return true;
+    });
+    
+    // 返回true以保持消息通道开放，允许异步响应
+    return true;
+  } else if (message.action === 'translateTexts') {
+    // 处理现有的批量翻译请求
+    // (已有的代码会处理这种情况)
+    return handleMessage(message, sender, sendResponse);
+  } else {
+    // 其他消息类型
+    return handleMessage(message, sender, sendResponse);
+  }
+}); 

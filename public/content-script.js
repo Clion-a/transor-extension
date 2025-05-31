@@ -9,12 +9,13 @@ let translationSettings = {
   targetLanguage: 'zh-CN',
   sourceLanguage: 'auto',
   translationEngine: 'microsoft',
-  translationStyle: 'universal',
+  translationStyle: 'universal_style',
   excludedTags: ['code', 'pre', 'script', 'style'],
   excludedClasses: ['no-translate'],
   customCss: '',
   enableSelectionTranslator: true,
-  enableInputSpaceTranslation: true
+  enableInputSpaceTranslation: true,
+  fontColor: '#ff5588' // 添加字体颜色设置
 };
 
 // 翻译缓存
@@ -390,6 +391,9 @@ async function loadSettings() {
       if (result.excludedClasses) translationSettings.excludedClasses = result.excludedClasses;
       if (result.customCss) translationSettings.customCss = result.customCss;
       
+      // 添加字体颜色设置
+      if (result.fontColor) translationSettings.fontColor = result.fontColor;
+      
       // 特别注意这个设置
       if (result.enableInputSpaceTranslation !== undefined) {
         console.log('发现空格翻译功能设置:', result.enableInputSpaceTranslation);
@@ -403,6 +407,7 @@ async function loadSettings() {
       console.log('- 翻译开关(isEnabled):', prevSettings.isEnabled, '->', translationSettings.isEnabled);
       console.log('- 空格翻译(enableInputSpaceTranslation):', prevSettings.enableInputSpaceTranslation, 
                   '->', translationSettings.enableInputSpaceTranslation);
+      console.log('- 字体颜色(fontColor):', prevSettings.fontColor, '->', translationSettings.fontColor);
       
       console.log('所有设置已加载完成:', translationSettings);
       resolve();
@@ -415,6 +420,9 @@ function injectStyles() {
   // 创建CSS样式
   const style = document.createElement('style');
   style.id = 'transor-styles';
+  
+  // 使用配置的字体颜色或默认值
+  const fontColor = translationSettings.fontColor || '#ff5588';
   
   let css = `
     .transor-translation {
@@ -430,7 +438,7 @@ function injectStyles() {
     
     /* 内联翻译文本 */
     .transor-inline-text {
-      color: #ff5588;
+      color: ${fontColor};
       margin-left: 0.25em;
     }
     
@@ -446,7 +454,7 @@ function injectStyles() {
     
     /* 双语模式的翻译文本 */
     .transor-bilingual-text {
-      color: #ff5588;
+      color: ${fontColor};
       margin-top: 5px;
       display: block;
     }
@@ -467,7 +475,7 @@ function injectStyles() {
       display: inline-block;
       width: 6px;
       height: 6px;
-      background-color: #ff5588;
+      background-color: ${fontColor};
       border-radius: 50%;
       margin-left: 3px;
       vertical-align: super;
@@ -2506,219 +2514,266 @@ function setupGlobalEventListeners() {
 // 在文件开头添加这个全局函数
 // 添加tip功能的全局处理函数 - 使用最简单直接的方法
 function setupGlobalTipSystem() {
-  // 如果已经设置过，则不重复设置
-  if (window.tipSystemInitialized) return;
-  
-  // 标记为已初始化
-  window.tipSystemInitialized = true;
-  
-  // 当前激活的提示元素
-  let activeElement = null;
-  let activePopup = null;
-  
-  // 全局鼠标移动监听
-  document.addEventListener('mouseover', function(e) {
-    const tipElement = e.target.closest('.transor-tip');
-    
-    // 如果鼠标移到了tip元素上
-    if (tipElement) {
-      // 查找关联的popup
-      const popupId = tipElement.getAttribute('data-popup-id');
-      if (!popupId) return;
-      
-      const popup = document.getElementById(popupId);
-      if (!popup) return;
-      
-      // 更新当前激活的元素
-      activeElement = tipElement;
-      activePopup = popup;
-      
-      // 显示提示
-      popup.classList.add('active');
-      
-      // 更新位置
-      updateTipPosition(tipElement, popup);
-    }
-  }, true);
-  
-  // 全局鼠标移出监听
-  document.addEventListener('mouseout', function(e) {
-    const tipElement = e.target.closest('.transor-tip');
-    
-    // 只处理从tip元素移出，且不是移到其子元素的情况
-    if (tipElement && !tipElement.contains(e.relatedTarget)) {
-      const popupId = tipElement.getAttribute('data-popup-id');
-      if (!popupId) return;
-      
-      const popup = document.getElementById(popupId);
-      if (!popup) return;
-      
-      // 隐藏提示
-      popup.classList.remove('active');
-      
-      // 清除当前激活的元素
-      if (activeElement === tipElement) {
-        activeElement = null;
-        activePopup = null;
-      }
-    }
-  }, true);
-  
-  // 全局滚动监听
-  window.addEventListener('scroll', function() {
-    // 如果有激活的提示，更新位置
-    if (activeElement && activePopup) {
-      updateTipPosition(activeElement, activePopup);
-    }
-  }, { passive: true });
-  
-  // 全局窗口大小变化监听
-  window.addEventListener('resize', function() {
-    // 如果有激活的提示，更新位置
-    if (activeElement && activePopup) {
-      updateTipPosition(activeElement, activePopup);
-    }
-  }, { passive: true });
-  
-  // 更新提示位置的函数
-  function updateTipPosition(element, popup) {
-    // 检查元素是否仍在DOM中
-    if (!document.body.contains(element) || !document.body.contains(popup)) {
-      // 如果不在，隐藏提示并清除激活状态
-      popup.classList.remove('active');
-      if (activeElement === element) {
-        activeElement = null;
-        activePopup = null;
-      }
-      return;
-    }
-    
-    // 获取元素位置
-    const rect = element.getBoundingClientRect();
-    
-    // 检查元素是否在视口内
-    if (rect.right < 0 || rect.left > window.innerWidth || rect.bottom < 0 || rect.top > window.innerHeight) {
-      // 如果不在视口内，隐藏提示
-      popup.classList.remove('active');
-      return;
-    }
-    
-    // 获取滚动偏移量
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    
-    // 计算提示框位置，添加滚动偏移量
-    const offsetY = 10;
-    let top = rect.bottom + scrollTop + offsetY;
-    let left = rect.left + scrollLeft + (rect.width / 2);
-    
-    // 检查提示框的尺寸
-    const popupWidth = popup.offsetWidth || 200; // 默认宽度
-    const popupHeight = popup.offsetHeight || 100; // 默认高度
-    
-    // 确保提示框在视口内
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    
-    // 如果提示框超出视口底部，显示在元素上方
-    if (top + popupHeight > viewportHeight + scrollTop) {
-      top = rect.top + scrollTop - popupHeight - offsetY;
-    }
-    
-    // 如果提示框超出视口右侧，向左调整
-    if (left + (popupWidth / 2) > viewportWidth + scrollLeft) {
-      left = viewportWidth + scrollLeft - popupWidth - 10;
-    }
-    
-    // 如果提示框超出视口左侧，向右调整
-    if (left - (popupWidth / 2) < scrollLeft) {
-      left = scrollLeft + popupWidth / 2 + 10;
-    }
-    
-    // 应用定位，不使用fixed定位
-    popup.style.position = 'absolute';
-    popup.style.left = left + 'px';
-    popup.style.top = top + 'px';
-    popup.style.transform = 'translateX(-50%)';
+  // 如果已存在，不重复创建
+  if (window.transorTipSystem) {
+    return window.transorTipSystem;
   }
   
-  // 更新CSS样式
-  const styleElement = document.createElement('style');
-  styleElement.id = 'transor-tip-system-styles';
-  styleElement.textContent = `
+  // 创建tooltip样式
+  const style = document.createElement('style');
+  style.id = 'transor-tip-styles';
+  
+  // 使用配置的字体颜色
+  const fontColor = translationSettings.fontColor || '#ff5588';
+  
+  style.textContent = `
     .transor-tip-popup {
-      visibility: hidden;
-      position: absolute; /* 使用绝对定位，适应滚动 */
-      background-color: rgba(255, 255, 255, 0.95);
-      color: #333;
-      text-align: left;
-      padding: 10px 14px;
-      border-radius: 8px;
+      position: absolute;
+      display: none;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px 12px;
       font-size: 14px;
       line-height: 1.5;
-      z-index: 10000; /* 提高层级确保在最上层 */
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      width: max-content;
-      max-width: 350px;
-      white-space: normal;
-      word-break: break-word;
-      transition: opacity 0.3s, transform 0.3s;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+      z-index: 99999;
+      max-width: 300px;
+      overflow-wrap: break-word;
+      pointer-events: none;
       opacity: 0;
-      transform: translateY(10px) translateX(-50%);
-      pointer-events: none; /* 防止鼠标事件影响其他元素 */
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(66, 185, 131, 0.15);
+      transition: opacity 0.2s;
+      color: #333;
+      /* 设置与文字颜色相关的边框 */
+      border-left: 3px solid ${fontColor};
     }
     
-    .transor-tip-popup.active {
-      visibility: visible;
+    .transor-tip-popup.shown {
+      display: block;
       opacity: 1;
-      transform: translateY(0) translateX(-50%);
-    }
-    
-    /* 针对不同浏览器的样式优化 */
-    @supports not (backdrop-filter: blur(10px)) {
-      .transor-tip-popup {
-        background-color: rgba(255, 255, 255, 0.98);
-      }
     }
     
     /* 暗色主题支持 */
     @media (prefers-color-scheme: dark) {
       .transor-tip-popup {
-        background-color: rgba(40, 44, 52, 0.9);
-        color: #e4e4e4;
-        border-color: rgba(66, 185, 131, 0.2);
+        background: #2c2c2c;
+        border-color: #444;
+        color: #eee;
+        border-left: 3px solid ${fontColor};
       }
-    }
-    
-    /* 禁止翻译tip弹出框内容 */
-    .transor-tip-popup span,
-    .transor-tip-popup div,
-    .transor-tip-popup p,
-    .transor-tip-popup * {
-      border-bottom: none !important;
-      text-decoration: none !important;
     }
   `;
   
-  // 插入样式
-  document.head.appendChild(styleElement);
+  document.head.appendChild(style);
   
-  // 修改滚动监听的频率，使其更平滑
-  let scrollFrameRequested = false;
-  
-  window.addEventListener('scroll', function() {
-    // 使用requestAnimationFrame限制更新频率
-    if (!scrollFrameRequested && activeElement && activePopup) {
-      scrollFrameRequested = true;
-      requestAnimationFrame(function() {
-        updateTipPosition(activeElement, activePopup);
-        scrollFrameRequested = false;
+  // 保留现有tipSystem对象的代码
+  window.transorTipSystem = {
+    initialized: false,
+    tips: new Map(),
+    activeEl: null,
+    
+    init() {
+      if (this.initialized) return;
+      this.initialized = true;
+      
+      // 添加全局事件监听
+      document.addEventListener('mouseover', this.handleGlobalMouseOver.bind(this));
+      document.addEventListener('mouseout', this.handleGlobalMouseOut.bind(this));
+      document.addEventListener('click', this.handleGlobalClick.bind(this));
+      window.addEventListener('scroll', this.handleScroll.bind(this), { passive: true });
+      window.addEventListener('resize', this.handleResize.bind(this), { passive: true });
+      
+      console.log('Transor tip系统已初始化');
+    },
+    
+    registerTip(element, popup) {
+      if (!element) return;
+      
+      // 如果传入的是文本而不是DOM元素，创建一个popup元素
+      if (typeof popup === 'string') {
+        const popupEl = document.createElement('div');
+        popupEl.className = 'transor-tip-popup';
+        popupEl.textContent = popup;
+        popup = popupEl;
+        document.body.appendChild(popupEl);
+      }
+      
+      // 生成唯一ID以关联元素和popup
+      const id = 'tip-' + Math.random().toString(36).substr(2, 9);
+      element.setAttribute('data-tip-id', id);
+      popup.setAttribute('data-tip-id', id);
+      
+      // 存储关联信息
+      this.tips.set(element, { popup, id });
+      
+      // 确保系统已初始化
+      if (!this.initialized) {
+        this.init();
+      }
+    },
+    
+    unregisterTip(element) {
+      if (!element) return;
+      
+      const tipInfo = this.tips.get(element);
+      if (tipInfo) {
+        const { popup } = tipInfo;
+        if (popup && popup.parentNode) {
+          popup.parentNode.removeChild(popup);
+        }
+        this.tips.delete(element);
+      }
+    },
+    
+    showTip(element) {
+      if (!element) return;
+      
+      const tipInfo = this.tips.get(element);
+      if (!tipInfo) return;
+      
+      const { popup } = tipInfo;
+      if (!popup) return;
+      
+      // 隐藏当前激活的提示
+      this.hideAllTips();
+      
+      // 设置当前激活的元素
+      this.activeEl = element;
+      
+      // 显示提示
+      popup.classList.add('shown');
+      this.updateTipPosition({ element, popup });
+    },
+    
+    hideTip(element) {
+      if (!element) return;
+      
+      const tipInfo = this.tips.get(element);
+      if (!tipInfo) return;
+      
+      const { popup } = tipInfo;
+      if (!popup) return;
+      
+      // 隐藏提示
+      popup.classList.remove('shown');
+      
+      // 清除当前激活的元素
+      if (this.activeEl === element) {
+        this.activeEl = null;
+      }
+    },
+    
+    hideAllTips() {
+      // 隐藏所有提示
+      document.querySelectorAll('.transor-tip-popup.shown').forEach(popup => {
+        popup.classList.remove('shown');
       });
+      this.activeEl = null;
+    },
+    
+    updateTipPosition(item) {
+      const { element, popup } = item;
+      
+      // 检查元素是否仍在DOM中
+      if (!document.body.contains(element) || !document.body.contains(popup)) {
+        popup.classList.remove('shown');
+        if (this.activeEl === element) {
+          this.activeEl = null;
+        }
+        return;
+      }
+      
+      // 获取元素位置
+      const rect = element.getBoundingClientRect();
+      
+      // 检查元素是否在视口内
+      if (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) {
+        popup.classList.remove('shown');
+        return;
+      }
+      
+      // 获取滚动偏移量
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+      
+      // 计算提示位置
+      const top = rect.bottom + scrollTop + 5; // 元素下方5px
+      let left = rect.left + scrollLeft + (rect.width / 2);
+      
+      // 确保提示不超出视口
+      const viewportWidth = window.innerWidth;
+      const popupWidth = popup.offsetWidth;
+      
+      if (left + (popupWidth / 2) > viewportWidth) {
+        left = viewportWidth - (popupWidth / 2) - 10;
+      }
+      
+      if (left - (popupWidth / 2) < 0) {
+        left = popupWidth / 2 + 10;
+      }
+      
+      // 应用位置
+      popup.style.left = `${left}px`;
+      popup.style.top = `${top}px`;
+      popup.style.transform = 'translateX(-50%)';
+    },
+    
+    handleGlobalMouseOver(e) {
+      const tipElement = e.target.closest('.transor-tip');
+      if (tipElement) this.showTip(tipElement);
+    },
+    
+    handleGlobalMouseOut(e) {
+      const tipElement = e.target.closest('.transor-tip');
+      if (tipElement && !tipElement.contains(e.relatedTarget)) {
+        this.hideTip(tipElement);
+      }
+    },
+    
+    handleGlobalClick(e) {
+      const tipElement = e.target.closest('.transor-tip');
+      if (!tipElement) this.hideAllTips();
+    },
+    
+    handleScroll() {
+      if (this.activeEl) {
+        const tipInfo = this.tips.get(this.activeEl);
+        if (tipInfo) {
+          this.updateTipPosition({ element: this.activeEl, popup: tipInfo.popup });
+        }
+      }
+    },
+    
+    handleResize() {
+      if (this.activeEl) {
+        const tipInfo = this.tips.get(this.activeEl);
+        if (tipInfo) {
+          this.updateTipPosition({ element: this.activeEl, popup: tipInfo.popup });
+        }
+      }
+    },
+    
+    cleanup() {
+      // 移除所有事件监听
+      document.removeEventListener('mouseover', this.handleGlobalMouseOver);
+      document.removeEventListener('mouseout', this.handleGlobalMouseOut);
+      document.removeEventListener('click', this.handleGlobalClick);
+      window.removeEventListener('scroll', this.handleScroll);
+      window.removeEventListener('resize', this.handleResize);
+      
+      // 清除所有提示
+      this.tips.forEach((tipInfo, element) => {
+        this.unregisterTip(element);
+      });
+      
+      this.initialized = false;
     }
-  }, { passive: true });
+  };
+  
+  // 初始化提示系统
+  window.transorTipSystem.init();
+  
+  return window.transorTipSystem;
 }
 
 // 输入框内容翻译功能 - 用于检测三个连续空格并触发翻译
@@ -3694,7 +3749,7 @@ function applyStylePreservingTranslation(nodes, originalText, translatedText) {
   const userSetTranslationStyle = translationSettings.translationStyle || 'inline';
   
   // 如果用户设置的是"通用"样式，根据规则动态选择显示样式
-  if (userSetTranslationStyle === 'universal') {
+  if (userSetTranslationStyle === 'universal_style') {
     // 计算单词数
     const wordCount = countWords(originalText);
     console.log(`文本 "${originalText.substring(0, 30)}..." 的单词数: ${wordCount}`);
@@ -3731,57 +3786,42 @@ function applyStylePreservingTranslation(nodes, originalText, translatedText) {
   }
 }
 
-// Tip样式翻译应用
+// 提示样式翻译应用 - 用于导航栏、小元素等
 function applyTipStyleTranslation(commonParent, originalText, translatedText) {
+  // 使用全局的颜色设置
+  const fontColor = translationSettings.fontColor || '#ff5588';
+  
   // 创建翻译容器
   const translationWrapper = document.createElement('span');
   translationWrapper.classList.add('transor-translation', 'transor-tip');
   translationWrapper.setAttribute('data-original-text', originalText);
+  translationWrapper.setAttribute('data-translated-text', translatedText);
   
-  // 将原始内容移动到翻译容器中，保持原样
+  // 将原始内容移动到翻译容器中
   while (commonParent.firstChild) {
     translationWrapper.appendChild(commonParent.firstChild);
   }
   
-  // 检查元素是否有no-translate类，只有没有这个类时才添加小指示器
-  const hasNoTranslateClass = commonParent.classList && commonParent.classList.contains('no-translate');
-  // 递归检查父元素是否有no-translate类
-  const parentHasNoTranslateClass = commonParent.closest && commonParent.closest('.no-translate');
+  // 添加小圆点指示器
+  const indicator = document.createElement('span');
+  indicator.classList.add('transor-tip-indicator');
+  indicator.style.backgroundColor = fontColor;
+  translationWrapper.appendChild(indicator);
   
-  // 只有当元素和其父元素都没有no-translate类时，才添加指示器
-  if (!hasNoTranslateClass && !parentHasNoTranslateClass) {
-    // 添加小指示器
-    const indicator = document.createElement('span');
-    indicator.className = 'transor-tip-indicator';
-    translationWrapper.appendChild(indicator);
-  }
-  
-  // 创建tip弹出框
-  const popup = document.createElement('div');
-  popup.className = 'transor-tip-popup';
-  popup.textContent = translatedText;
-  
-  // 生成唯一ID
-  const popupId = 'transor-popup-' + Math.random().toString(36).substr(2, 9);
-  popup.id = popupId;
-  translationWrapper.setAttribute('data-popup-id', popupId);
-  
-  // 将翻译容器和弹出框添加到DOM
+  // 添加到父元素
   commonParent.appendChild(translationWrapper);
-  document.body.appendChild(popup);
   
-  // 确保Tip系统已初始化，然后注册元素
+  // 使用全局的Tip系统添加提示泡泡
   if (window.transorTipSystem) {
-    // 如果系统还未初始化，先初始化
-    if (!window.transorTipSystem.initialized) {
-      window.transorTipSystem.init();
-    }
-    window.transorTipSystem.registerTip(translationWrapper, popup);
+    window.transorTipSystem.registerTip(translationWrapper, translatedText);
   }
 }
 
 // 双语样式翻译应用
 function applyBilingualStyleTranslation(commonParent, originalText, translatedText) {
+  // 使用全局的颜色设置
+  const fontColor = translationSettings.fontColor || '#ff5588';
+  
   const translationWrapper = document.createElement('div');
   translationWrapper.classList.add('transor-translation', 'transor-bilingual');
   translationWrapper.setAttribute('data-original-text', originalText);
@@ -3799,6 +3839,7 @@ function applyBilingualStyleTranslation(commonParent, originalText, translatedTe
   const translationSpan = document.createElement('div');
   translationSpan.classList.add('transor-bilingual-text');
   translationSpan.textContent = translatedText;
+  translationSpan.style.color = fontColor;
   
   // 先添加原文，再添加翻译文本（在下方显示）
   translationWrapper.appendChild(originalContainer);
@@ -3809,6 +3850,9 @@ function applyBilingualStyleTranslation(commonParent, originalText, translatedTe
 
 // 内联样式翻译应用（默认）
 function applyInlineStyleTranslation(commonParent, originalText, translatedText) {
+  // 使用全局的颜色设置
+  const fontColor = translationSettings.fontColor || '#ff5588';
+  
   // 创建翻译容器
   const translationWrapper = document.createElement('span');
   translationWrapper.classList.add('transor-translation', 'transor-inline');
@@ -3823,6 +3867,7 @@ function applyInlineStyleTranslation(commonParent, originalText, translatedText)
   const translationSpan = document.createElement('span');
   translationSpan.classList.add('transor-inline-text');
   translationSpan.textContent = ` (${translatedText})`;
+  translationSpan.style.color = fontColor;
   
   translationWrapper.appendChild(translationSpan);
   commonParent.appendChild(translationWrapper);

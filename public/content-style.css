@@ -24,7 +24,7 @@
   position: relative !important;
   text-decoration: underline !important;
   text-decoration-style: dotted !important;
-  text-decoration-color: #ff5588 !important;
+  /* 颜色由JavaScript动态生成 */
 }
 
 .transor-hover-content {

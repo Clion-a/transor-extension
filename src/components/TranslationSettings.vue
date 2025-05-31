@@ -64,7 +64,7 @@
     <div class="settings-group">
       <div class="service-selector">
         <div class="setting-label">{{ $t('translation_service') }}</div>
-        <el-select v-model="transEngine" size="large" class="dark-select">
+        <el-select v-model="transEngine" size="large" class="dark-select" @change="handleEngineChange">
           <el-option label="Microsoft API" value="microsoftapi">
             <div class="option-with-icon">
               <span>Microsoft API</span>
@@ -92,100 +92,86 @@
           </el-option>
         </el-select>
       </div>
+
+      <!-- 提示设置API Key的消息和链接 -->
+      <div class="api-key-notice" v-if="showApiKeyNotice">
+        <div class="api-key-notice-message">
+          <i class="el-icon-warning-outline"></i>
+          {{ $t('apiKeyRequired') }} 
+          <a href="#" @click="openOptionsPage">{{ $t('goToSettings') }}</a>
+        </div>
+      </div>
     </div>
 
-    <!-- 新增DeepSeek API密钥设置区域 -->
-    <div class="settings-group" v-if="transEngine === 'deepseek'">
-      <div class="api-key-input">
-        <div class="setting-label">{{ $t('deepseek_api_key') }}</div>
-        <el-input 
-          v-model="deepseekApiKey" 
-          size="large" 
-          :placeholder="$t('enter_deepseek_api_key')"
-          @change="saveDeepseekApiKey"
-          show-password
-        ></el-input>
-      </div>
-      
-      <!-- 添加DeepSeek模型选择 -->
-      <div class="api-key-input">
-        <div class="setting-label">{{ $t('model') }}</div>
-        <el-select v-model="deepseekModel" size="large" class="dark-select" @change="saveDeepseekConfig">
-          <el-option label="deepseek-chat" value="deepseek-chat"></el-option>
-          <el-option label="deepseek-coder" value="deepseek-coder"></el-option>
-        </el-select>
-      </div>
-
+    <!-- 只保留AI专家策略设置，移除DeepSeek和OpenAI的API密钥和模型相关部分 -->
+    <div class="settings-group" v-if="transEngine === 'deepseek' && showAiExpertStrategy">
       <!-- 添加高级DeepSeek设置 -->
-      <div class="api-key-input" v-if="showAdvancedDeepseekSettings">
-        <div class="setting-label">{{ $t('aiExpertStrategy') }}</div>
+      <div class="api-key-input">
+        <div class="setting-label">{{ $t('aiExpertStrategy') }}:</div>
         <el-select v-model="deepseekExpertStrategy" size="large" class="dark-select" @change="saveDeepseekConfig">
+          <el-option :label="$t('universal')" value="universal"></el-option>
+          <el-option :label="$t('smartChoice')" value="smart-choice"></el-option>
           <el-option :label="$t('translationMaster')" value="translation-master"></el-option>
+          <el-option :label="$t('paragraphExpert')" value="paragraph-expert"></el-option>
+          <el-option :label="$t('englishSimplifier')" value="english-simplifier"></el-option>
+          <el-option :label="$t('twitterEnhancer')" value="twitter-enhancer"></el-option>
+          <el-option :label="$t('techTranslator')" value="tech-translator"></el-option>
+          <el-option :label="$t('redditEnhancer')" value="reddit-enhancer"></el-option>
+          <el-option :label="$t('academicTranslator')" value="academic-translator"></el-option>
+          <el-option :label="$t('newsTranslator')" value="news-translator"></el-option>
+          <el-option :label="$t('musicExpert')" value="music-expert"></el-option>
+          <el-option :label="$t('medicalTranslator')" value="medical-translator"></el-option>
+          <el-option :label="$t('legalTranslator')" value="legal-translator"></el-option>
+          <el-option :label="$t('githubEnhancer')" value="github-enhancer"></el-option>
+          <el-option :label="$t('gamingTranslator')" value="gaming-translator"></el-option>
+          <el-option :label="$t('ecommerceTranslator')" value="ecommerce-translator"></el-option>
+          <el-option :label="$t('financeTranslator')" value="finance-translator"></el-option>
+          <el-option :label="$t('novelTranslator')" value="novel-translator"></el-option>
+          <el-option :label="$t('ao3Translator')" value="ao3-translator"></el-option>
+          <el-option :label="$t('ebookTranslator')" value="ebook-translator"></el-option>
+          <el-option :label="$t('designer')" value="designer"></el-option>
+          <el-option :label="$t('cnEnPolisher')" value="cn-en-polisher"></el-option>
+          <el-option :label="$t('web3Translator')" value="web3-translator"></el-option>
           <el-option :label="$t('literalExpert')" value="literal-expert"></el-option>
           <el-option :label="$t('contextAnalyzer')" value="context-analyzer"></el-option>
           <el-option :label="$t('culturalAdapter')" value="cultural-adapter"></el-option>
         </el-select>
-      </div>
-
-      <div class="toggle-container" v-if="showAdvancedDeepseekSettings">
-        <span>{{ $t('enableAiContext') }}</span>
-        <el-switch v-model="deepseekAiContext" active-color="#13ce66" inactive-color="#ff4949"
-          @change="saveDeepseekConfig"></el-switch>
-      </div>
-
-      <div class="toggle-container" v-if="transEngine === 'deepseek'">
-        <span>{{ $t('advancedSettings') }}</span>
-        <el-switch v-model="showAdvancedDeepseekSettings" active-color="#13ce66" inactive-color="#ff4949"></el-switch>
       </div>
     </div>
 
-    <!-- 新增OpenAI API密钥设置区域 -->
-    <div class="settings-group" v-if="transEngine === 'openai'">
-      <div class="api-key-input">
-        <div class="setting-label">{{ $t('openai_api_key') }}</div>
-        <el-input 
-          v-model="openaiApiKey" 
-          size="large" 
-          :placeholder="$t('enter_openai_api_key')"
-          @change="saveOpenaiApiKey"
-          show-password
-        ></el-input>
-      </div>
-      <div class="api-key-input">
-        <div class="setting-label">{{ $t('openai_model') }}</div>
-        <el-select v-model="openaiModel" size="large" class="dark-select" @change="saveOpenaiModel">
-          <el-option label="gpt-4.1-mini" value="gpt-4.1-mini"></el-option>
-          <el-option label="gpt-4o-mini" value="gpt-4o-mini"></el-option>
-          <el-option label="gpt-4o" value="gpt-4o"></el-option>
-          <el-option label="gpt-4.1" value="gpt-4.1"></el-option>
-          <el-option label="gpt-4.1-nano" value="gpt-4.1-nano"></el-option>
-          <el-option label="gpt-4.5-preview" value="gpt-4.5-preview"></el-option>
-          <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo"></el-option>
-          <el-option label="gpt-4" value="gpt-4"></el-option>
-          <el-option label="gpt-4-turbo" value="gpt-4-turbo"></el-option>
-        </el-select>
-      </div>
-
+    <!-- 只保留AI专家策略设置，移除OpenAI的API密钥和模型相关部分 -->
+    <div class="settings-group" v-if="transEngine === 'openai' && showAiExpertStrategy">
       <!-- 添加高级OpenAI设置 -->
-      <div class="api-key-input" v-if="showAdvancedOpenaiSettings">
-        <div class="setting-label">{{ $t('aiExpertStrategy') }}</div>
+      <div class="api-key-input">
+        <div class="setting-label">{{ $t('aiExpertStrategy') }}:</div>
         <el-select v-model="openaiExpertStrategy" size="large" class="dark-select" @change="saveOpenaiConfig">
+          <el-option :label="$t('universal')" value="universal"></el-option>
+          <el-option :label="$t('smartChoice')" value="smart-choice"></el-option>
           <el-option :label="$t('translationMaster')" value="translation-master"></el-option>
+          <el-option :label="$t('paragraphExpert')" value="paragraph-expert"></el-option>
+          <el-option :label="$t('englishSimplifier')" value="english-simplifier"></el-option>
+          <el-option :label="$t('twitterEnhancer')" value="twitter-enhancer"></el-option>
+          <el-option :label="$t('techTranslator')" value="tech-translator"></el-option>
+          <el-option :label="$t('redditEnhancer')" value="reddit-enhancer"></el-option>
+          <el-option :label="$t('academicTranslator')" value="academic-translator"></el-option>
+          <el-option :label="$t('newsTranslator')" value="news-translator"></el-option>
+          <el-option :label="$t('musicExpert')" value="music-expert"></el-option>
+          <el-option :label="$t('medicalTranslator')" value="medical-translator"></el-option>
+          <el-option :label="$t('legalTranslator')" value="legal-translator"></el-option>
+          <el-option :label="$t('githubEnhancer')" value="github-enhancer"></el-option>
+          <el-option :label="$t('gamingTranslator')" value="gaming-translator"></el-option>
+          <el-option :label="$t('ecommerceTranslator')" value="ecommerce-translator"></el-option>
+          <el-option :label="$t('financeTranslator')" value="finance-translator"></el-option>
+          <el-option :label="$t('novelTranslator')" value="novel-translator"></el-option>
+          <el-option :label="$t('ao3Translator')" value="ao3-translator"></el-option>
+          <el-option :label="$t('ebookTranslator')" value="ebook-translator"></el-option>
+          <el-option :label="$t('designer')" value="designer"></el-option>
+          <el-option :label="$t('cnEnPolisher')" value="cn-en-polisher"></el-option>
+          <el-option :label="$t('web3Translator')" value="web3-translator"></el-option>
           <el-option :label="$t('literalExpert')" value="literal-expert"></el-option>
           <el-option :label="$t('contextAnalyzer')" value="context-analyzer"></el-option>
           <el-option :label="$t('culturalAdapter')" value="cultural-adapter"></el-option>
         </el-select>
-      </div>
-
-      <div class="toggle-container" v-if="showAdvancedOpenaiSettings">
-        <span>{{ $t('enableAiContext') }}</span>
-        <el-switch v-model="openaiAiContext" active-color="#13ce66" inactive-color="#ff4949"
-          @change="saveOpenaiConfig"></el-switch>
-      </div>
-
-      <div class="toggle-container" v-if="transEngine === 'openai'">
-        <span>{{ $t('advancedSettings') }}</span>
-        <el-switch v-model="showAdvancedOpenaiSettings" active-color="#13ce66" inactive-color="#ff4949"></el-switch>
       </div>
     </div>
 
@@ -193,9 +179,9 @@
       <div class="ai-mode">
         <div class="setting-label">{{ $t('display_type') }}</div>
         <el-select v-model="transStyle" size="large" class="dark-select">
-          <el-option :label="$t('universal')" value="universal"></el-option>
-          <el-option :label="$t('inline')" value="inline"></el-option>
+          <el-option :label="$t('universal_style')" value="universal_style"></el-option>
           <el-option :label="$t('replace')" value="replace"></el-option>
+          <el-option :label="$t('inline')" value="inline"></el-option>
           <el-option :label="$t('bilingual_below')" value="bilingual"></el-option>
         </el-select>
       </div>
@@ -205,12 +191,12 @@
       <button @click="toggleTranslation">{{ $t('toggle_translation') }} <span class="shortcut-hint">⌥A</span></button>
     </div>
 
-    <div class="translate-tips">
+    <!-- <div class="translate-tips">
       <div class="tip-item">
         <div class="tip-icon">💡</div>
         <div class="tip-text">{{ $t('input_triple_space_tip') }}</div>
       </div>
-    </div>
+    </div> -->
 
     <div class="settings-group" style="margin-bottom: 0">
       <div class="toggle-container">
@@ -218,11 +204,11 @@
         <el-switch v-model="isTranslationEnabled" active-color="#13ce66" inactive-color="#ff4949"
           @change="toggleTranslation"></el-switch>
       </div>
-      <div class="toggle-container">
+      <!-- <div class="toggle-container">
         <span>{{ $t('input_space_translation_toggle') }}</span>
         <el-switch v-model="enableInputSpaceTranslation" active-color="#13ce66" inactive-color="#ff4949"
           @change="toggleInputSpaceTranslation"></el-switch>
-      </div>
+      </div> -->
     </div>
 
     <!-- <div class="settings-group" style="margin: 0;">
@@ -272,10 +258,7 @@ export default {
       excludedClassesStr: '',
       uiLanguage: localStorage.getItem('transor-ui-language') || 'zh-CN', // 默认使用简体中文
       i18n: null, // 保存i18n实例
-      deepseekApiKey: '', // DeepSeek API密钥
-      openaiApiKey: '', // OpenAI API密钥
-      showAdvancedOpenaiSettings: false,
-      showAdvancedDeepseekSettings: false
+      showApiKeyNotice: false, // 是否显示API Key提示
     }
   },
   computed: {
@@ -285,7 +268,8 @@ export default {
       'excludedClasses',
       'customCss',
       'openaiConfig',
-      'deepseekConfig'
+      'deepseekConfig',
+      'apiKeys'
     ]),
     isTranslationEnabled: {
       get() {
@@ -408,7 +392,29 @@ export default {
       set(value) {
         this.$store.commit('updateDeepseekConfig', { key: 'aiContext', value });
       }
-    }
+    },
+    // 检查是否应该显示AI专家策略选择器
+    showAiExpertStrategy() {
+      const engine = this.transEngine;
+      
+      // 检查是否有对应的API Key
+      if (engine === 'openai') {
+        return this.apiKeys && this.apiKeys.openai && this.apiKeys.openai.trim() !== '';
+      } else if (engine === 'deepseek') {
+        return this.apiKeys && this.apiKeys.deepseek && this.apiKeys.deepseek.trim() !== '';
+      }
+      
+      return false;
+    },
+    // 获取当前选择的AI引擎的专家策略
+    currentAiExpertStrategy() {
+      if (this.transEngine === 'openai' && this.openaiConfig) {
+        return this.openaiConfig.expertStrategy || 'translation-master';
+      } else if (this.transEngine === 'deepseek' && this.deepseekConfig) {
+        return this.deepseekConfig.expertStrategy || 'translation-master';
+      }
+      return 'translation-master';
+    },
   },
   methods: {
     ...mapActions([
@@ -419,7 +425,7 @@ export default {
       'setExcludedTags',
       'setExcludedClasses',
       'setCustomCss',
-      'setApiKey', // 添加设置API密钥的mutation
+      'setApiKey',
       'updateOpenaiConfig',
       'updateDeepseekConfig'
     ]),
@@ -489,11 +495,9 @@ export default {
           'ui_language': '界面语言：',
           'translation_toggle': '翻译开关',
           'toggle_translation': '开启/关闭翻译',
-          'advanced_settings': '高级设置',
           'inline': '双语(原文后方显示译文)',
           'general': '导航提示(适合菜单和小元素)',
           'replace': '替换(仅显示译文)',
-          'bilingual_above': '双语(原文上方显示译文)',
           'bilingual_below': '双语(原文下方显示译文)',
           'hover': '悬浮(鼠标悬停显示译文)',
           'deepseek_api_key': 'DeepSeek API密钥',
@@ -503,6 +507,14 @@ export default {
           'openai_model': 'OpenAI模型',
           'input_triple_space_tip': '小技巧：在任意输入框中输入文本后，连续敲击三个空格可以立即翻译文本。按ESC键可取消翻译。',
           'input_space_translation_toggle': '输入框空格翻译',
+          'apiKeyRequired': '需要设置API密钥才能使用此服务',
+          'goToSettings': '前往设置页面',
+          'aiExpertStrategy': 'AI专家策略',
+          'translationMaster': '意译大师',
+          'literalExpert': '直译专家',
+          'contextAnalyzer': '语境分析师',
+          'culturalAdapter': '文化适配师',
+          'enableAiContext': '启用AI智能上下文',
           // 其他基本翻译...
         },
         'en': {
@@ -513,11 +525,9 @@ export default {
           'ui_language': 'Interface Language:',
           'translation_toggle': 'Translation Toggle',
           'toggle_translation': 'Enable/Disable Translation',
-          'advanced_settings': 'Advanced Settings',
           'inline': 'Bilingual (Translation after Original)',
           'general': 'Smart Tooltips (For Menus & Small Elements)',
           'replace': 'Replace (Translation Only)',
-          'bilingual_above': 'Bilingual (Translation Above)',
           'bilingual_below': 'Bilingual (Translation Below)',
           'hover': 'Hover (Show on Mouse Over)',
           'deepseek_api_key': 'DeepSeek API Key',
@@ -527,6 +537,14 @@ export default {
           'openai_model': 'OpenAI Model',
           'input_triple_space_tip': 'Tip: In any input field, after typing text, press space three times in a row to instantly translate the text. Press ESC to cancel translation.',
           'input_space_translation_toggle': 'Input Space Translation',
+          'apiKeyRequired': 'API Key is required to use this service',
+          'goToSettings': 'Go to Settings',
+          'aiExpertStrategy': 'AI Expert Strategy',
+          'translationMaster': 'Translation Master',
+          'literalExpert': 'Literal Expert',
+          'contextAnalyzer': 'Context Analyzer',
+          'culturalAdapter': 'Cultural Adapter',
+          'enableAiContext': 'Enable AI Context',
           // 其他基本翻译...
         }
       };
@@ -617,54 +635,59 @@ export default {
       // 强制组件重新渲染
       this.$forceUpdate();
     },
-    // 保存DeepSeek API密钥
-    saveDeepseekApiKey() {
-      if (this.deepseekApiKey && this.deepseekApiKey.trim() !== '') {
-        this.setApiKey({ type: 'deepseek', key: this.deepseekApiKey.trim() });
-        this.saveSettings();
-      }
-    },
-    // 保存OpenAI API密钥
-    saveOpenaiApiKey() {
-      if (this.openaiApiKey && this.openaiApiKey.trim() !== '') {
-        this.setApiKey({ type: 'openai', key: this.openaiApiKey.trim() });
-        this.saveSettings();
-      }
-    },
-    // 保存OpenAI模型
-    saveOpenaiModel() {
-      // 保存到旧字段，保持兼容性
-      this.$store.commit('setOpenaiModel', this.openaiModel);
+    // 处理专家策略变化
+    handleExpertStrategyChange(strategy) {
+      const engine = this.transEngine;
       
-      // 同时更新新的配置结构
-      if (this.$store.state.openaiConfig) {
-        this.$store.commit('updateOpenaiConfig', { key: 'model', value: this.openaiModel });
-      } else {
-        // 如果openaiConfig不存在，创建一个
-        const config = {
-          model: this.openaiModel,
-          customModelEnabled: false,
-          customModel: '',
-          maxRequests: 10,
-          aiContext: false,
-          expertStrategy: 'translation-master'
-        };
-        this.$store.commit('setOpenaiConfig', config);
+      if (engine === 'openai') {
+        this.updateOpenaiConfig({ key: 'expertStrategy', value: strategy });
+      } else if (engine === 'deepseek') {
+        this.updateDeepseekConfig({ key: 'expertStrategy', value: strategy });
       }
       
       this.saveSettings();
+    },
+    // 调整handleEngineChange方法
+    handleEngineChange() {
+      const engine = this.transEngine;
+      
+      // 重置API Key提示状态
+      this.showApiKeyNotice = false;
+      
+      // 检查AI引擎是否需要API Key
+      if (engine === 'openai' || engine === 'deepseek') {
+        const apiKey = this.apiKeys && this.apiKeys[engine];
+        
+        if (!apiKey || apiKey.trim() === '') {
+          // 没有API Key，显示提示
+          this.showApiKeyNotice = true;
+        }
+      }
+      
+      // 保存设置
+      this.saveSettings();
+    },
+    // 打开设置页面
+    openOptionsPage() {
+      if (chrome && chrome.runtime) {
+        chrome.runtime.openOptionsPage();
+      } else {
+        // 后备方案：尝试直接打开options.html
+        window.open(chrome.runtime.getURL('options.html'), '_blank');
+      }
     },
     // 保存OpenAI配置
     saveOpenaiConfig() {
       this.saveSettings();
     },
-    // 保存DeepSeek模型
+    // 保存DeepSeek配置
     saveDeepseekConfig() {
       this.saveSettings();
     },
+    // 切换输入框空格翻译
     toggleInputSpaceTranslation() {
       this.saveSettings();
-    }
+    },
   },
   watch: {
     excludedClasses: {
@@ -672,21 +695,28 @@ export default {
         this.excludedClassesStr = newVal.join(', ')
       },
       immediate: true
+    },
+    // 监听apiKeys变化
+    apiKeys: {
+      handler(newKeys) {
+        // 如果当前是AI引擎，检查是否有对应的API Key
+        const engine = this.transEngine;
+        if ((engine === 'openai' || engine === 'deepseek') && newKeys) {
+          const apiKey = newKeys[engine];
+          this.showApiKeyNotice = !apiKey || apiKey.trim() === '';
+        }
+      },
+      deep: true
     }
   },
   created() {
     this.$store.dispatch('loadSettings').then(() => {
-      // 加载设置后获取已保存的API密钥
-      if (this.$store.state.apiKeys && this.$store.state.apiKeys.deepseek) {
-        this.deepseekApiKey = this.$store.state.apiKeys.deepseek;
-      }
-      // 加载OpenAI设置
-      if (this.$store.state.apiKeys && this.$store.state.apiKeys.openai) {
-        this.openaiApiKey = this.$store.state.apiKeys.openai;
-      }
-      // 加载OpenAI模型设置
-      if (this.$store.state.openaiModel) {
-        this.openaiModel = this.$store.state.openaiModel;
+      // 检查当前引擎是否需要API Key提示
+      const engine = this.transEngine;
+      if ((engine === 'openai' || engine === 'deepseek') && this.$store.state.apiKeys) {
+        if (!this.$store.state.apiKeys[engine] || this.$store.state.apiKeys[engine].trim() === '') {
+          this.showApiKeyNotice = true;
+        }
       }
     });
 
@@ -1054,5 +1084,33 @@ export default {
   flex: 1;
   line-height: 1.4;
   color: #555;
+}
+
+.api-key-notice {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: rgba(255, 215, 0, 0.1);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.api-key-notice-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.api-key-notice-message i {
+  color: #ffd700;
+  font-size: 18px;
+}
+
+.api-key-notice-message a {
+  color: #ff5588;
+  text-decoration: none;
+}
+
+.api-key-notice-message a:hover {
+  text-decoration: underline;
 }
 </style>

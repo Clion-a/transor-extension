@@ -9,7 +9,7 @@ export default new Vuex.Store({
     targetLanguage: 'zh-CN',
     sourceLanguage: 'auto',
     translationEngine: 'microsoft',
-    translationStyle: 'universal',
+    translationStyle: 'universal_style',
     excludedTags: ['code', 'pre', 'script', 'style'],
     excludedClasses: ['no-translate'],
     excludedUrls: [],
