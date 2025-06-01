@@ -668,6 +668,13 @@ function shouldTranslateElement(element) {
   // 检查是否是代码元素
   if (isCodeElement(element)) return false;
   
+  // 检查文本是否已经是目标语言
+  const targetLang = translationSettings.targetLanguage;
+  if (targetLang && isTextInLanguage(textContent, targetLang)) {
+    console.log(`跳过翻译: 文本已经是目标语言 ${targetLang}`, textContent.substring(0, 30) + (textContent.length > 30 ? '...' : ''));
+    return false;
+  }
+  
   return true;
 }
 
@@ -3746,13 +3753,23 @@ async function translateElement(element) {
 
   console.log(textContents, "组合后的文本内容");
   
+  // 获取目标语言
+  const targetLang = translationSettings.targetLanguage;
+  
   try {
     // 使用Promise.all同时处理所有文本翻译
     const translationPromises = textContents.map((text, index) => {
+      // 检查文本是否已经是目标语言
+      if (targetLang && isTextInLanguage(text, targetLang)) {
+        console.log(`跳过翻译片段: 文本已经是目标语言 ${targetLang}`, text.substring(0, 30) + (text.length > 30 ? '...' : ''));
+        // 对于已经是目标语言的文本，直接返回原文
+        return Promise.resolve({ index, translation: text, skipped: true });
+      }
+      
       return new Promise(resolve => {
         // 添加到翻译队列
         translationQueue.add(text, translation => {
-          resolve({ index, translation });
+          resolve({ index, translation, skipped: false });
         });
       });
     });
@@ -3761,17 +3778,24 @@ async function translateElement(element) {
     const results = await Promise.all(translationPromises);
     
     // 应用翻译结果
-    results.forEach(({ index, translation }) => {
+    results.forEach(({ index, translation, skipped }) => {
       const group = textGroups[index];
       const text = textContents[index];
       const nodes = group.nodes;
       
       // 对于组合文本，保持原始样式结构进行翻译
       if (nodes.length > 0 && translation) {
-        console.log(`应用组合翻译 - 原文: [${text}], 译文: [${translation}]`);
-        
-        // 保持原始样式结构的翻译应用
-        applyStylePreservingTranslation(nodes, text, translation);
+        if (skipped) {
+          console.log(`保留原文(目标语言) - 原文: [${text}]`);
+          // 对于已经是目标语言的文本，我们不进行样式修改，保留原样
+          nodes.forEach(node => {
+            processedNodes.add(node); // 标记为已处理
+          });
+        } else {
+          console.log(`应用组合翻译 - 原文: [${text}], 译文: [${translation}]`);
+          // 保持原始样式结构的翻译应用
+          applyStylePreservingTranslation(nodes, text, translation);
+        }
       }
     });
   } catch (error) {
@@ -4040,4 +4064,85 @@ function isElementInNavOrFooter(element) {
   }
   
   return false;
+}
+
+// 检测文本是否全部是指定语言的函数
+function isTextInLanguage(text, languageCode) {
+  if (!text || text.trim().length < 2) {
+    return false;
+  }
+
+  // 常用语言特征模式
+  const languagePatterns = {
+    'zh-CN': {
+      // 中文特征 - 汉字范围
+      regex: /[\u4e00-\u9fff]/,
+      // 检测文本中汉字的比例，如果超过50%则认为是中文
+      threshold: 0.5
+    },
+    'en': {
+      // 英文特征 - 拉丁字母和英文标点
+      regex: /[a-zA-Z]/,
+      threshold: 0.6
+    },
+    'ja': {
+      // 日语特征 - 日文假名等
+      regex: /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/,
+      threshold: 0.5
+    },
+    'ko': {
+      // 韩语特征 - 韩文音节
+      regex: /[\uac00-\ud7a3]/,
+      threshold: 0.5
+    },
+    'fr': {
+      // 法语特征 - 法语重音字符等
+      regex: /[éèêëàâäôöùûüÿçœæ]/i,
+      threshold: 0.1
+    },
+    'de': {
+      // 德语特征 - 德语特殊字符
+      regex: /[äöüßÄÖÜ]/i,
+      threshold: 0.1
+    },
+    'es': {
+      // 西班牙语特征
+      regex: /[áéíóúüñ¿¡]/i,
+      threshold: 0.1
+    },
+    'ru': {
+      // 俄语特征 - 西里尔字母
+      regex: /[\u0400-\u04FF]/,
+      threshold: 0.5
+    }
+  };
+
+  // 处理语言代码简化，例如 'zh-CN' -> 'zh'
+  const simplifiedCode = languageCode.split('-')[0];
+  
+  // 获取语言检测模式
+  const pattern = languagePatterns[languageCode] || languagePatterns[simplifiedCode];
+  
+  if (!pattern) {
+    console.log(`未找到语言 ${languageCode} 的检测模式，无法判断语言`);
+    return false;
+  }
+  
+  // 计算特征字符的数量
+  const chars = text.split('');
+  let matchCount = 0;
+  
+  for (const char of chars) {
+    if (pattern.regex.test(char)) {
+      matchCount++;
+    }
+  }
+  
+  // 计算特征字符的比例
+  const ratio = matchCount / chars.length;
+  
+  console.log(`语言检测 [${languageCode}]: 文本长度=${chars.length}, 匹配字符=${matchCount}, 比例=${ratio.toFixed(2)}`);
+  
+  // 判断是否达到阈值
+  return ratio >= pattern.threshold;
 }

@@ -13,9 +13,51 @@ let translatedSubtitles = [];
 let currentSubtitleIndex = -1;
 let subtitleUpdateInterval = null;
 
+// 视频字幕翻译功能状态变量
+let isTransorSubtitleEnabled = true; // 默认启用
+let videoSubtitleContainer = null;
+let videoSubtitleUpdateInterval = null;
+let videoSubtitles = [];
+let videoTranslatedSubtitles = [];
+let currentVideoSubtitleIndex = -1;
+let subtitleDisplayMode = '双语字幕'; // 默认显示模式
+let subtitleStyle = '默认'; // 默认字幕样式
+let lastVideoId = ''; // 记录上一次加载的视频ID
+
+// 尝试从本地存储中加载字幕开关状态
+try {
+  const savedSubtitleEnabled = localStorage.getItem('transor-subtitle-enabled');
+  if (savedSubtitleEnabled !== null) {
+    isTransorSubtitleEnabled = savedSubtitleEnabled === 'true';
+    console.log('从存储加载字幕开关状态:', isTransorSubtitleEnabled);
+  }
+} catch (e) {
+  console.error('加载字幕开关状态失败:', e);
+}
+
+// 新增：字幕时间映射变量，用于优化字幕查找和匹配
+let subtitleTimeMap = new Map();
+
 // 初始化
 function initYouTubeCinema() {
   console.log('YouTube 影院模式初始化');
+  
+  // 尝试加载用户字幕显示模式设置
+  try {
+    const savedMode = localStorage.getItem('transor-subtitle-display-mode');
+    if (savedMode) {
+      subtitleDisplayMode = savedMode;
+      console.log('从存储加载字幕显示模式:', savedMode);
+    }
+    
+    const savedStyle = localStorage.getItem('transor-subtitle-style');
+    if (savedStyle) {
+      subtitleStyle = savedStyle;
+      console.log('从存储加载字幕样式:', savedStyle);
+    }
+  } catch (e) {
+    console.error('加载字幕设置失败:', e);
+  }
   
   // 检查是否是 YouTube 视频页面
   if (isYouTubeVideoPage()) {
@@ -28,6 +70,9 @@ function initYouTubeCinema() {
       
       // 监听视频变化
       observeVideoChange();
+      
+      // 初始化视频字幕翻译功能
+      initVideoSubtitleTranslation();
     }).catch(error => {
       console.error('等待YouTube控制栏失败:', error);
     });
@@ -45,7 +90,302 @@ function toggleCinemaMode() {
   if (isCinemaMode) {
     exitCinemaMode();
   } else {
-    enterCinemaMode();
+    // 显示字幕设置弹窗，而不是直接进入影院模式
+    showSubtitleOptionsPopup();
+  }
+}
+
+// 显示字幕选项弹窗
+function showSubtitleOptionsPopup() {
+  console.log('显示字幕选项弹窗');
+  
+  // 检查弹窗是否已存在
+  if (document.getElementById('subtitle-options-popup')) {
+    return;
+  }
+  
+  // 获取影院模式按钮位置，用于定位弹窗
+  const cinemaButton = document.getElementById('cinema-mode-btn');
+  if (!cinemaButton) {
+    console.error('未找到影院模式按钮，无法定位弹窗');
+    return;
+  }
+  
+  const buttonRect = cinemaButton.getBoundingClientRect();
+  
+  // 创建弹窗容器
+  const popupContainer = document.createElement('div');
+  popupContainer.id = 'subtitle-options-popup';
+  popupContainer.className = 'subtitle-options-popup';
+  
+  // 创建弹窗内容
+  popupContainer.innerHTML = `
+    <div class="subtitle-options-content">
+      <div class="subtitle-options-body">
+        
+        <div class="subtitle-option-item">
+          <div class="subtitle-option-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3ZM21 19H3V5H21V19ZM6 8H18V10H6V8ZM6 11H18V13H6V11ZM6 14H14V16H6V14Z" fill="rgba(255, 255, 255, 0.8)"/>
+            </svg>
+          </div>
+          <div class="subtitle-option-label">字幕显示</div>
+          <div class="subtitle-option-value">
+            <select id="subtitle-display-select" class="subtitle-select">
+              <option value="双语字幕" selected>双语字幕</option>
+              <option value="仅原文">仅原文</option>
+              <option value="仅译文">仅译文</option>
+            </select>
+          </div>
+        </div>
+        <div class="subtitle-option-item">
+          <div class="subtitle-option-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.5 4V7H21.5V4H2.5ZM2.5 19H6.5V10H2.5V19ZM9.5 19H15.5V10H9.5V19ZM18.5 19H21.5V10H18.5V19Z" fill="rgba(255, 255, 255, 0.8)"/>
+            </svg>
+          </div>
+          <div class="subtitle-option-label">字幕样式</div>
+          <div class="subtitle-option-value">
+            <select id="subtitle-style-select" class="subtitle-select">
+              <option value="默认" selected>默认</option>
+              <option value="半透明">半透明</option>
+              <option value="浅色模式">浅色模式</option>
+              <option value="无背景">无背景</option>
+              <option value="醒目">醒目</option>
+            </select>
+          </div>
+        </div>
+        <div class="subtitle-option-item">
+          <div class="subtitle-option-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 4H4C2.89 4 2 4.89 2 6V18C2 19.11 2.89 20 4 20H20C21.11 20 22 19.11 22 18V6C22 4.89 21.11 4 20 4ZM20 18H4V12H20V18ZM20 10H4V6H20V10Z" fill="rgba(255, 255, 255, 0.8)"/>
+            </svg>
+          </div>
+          <div class="subtitle-option-label">Transor 字幕</div>
+          <div class="subtitle-option-toggle">
+            <label class="subtitle-switch">
+              <input type="checkbox" id="transor-subtitle-toggle" checked>
+              <span class="subtitle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="subtitle-option-item enter-mode-item" id="enter-cinema-mode-btn">
+          <div class="subtitle-option-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 3H3C1.9 3 1 3.9 1 5V17C1 18.1 1.9 19 3 19H8V21H16V19H21C22.1 19 23 18.1 23 17V5C23 3.9 22.1 3 21 3ZM21 17H3V5H21V17ZM16 11L9 15V7L16 11Z" fill="rgba(255, 255, 255, 0.8)"/>
+            </svg>
+          </div>
+          <div class="subtitle-option-label">进入专注模式</div>
+          <div class="subtitle-option-arrow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8.59 16.59L13.17 12L8.59 7.41L10 6L16 12L10 18L8.59 16.59Z" fill="rgba(255, 255, 255, 0.8)"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // 添加到页面
+  document.body.appendChild(popupContainer);
+  
+  // 获取弹窗内容元素
+  const popupContent = popupContainer.querySelector('.subtitle-options-content');
+  
+  // 根据按钮位置定位弹窗
+  if (popupContent) {
+    const viewportHeight = window.innerHeight;
+    // 计算弹窗位置 - 如果按钮在页面下半部分，则弹窗显示在按钮上方，否则显示在按钮下方
+    const isButtonInBottomHalf = buttonRect.top > viewportHeight / 2;
+    
+    if (isButtonInBottomHalf) {
+      // 按钮在下半部分，弹窗显示在上方
+      popupContent.style.position = 'absolute';
+      popupContent.style.bottom = (viewportHeight - buttonRect.top + 10) + 'px';
+      popupContent.style.left = (buttonRect.left - 160 + buttonRect.width/2) + 'px'; // 居中对齐
+    } else {
+      // 按钮在上半部分，弹窗显示在下方
+      popupContent.style.position = 'absolute';
+      popupContent.style.top = (buttonRect.bottom + 10) + 'px';
+      popupContent.style.left = (buttonRect.left - 160 + buttonRect.width/2) + 'px'; // 居中对齐
+    }
+  }
+  
+  // 添加事件监听器 - 关闭按钮
+  const closeBtn = popupContainer.querySelector('.subtitle-options-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      document.body.removeChild(popupContainer);
+    });
+  }
+  
+  // 添加事件监听器 - 点击外部关闭
+  popupContainer.addEventListener('click', (event) => {
+    if (event.target === popupContainer) {
+      document.body.removeChild(popupContainer);
+    }
+  });
+  
+  // 添加事件监听器 - Transor字幕开关
+  const transorToggle = document.getElementById('transor-subtitle-toggle');
+  if (transorToggle) {
+    // 设置初始状态 - 使用全局变量状态
+    transorToggle.checked = isTransorSubtitleEnabled;
+    
+    transorToggle.addEventListener('change', (event) => {
+      const enabled = event.target.checked;
+      // 直接更新全局变量
+      isTransorSubtitleEnabled = enabled;
+      console.log('Transor字幕设置已更新:', enabled);
+      
+      // 保存用户偏好设置到本地存储
+      try {
+        localStorage.setItem('transor-subtitle-enabled', enabled);
+        console.log('已保存字幕开关设置:', enabled);
+      } catch (e) {
+        console.error('保存字幕开关设置失败:', e);
+      }
+      
+      // 立即应用更改
+      if (enabled) {
+        // 如果启用字幕，重新加载并显示
+        if (videoSubtitleContainer) {
+          // 如果容器存在但是可能已被隐藏，先显示
+          videoSubtitleContainer.style.display = 'block';
+          
+          // 如果已经有字幕数据，则直接显示
+          if (videoSubtitles.length > 0 && currentVideoSubtitleIndex >= 0) {
+            displayVideoSubtitle(currentVideoSubtitleIndex);
+            
+            // 重新开始跟踪
+            startVideoSubtitleTracking();
+          } else {
+            // 如果没有字幕数据，重新加载
+            loadVideoSubtitles();
+          }
+        } else {
+          // 如果容器不存在，完整启用流程
+          enableVideoSubtitles();
+        }
+      } else {
+        // 如果需要禁用，停止所有字幕功能
+        console.log('正在禁用所有字幕功能...');
+        
+        // 清理视频的字幕事件和定时器
+        const video = document.querySelector('video');
+        if (video && video._cleanupSubtitleTracking) {
+          video._cleanupSubtitleTracking();
+        }
+        
+        // 停止字幕跟踪
+        if (videoSubtitleUpdateInterval) {
+          clearInterval(videoSubtitleUpdateInterval);
+          videoSubtitleUpdateInterval = null;
+        }
+        
+        // 清空字幕显示
+        clearVideoSubtitleDisplay();
+        
+        // 隐藏字幕容器
+        if (videoSubtitleContainer) {
+          videoSubtitleContainer.style.display = 'none';
+          // 清空内容
+          videoSubtitleContainer.innerHTML = '';
+        }
+        
+        // 重置字幕索引
+        currentVideoSubtitleIndex = -1;
+      }
+    });
+  }
+  
+  // 添加事件监听器 - 字幕显示模式选择
+  const displayModeSelect = document.getElementById('subtitle-display-select');
+  if (displayModeSelect) {
+    // 设置初始值
+    displayModeSelect.value = subtitleDisplayMode;
+    
+    displayModeSelect.addEventListener('change', (event) => {
+      const mode = event.target.value;
+      // 直接更新全局变量
+      subtitleDisplayMode = mode;
+      console.log('字幕显示模式已更新:', mode);
+      
+      // 立即更新显示
+      updateVideoSubtitleDisplay();
+      
+      // 保存用户偏好设置
+      try {
+        localStorage.setItem('transor-subtitle-display-mode', mode);
+        console.log('已保存字幕显示模式设置:', mode);
+      } catch (e) {
+        console.error('保存设置失败:', e);
+      }
+    });
+    
+    // 尝试从本地存储加载用户之前的设置
+    try {
+      const savedMode = localStorage.getItem('transor-subtitle-display-mode');
+      if (savedMode) {
+        displayModeSelect.value = savedMode;
+        subtitleDisplayMode = savedMode;
+        console.log('从存储加载字幕显示模式:', savedMode);
+        // 立即应用加载的设置
+        updateVideoSubtitleDisplay();
+      }
+    } catch (e) {
+      console.error('加载字幕显示设置失败:', e);
+    }
+  }
+  
+  // 添加事件监听器 - 字幕样式选择
+  const styleSelect = document.getElementById('subtitle-style-select');
+  if (styleSelect) {
+    // 设置初始值
+    styleSelect.value = subtitleStyle;
+    
+    styleSelect.addEventListener('change', (event) => {
+      const style = event.target.value;
+      // 直接更新全局变量
+      subtitleStyle = style;
+      console.log('字幕样式已更新:', style);
+      
+      // 立即更新显示
+      updateSubtitleStyle();
+      
+      // 保存用户偏好设置
+      try {
+        localStorage.setItem('transor-subtitle-style', style);
+        console.log('已保存字幕样式设置:', style);
+      } catch (e) {
+        console.error('保存设置失败:', e);
+      }
+    });
+    
+    // 尝试从本地存储加载用户之前的设置
+    try {
+      const savedStyle = localStorage.getItem('transor-subtitle-style');
+      if (savedStyle) {
+        styleSelect.value = savedStyle;
+        subtitleStyle = savedStyle;
+        console.log('从存储加载字幕样式:', savedStyle);
+        // 立即应用加载的设置
+        updateSubtitleStyle();
+      }
+    } catch (e) {
+      console.error('加载字幕样式设置失败:', e);
+    }
+  }
+  
+  // 添加事件监听器 - 确认按钮进入影院模式
+  const confirmBtn = document.getElementById('enter-cinema-mode-btn');
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', () => {
+      // 关闭弹窗
+      document.body.removeChild(popupContainer);
+      // 进入影院模式
+      enterCinemaMode();
+    });
   }
 }
 
@@ -99,6 +439,14 @@ function exitCinemaMode() {
   // 恢复原始状态
   document.body.style.overflow = originalBodyStyles.overflow || '';
   
+  // 如果启用了视频字幕，确保字幕被正确禁用后重新启用
+  if (isTransorSubtitleEnabled) {
+    disableVideoSubtitles();
+    setTimeout(() => {
+      loadVideoSubtitles();
+    }, 1000);
+  }
+  
   // 修改状态
   isCinemaMode = false;
   subtitlesContainer = null;
@@ -151,38 +499,18 @@ function addCinemaButton() {
     cinemaButton.innerHTML = `
       <img src="${logoUrl}" alt="影院模式" style="width: 24px; height: 24px;" onerror="this.style.display='none'; this.parentNode.innerHTML='${fallbackIcon.replace(/'/g, "\\'")}'; ">
     `;
-  
-    // 创建自定义提示元素
-    const tipElement = document.createElement('div');
-    tipElement.id = 'transor-cinema-tip';
-    tipElement.className = 'transor-cinema-tip';
-    tipElement.textContent = buttonTipText;
-    tipElement.style.display = 'none';
-    document.body.appendChild(tipElement);
-    
-    // 添加鼠标悬停事件显示提示
-    cinemaButton.addEventListener('mouseenter', () => {
-      const rect = cinemaButton.getBoundingClientRect();
-      tipElement.style.left = rect.left + 'px';
-      tipElement.style.top = (rect.bottom + 10) + 'px';
-      tipElement.style.display = 'block';
-    });
-    
-    cinemaButton.addEventListener('mouseleave', () => {
-      tipElement.style.display = 'none';
-    });
     
     // 添加点击事件
     cinemaButton.addEventListener('click', toggleCinemaMode);
     
-    // 查找trancy-youtube-button以便在其前面插入我们的按钮
-    const trancyButton = rightControlsContainer.querySelector('.trancy-youtube-button');
+    // 查找transor-youtube-button以便在其前面插入我们的按钮
+    const transorButton = rightControlsContainer.querySelector('.transor-youtube-button');
     
-    if (trancyButton) {
-      // 在trancy按钮前插入我们的按钮
-      rightControlsContainer.insertBefore(cinemaButton, trancyButton);
+    if (transorButton) {
+      // 在transor按钮前插入我们的按钮
+      rightControlsContainer.insertBefore(cinemaButton, transorButton);
     } else {
-      // 如果找不到trancy按钮，则插入到右侧控制栏的最后
+      // 如果找不到transor按钮，则插入到右侧控制栏的最后
       rightControlsContainer.appendChild(cinemaButton);
     }
     
@@ -254,9 +582,8 @@ function getTranslatedText(key, language) {
 // 更新影院模式按钮提示
 async function updateCinemaButtonTip() {
   const cinemaButton = document.getElementById('cinema-mode-btn');
-  const tipElement = document.getElementById('transor-cinema-tip');
   
-  if (cinemaButton && tipElement) {
+  if (cinemaButton) {
     // 获取最新的语言设置
     const uiLanguage = await getUserLanguage();
     console.log('更新提示，检测到语言:', uiLanguage);
@@ -271,7 +598,6 @@ async function updateCinemaButtonTip() {
       cinemaButton.title = buttonTipText;
       cinemaButton.setAttribute('data-tooltip-text', buttonTipText);
       cinemaButton.setAttribute('data-language', uiLanguage);
-      tipElement.textContent = buttonTipText;
       
       console.log('影院模式按钮提示已更新为:', buttonTipText);
     } else {
@@ -308,31 +634,170 @@ function addCinemaStyles() {
       filter: brightness(1.8);
     }
     
-    /* 自定义提示样式 */
-    .transor-cinema-tip {
+    /* 字幕选项弹窗样式 */
+    .subtitle-options-popup {
       position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.4);
       z-index: 99999;
-      background-color: rgba(28, 28, 28, 0.9);
-      color: white;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-family: Arial, sans-serif;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-      pointer-events: none;
-      white-space: nowrap;
-      transform: translateX(-50%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     
-    .transor-cinema-tip::after {
-      content: '';
+    .subtitle-options-content {
+      width: 320px;
+      background-color: #212121;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      animation: popupFadeIn 0.3s ease-out;
+    }
+    
+    @keyframes popupFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .subtitle-options-body {
+      padding: 16px;
+    }
+    
+    .subtitle-option-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      transition: background-color 0.2s;
+    }
+    
+    .subtitle-option-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .subtitle-option-item:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .subtitle-option-icon {
+      margin-right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .subtitle-option-label {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 14px;
+      font-weight: 500;
+      flex-grow: 1;
+    }
+    
+    .subtitle-option-value {
+      min-width: 130px;
+    }
+    
+    .subtitle-option-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .enter-mode-item {
+      cursor: pointer;
+      background-color: rgba(255, 85, 136, 0.1);
+    }
+    
+    .enter-mode-item:hover {
+      background-color: rgba(255, 85, 136, 0.2);
+    }
+    
+    .subtitle-select {
+      width: 100%;
+      background-color: #303030;
+      color: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      appearance: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="6" viewBox="0 0 12 6"><path fill="%23ffffff" d="M0 0l6 6 6-6z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 30px;
+    }
+    
+    .subtitle-select:focus {
+      outline: none;
+      border-color: #ff5588;
+    }
+    
+    .subtitle-select option {
+      background-color: #212121;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .subtitle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 22px;
+    }
+    
+    .subtitle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .subtitle-slider {
       position: absolute;
-      bottom: 100%;
-      left: 50%;
-      margin-left: -5px;
-      border-width: 5px;
-      border-style: solid;
-      border-color: transparent transparent rgba(28, 28, 28, 0.9) transparent;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.15);
+      transition: .3s;
+      border-radius: 22px;
+    }
+    
+    .subtitle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    
+    input:checked + .subtitle-slider {
+      background-color: #ff5588;
+    }
+    
+    input:focus + .subtitle-slider {
+      box-shadow: 0 0 1px #ff5588;
+    }
+    
+    input:checked + .subtitle-slider:before {
+      transform: translateX(22px);
     }
     
     /* 影院模式容器样式 */
@@ -521,24 +986,79 @@ function observeVideoChange() {
         setTimeout(() => {
           addCinemaButton();
         }, 1500);
+        
+        // 清空字幕状态并重新加载
+        videoSubtitles = [];
+        videoTranslatedSubtitles = [];
+        lastVideoId = '';
+        
+        // 如果已启用视频字幕，重新加载字幕
+        if (isTransorSubtitleEnabled) {
+          setTimeout(() => {
+            console.log('URL变化后重新加载字幕');
+            loadVideoSubtitles();
+          }, 2000);
+        }
       }
     }
   }, 1000);
   
   // 监听视频元素变化
   const observer = new MutationObserver(() => {
-    if (isYouTubeVideoPage() && document.querySelector('video') && !document.getElementById('cinema-mode-btn')) {
-      console.log('检测到视频元素变化，添加影院模式按钮');
-      // 延迟添加按钮，确保右侧控制栏已加载
-      setTimeout(() => {
-        addCinemaButton();
-      }, 500);
+    if (isYouTubeVideoPage()) {
+      const currentVideoId = getYouTubeVideoId();
+      const video = document.querySelector('video');
+      
+      if (video && currentVideoId && currentVideoId !== lastVideoId) {
+        console.log('检测到视频元素变化，视频ID:', currentVideoId);
+        
+        // 延迟添加按钮，确保右侧控制栏已加载
+        if (!document.getElementById('cinema-mode-btn')) {
+          setTimeout(() => {
+            addCinemaButton();
+          }, 500);
+        }
+        
+        // 如果启用了字幕翻译，重新加载字幕
+        if (isTransorSubtitleEnabled) {
+          // 清空字幕状态
+          videoSubtitles = [];
+          videoTranslatedSubtitles = [];
+          lastVideoId = currentVideoId;
+          
+          // 如果字幕容器被隐藏，重新显示
+          if (videoSubtitleContainer) {
+            videoSubtitleContainer.style.display = 'block';
+          }
+          
+          // 重新加载字幕
+          setTimeout(() => {
+            console.log('视频元素变化后重新加载字幕');
+            loadVideoSubtitles();
+          }, 1500);
+        }
+      }
     }
   });
   
   observer.observe(document.body, {
     childList: true,
     subtree: true
+  });
+  
+  // 监听页面可见性变化，当从后台切回时检查字幕状态
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isYouTubeVideoPage() && isTransorSubtitleEnabled) {
+      const currentVideoId = getYouTubeVideoId();
+      
+      // 如果当前没有字幕但有视频ID，尝试重新加载字幕
+      if (videoSubtitles.length === 0 && currentVideoId) {
+        console.log('页面可见性变化，尝试加载字幕');
+        setTimeout(() => {
+          loadVideoSubtitles();
+        }, 1000);
+      }
+    }
   });
 }
 
@@ -782,33 +1302,49 @@ function parseYouTubeSubtitles(responseText) {
 
       // 检查JSON3格式
       if (jsonData.events && Array.isArray(jsonData.events)) {
+        console.log('解析JSON3格式字幕');
+        
+        // 增强时间戳精度处理，并微调结束时间
         return jsonData.events
           .filter(event => event.segs && Array.isArray(event.segs))
           .map(event => {
-            const text = event.segs.map(seg => seg.utf8 || '').join(' ').trim()
+            // 合并多段文本，保留原始格式
+            const text = event.segs.map(seg => seg.utf8 || '').join('').trim();
 
             if (!text) return null;
 
+            // 更精确的时间处理，保留更多小数位
+            // 将YouTube毫秒时间戳转换为秒，保留原始精度
             const start = event.tStartMs / 1000;
             const duration = event.dDurationMs / 1000;
+            
+            // 确保结束时间略微提前，避免显示时间过长
+            const end = start + duration - 0.05; // 减少50毫秒避免字幕显示时间过长
 
             return {
               start: start,
-              end: start + duration,
-              text: text
+              end: end,
+              text: text,
+              rawStartMs: event.tStartMs, // 保留原始毫秒时间戳用于调试
+              rawDurationMs: event.dDurationMs
             };
           })
           .filter(item => item !== null);
       }
     } catch (jsonError) {
+      console.warn('JSON解析失败，尝试XML格式:', jsonError);
+      
       // 不是JSON格式，检查是否是XML
       if (responseText.includes('<?xml') || responseText.includes('<transcript>') || responseText.includes('<text')) {
+        console.log('解析XML格式字幕');
+        
         // 创建XML解析器
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(responseText, "text/xml");
         const textElements = xmlDoc.getElementsByTagName('text');
 
         if (!textElements || textElements.length === 0) {
+          console.warn('XML中未找到text元素');
           return [];
         }
 
@@ -816,28 +1352,36 @@ function parseYouTubeSubtitles(responseText) {
 
         for (let i = 0; i < textElements.length; i++) {
           const element = textElements[i];
+          // 提高时间精度，直接使用原始值
           const start = parseFloat(element.getAttribute('start') || '0');
           const dur = parseFloat(element.getAttribute('dur') || '0');
           let text = element.textContent || '';
 
           if (text) {
-            // 移除XML格式字幕中的换行符
-            text = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+            // 改进文本清理，保留更多原始格式
+            text = text.replace(/\n/g, ' ').trim();
 
+            // 调整结束时间，略微提前
+            const end = start + dur - 0.05; // 减少50毫秒
+            
             subtitles.push({
               start: start,
-              end: start + dur,
-              text: text
+              end: end,
+              text: text,
+              rawStart: element.getAttribute('start'), // 保留原始属性用于调试
+              rawDur: element.getAttribute('dur')
             });
           }
         }
 
-        return subtitles;
+        // 按开始时间排序确保顺序正确
+        return subtitles.sort((a, b) => a.start - b.start);
       }
     }
 
     // 格式不支持
-    throw new Error('不支持的字幕格式');
+    console.warn('不支持的字幕格式');
+    return [];
   } catch (error) {
     console.error('解析YouTube字幕失败:', error);
     return [];
@@ -1104,8 +1648,8 @@ function updateSubtitleByTime(currentTime) {
   }
 
   // 字幕提前显示时间 - 提前0.3秒显示字幕(减少提前量，提高精准度)
-  const PREVIEW_TIME = 0.3;
-
+  const PREVIEW_TIME = 0.3; // 提前350毫秒显示字幕
+  
   // 字幕切换防抖时间 - 避免频繁切换
   const DEBOUNCE_TIME = 0.05; // 50毫秒
 
@@ -1985,4 +2529,1419 @@ function processSubtitlesSmartMerging(subtitles) {
   
   // 确保排序正确
   return processedSubtitles.sort((a, b) => a.start - b.start);
-} 
+}
+
+// 初始化视频字幕翻译功能
+function initVideoSubtitleTranslation() {
+  console.log('初始化视频字幕翻译功能');
+  
+  // 使用保存的字幕状态初始化，而不是始终启用
+  // isTransorSubtitleEnabled = true; -- 删除这行，使用全局变量的值
+  
+  // 记录初始视频ID
+  lastVideoId = getYouTubeVideoId();
+  console.log('初始化视频ID:', lastVideoId);
+  
+  // 仅在字幕功能启用时才启用字幕
+  if (isTransorSubtitleEnabled) {
+    enableVideoSubtitles();
+  }
+  
+  // 添加视频状态跟踪变量
+  let lastVideoStatus = {
+    id: lastVideoId,
+    time: 0,
+    hasSubtitles: false,
+    loadAttempts: 0,
+    lastLoadTime: Date.now(),
+    subtitleFailures: 0
+  };
+  
+  // 监听视频变化，以确保在视频变化时重新加载字幕
+  setInterval(() => {
+    const currentVideoId = getYouTubeVideoId();
+    const video = document.querySelector('video');
+    const currentTime = video ? video.currentTime : 0;
+    
+    // 视频ID改变或明显的时间跳转/重置
+    const isNewVideo = currentVideoId && (
+      currentVideoId !== lastVideoId || 
+      (lastVideoStatus.time > 10 && currentTime < 3)
+    );
+    
+    // 检测视频播放但没有字幕的情况
+    const needsSubtitleRetry = currentVideoId && 
+      isTransorSubtitleEnabled &&  // 只有在字幕启用时才重试
+      videoSubtitles.length === 0 && 
+      currentTime > 5 && 
+      Date.now() - lastVideoStatus.lastLoadTime > 5000 && // 距上次加载超过5秒
+      lastVideoStatus.loadAttempts < 3; // 尝试次数小于3次
+    
+    // 字幕加载后长时间消失的情况
+    const subtitlesDisappeared = currentVideoId && 
+      isTransorSubtitleEnabled &&  // 只有在字幕启用时才恢复
+      lastVideoStatus.hasSubtitles && 
+      videoSubtitles.length > 0 && 
+      !videoSubtitleContainer?.style.display || 
+      videoSubtitleContainer?.style.display === 'none';
+    
+    if (isNewVideo) {
+      console.log('检测到视频变化，重新加载字幕:', {
+        oldId: lastVideoId,
+        newId: currentVideoId,
+        oldTime: lastVideoStatus.time,
+        newTime: currentTime
+      });
+      
+      // 重置状态
+      lastVideoStatus = {
+        id: currentVideoId,
+        time: currentTime,
+        hasSubtitles: false,
+        loadAttempts: 0,
+        lastLoadTime: Date.now(),
+        subtitleFailures: 0
+      };
+      
+      // 更新视频ID
+      lastVideoId = currentVideoId;
+      
+      // 先禁用当前字幕显示
+      disableVideoSubtitles();
+      
+      // 清空旧字幕
+      videoSubtitles = [];
+      videoTranslatedSubtitles = [];
+      
+      // 重新加载字幕
+      if (isTransorSubtitleEnabled) {
+        // 确保容器存在
+        createVideoSubtitleContainer();
+        // 延迟加载新视频的字幕，等待视频完全加载
+        setTimeout(() => {
+          loadVideoSubtitles();
+          lastVideoStatus.loadAttempts++;
+          lastVideoStatus.lastLoadTime = Date.now();
+        }, 1500);
+      }
+    } 
+    // 处理需要重试加载字幕的情况
+    else if (needsSubtitleRetry) {
+      console.log('视频已播放但没有字幕，尝试重新加载:', {
+        videoId: currentVideoId,
+        currentTime,
+        attempts: lastVideoStatus.loadAttempts
+      });
+      
+      // 更新尝试计数
+      lastVideoStatus.loadAttempts++;
+      lastVideoStatus.lastLoadTime = Date.now();
+      
+      // 尝试重新加载字幕
+      if (isTransorSubtitleEnabled) {
+        loadVideoSubtitles();
+      }
+    }
+    // 处理字幕消失的情况
+    else if (subtitlesDisappeared) {
+      console.log('字幕容器已消失，尝试恢复显示');
+      
+      // 确保字幕容器可见
+      if (videoSubtitleContainer) {
+        videoSubtitleContainer.style.display = 'block';
+      } else {
+        // 如果容器不存在，重新创建并加载
+        createVideoSubtitleContainer();
+        loadVideoSubtitles();
+        lastVideoStatus.loadAttempts++;
+        lastVideoStatus.lastLoadTime = Date.now();
+      }
+      
+      // 重新启动字幕跟踪
+      startVideoSubtitleTracking();
+    }
+    
+    // 更新状态跟踪
+    if (video && currentVideoId) {
+      // 更新播放时间
+      lastVideoStatus.time = currentTime;
+      
+      // 检测是否有有效字幕
+      if (videoSubtitles.length > 0) {
+        lastVideoStatus.hasSubtitles = true;
+      }
+    }
+  }, 2000); // 每2秒检查一次
+  
+  // 当播放器完全加载时，尝试再次加载字幕（增强可靠性）
+  document.addEventListener('loadeddata', function() {
+    if (isTransorSubtitleEnabled && videoSubtitles.length === 0) {
+      console.log('视频加载完成，尝试加载字幕');
+      lastVideoStatus.lastLoadTime = Date.now();
+      enableVideoSubtitles();
+    }
+  }, true);
+  
+  // 监听YouTube播放器的样式变化，防止字幕被隐藏
+  const observePlayerStyles = () => {
+    const player = document.querySelector('#movie_player');
+    if (!player) return;
+    
+    const observer = new MutationObserver(() => {
+      // 检查播放器是否切换了全屏模式或其他可能影响字幕显示的变化
+      if (videoSubtitleContainer && isTransorSubtitleEnabled) {
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+        const isPlayerHidden = getComputedStyle(player).display === 'none';
+        
+        if (isPlayerHidden) {
+          // 播放器被隐藏，暂时隐藏字幕
+          videoSubtitleContainer.style.display = 'none';
+        } else if (videoSubtitles.length > 0) {
+          // 确保字幕容器可见
+          videoSubtitleContainer.style.display = 'block';
+          
+          // 在全屏模式切换后，更新字幕位置
+          if (isFullscreen) {
+            videoSubtitleContainer.classList.add('ytp-fullscreen');
+          } else {
+            videoSubtitleContainer.classList.remove('ytp-fullscreen');
+          }
+        }
+      }
+    });
+    
+    observer.observe(player, {
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    });
+  };
+  
+  // 启动播放器样式监听
+  setTimeout(observePlayerStyles, 2000);
+}
+
+// 启用视频字幕
+function enableVideoSubtitles() {
+  console.log('启用视频字幕翻译');
+  
+  // 创建字幕容器
+  createVideoSubtitleContainer();
+  
+  // 获取当前视频ID
+  const videoId = getYouTubeVideoId();
+  if (videoId && videoId !== currentVideoId) {
+    currentVideoId = videoId;
+    loadVideoSubtitles();
+  }
+  
+  // 开始字幕跟踪
+  startVideoSubtitleTracking();
+  
+  // 应用当前的字幕显示模式
+  console.log('应用字幕显示模式:', subtitleDisplayMode);
+  updateVideoSubtitleDisplay();
+  
+  // 应用当前的字幕样式
+  console.log('应用字幕样式:', subtitleStyle);
+  updateSubtitleStyle();
+}
+
+// 禁用视频字幕
+function disableVideoSubtitles() {
+  console.log('暂时隐藏视频字幕翻译');
+  
+  // 停止字幕跟踪
+  if (videoSubtitleUpdateInterval) {
+    clearInterval(videoSubtitleUpdateInterval);
+    videoSubtitleUpdateInterval = null;
+  }
+  
+  // 隐藏字幕容器但不移除
+  if (videoSubtitleContainer) {
+    videoSubtitleContainer.style.display = 'none';
+  }
+  
+  // 清空显示的字幕
+  currentVideoSubtitleIndex = -1;
+}
+
+// 创建视频字幕容器
+function createVideoSubtitleContainer() {
+  // 检查字幕功能是否启用
+  if (!isTransorSubtitleEnabled) {
+    console.log('字幕功能已禁用，不创建字幕容器');
+    return;
+  }
+  
+  // 检查容器是否已存在
+  if (videoSubtitleContainer) {
+    return;
+  }
+  
+  // 查找YouTube播放器
+  const player = document.querySelector('#movie_player');
+  if (!player) {
+    console.error('未找到YouTube播放器');
+    return;
+  }
+  
+  // 创建字幕容器
+  videoSubtitleContainer = document.createElement('div');
+  videoSubtitleContainer.id = 'transor-video-subtitle-container';
+  videoSubtitleContainer.className = 'transor-video-subtitle-container no-translate';
+  
+  // 添加到播放器中
+  player.appendChild(videoSubtitleContainer);
+  
+  // 添加样式
+  addVideoSubtitleStyles();
+  
+  // 添加拖拽功能
+  makeDraggable(videoSubtitleContainer);
+}
+
+// 添加视频字幕样式
+function addVideoSubtitleStyles() {
+  // 检查样式是否已存在
+  if (document.getElementById('transor-video-subtitle-styles')) {
+    return;
+  }
+  
+  const style = document.createElement('style');
+  style.id = 'transor-video-subtitle-styles';
+  style.textContent = `
+    .transor-video-subtitle-container {
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      text-align: center;
+      cursor: move;
+      user-select: none;
+      max-width: 80%;
+      width: auto;
+      height: auto;
+    }
+    
+    .transor-video-subtitle-wrapper {
+      background-color: rgba(0, 0, 0, 0.8);
+      padding: 12px 16px;
+      border-radius: 8px;
+      display: inline-block;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      margin-bottom: 4px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      width: auto;
+      min-width: 200px;
+      height: auto;
+    }
+    
+    .transor-video-subtitle-original {
+      color: #fff;
+      font-size: 18px;
+      line-height: 1.5;
+      margin-bottom: 4px;
+      white-space: pre-wrap;
+      text-align: center;
+    }
+    
+    .transor-video-subtitle-translated {
+      color: #ff5588;
+      font-weight: 500;
+      font-size: 16px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      text-align: center;
+    }
+    
+    /* 字幕显示模式样式 */
+    .mode-original-only .transor-video-subtitle-translated {
+      display: none;
+    }
+    
+    .mode-translation-only .transor-video-subtitle-original {
+      display: none;
+    }
+    
+    .mode-translation-only .transor-video-subtitle-translated {
+      font-size: 18px;
+      margin-bottom: 0;
+    }
+    
+    /* 调整字幕位置，避免与YouTube原生字幕重叠 */
+    .ytp-caption-window-container ~ .transor-video-subtitle-container {
+      bottom: 120px;
+    }
+    
+    /* 全屏模式下的调整 */
+    .ytp-fullscreen .transor-video-subtitle-container {
+      bottom: 80px;
+    }
+    
+    .ytp-fullscreen .transor-video-subtitle-original {
+      font-size: 22px;
+    }
+    
+    .ytp-fullscreen .transor-video-subtitle-translated {
+      font-size: 20px;
+    }
+    
+    /* 拖动时的样式 */
+    .transor-dragging {
+      opacity: 0.9;
+      pointer-events: none;
+    }
+    
+    /* 拖动手柄 */
+    .transor-drag-handle {
+      width: 30px;
+      height: 6px;
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+      margin: 0 auto 8px;
+      cursor: move;
+    }
+    
+    /* 字幕样式 */
+    /* 默认样式已在上面定义 */
+    
+    /* 半透明样式 */
+    .subtitle-style-translucent .transor-video-subtitle-wrapper {
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+    }
+    
+    /* 浅色模式 */
+    .subtitle-style-light .transor-video-subtitle-wrapper {
+      background-color: rgba(255, 255, 255, 0.85);
+    }
+    
+    .subtitle-style-light .transor-video-subtitle-original {
+      color: #222;
+    }
+    
+    .subtitle-style-light .transor-video-subtitle-translated {
+      color: #e53935;
+    }
+    
+    /* 无背景 */
+    .subtitle-style-nobg .transor-video-subtitle-wrapper {
+      background-color: transparent;
+      box-shadow: none;
+      padding: 0;
+    }
+    
+    .subtitle-style-nobg .transor-video-subtitle-original {
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+    
+    .subtitle-style-nobg .transor-video-subtitle-translated {
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+    
+    /* 醒目样式 */
+    .subtitle-style-bold .transor-video-subtitle-wrapper {
+      background-color: rgba(0, 0, 0, 0.9);
+      border: 2px solid #ff5588;
+    }
+    
+    .subtitle-style-bold .transor-video-subtitle-original {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    
+    .subtitle-style-bold .transor-video-subtitle-translated {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ff3d71;
+    }
+  `;
+  
+  document.head.appendChild(style);
+}
+
+// 加载视频字幕
+async function loadVideoSubtitles() {
+  const currentVideoId = getYouTubeVideoId();
+  console.log('加载视频字幕...', currentVideoId);
+  
+  // 检查字幕功能是否启用
+  if (!isTransorSubtitleEnabled) {
+    console.log('字幕功能已禁用，跳过加载字幕');
+    return;
+  }
+  
+  if (!currentVideoId) {
+    console.error('未找到视频ID，无法加载字幕');
+    return;
+  }
+  
+  // 更新当前视频ID
+  lastVideoId = currentVideoId;
+  
+  // 重置状态变量，确保全新加载
+  currentVideoSubtitleIndex = -1;
+  subtitleTimeMap.clear();
+  
+  try {
+    // 如果字幕容器不存在，先创建容器
+    if (!videoSubtitleContainer) {
+      createVideoSubtitleContainer();
+    } else {
+      // 确保字幕容器可见
+      videoSubtitleContainer.style.display = 'block';
+    }
+    
+    // 显示加载状态
+    if (videoSubtitleContainer) {
+      videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper"><div class="transor-video-subtitle-translated">正在加载字幕...</div></div>';
+    }
+    
+    // 使用无缓存请求获取YouTube页面
+    const webUrlResponse = await fetch(`https://www.youtube.com/watch?v=${currentVideoId}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      cache: 'no-store'
+    });
+    
+    const html = await webUrlResponse.text();
+    
+    // 提取YouTube初始响应数据
+    const ytInitialMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});\s*(?:var\s+meta|<\/script>)/);
+    if (!ytInitialMatch) {
+      throw new Error('无法提取YouTube播放器数据');
+    }
+    
+    const ytInitialPlayerResponse = JSON.parse(ytInitialMatch[1]);
+    
+    // 获取字幕轨道信息
+    const captionTracks = ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!captionTracks || captionTracks.length === 0) {
+      console.warn('未找到字幕轨道，尝试使用默认字幕');
+      // 如果无法获取字幕，显示提示
+      if (videoSubtitleContainer) {
+        videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper"><div class="transor-video-subtitle-translated">无法获取视频字幕</div></div>';
+      }
+      return;
+    }
+    
+    // 选择第一个可用的字幕轨道
+    const defaultCaptionIndex = 0;
+    const requestUrl = captionTracks[defaultCaptionIndex]?.baseUrl;
+    
+    if (!requestUrl) {
+      console.error('未找到字幕URL');
+      return;
+    }
+    
+    // 添加无缓存参数获取字幕数据
+    const response = await fetchYouTubeSubtitles(`${requestUrl}&fmt=json3&_=${Date.now()}`);
+    
+    if (response && response.length > 0) {
+      // 处理字幕
+      const processedSubtitles = processSubtitlesSmartMerging(response);
+      videoSubtitles = processedSubtitles;
+      
+      console.log(`成功加载${processedSubtitles.length}条字幕`);
+      
+      // 如果字幕加载成功，清除错误提示
+      if (videoSubtitleContainer && videoSubtitleContainer.querySelector('.transor-video-subtitle-translated')) {
+        videoSubtitleContainer.innerHTML = '';
+      }
+      
+      // 翻译字幕
+      await translateVideoSubtitles(processedSubtitles);
+      
+      // 如果已启用跟踪，重新启动
+      if (videoSubtitleUpdateInterval) {
+        clearInterval(videoSubtitleUpdateInterval);
+        startVideoSubtitleTracking();
+      } else {
+        // 开始字幕跟踪
+        startVideoSubtitleTracking();
+      }
+    } else {
+      console.error('未能获取字幕数据');
+      // 显示错误信息
+      if (videoSubtitleContainer) {
+        videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper"><div class="transor-video-subtitle-translated">字幕加载失败</div></div>';
+      }
+    }
+  } catch (error) {
+    console.error('加载视频字幕失败:', error);
+    // 显示错误信息
+    if (videoSubtitleContainer) {
+      videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper"><div class="transor-video-subtitle-translated">字幕加载出错</div></div>';
+    }
+    
+    // 30秒后自动重试
+    setTimeout(() => {
+      console.log('自动重试加载字幕');
+      loadVideoSubtitles();
+    }, 30000);
+  }
+}
+
+// 构建字幕时间映射 - 不再使用，保留API兼容性
+function buildSubtitleTimeMap() {
+  // 函数保留，但实际不进行映射构建
+  console.log('不再使用字幕时间映射，使用直接匹配');
+}
+
+// 翻译视频字幕
+async function translateVideoSubtitles(subtitlesToTranslate) {
+  console.log('开始翻译视频字幕...');
+  
+  // 确保输入是有效的字幕数组
+  if (!Array.isArray(subtitlesToTranslate) || subtitlesToTranslate.length === 0) {
+    console.warn('没有字幕需要翻译');
+    return Promise.resolve([]);
+  }
+  
+  // 准备字幕文本数组
+  const textsToTranslate = subtitlesToTranslate.map(subtitle => {
+    return cleanTextThoroughly(subtitle.text || '');
+  });
+  
+  console.log(`准备翻译${textsToTranslate.length}条字幕...`);
+  
+  // 使用Promise封装chrome.runtime.sendMessage
+  return new Promise((resolve) => {
+    try {
+      // 发送翻译请求
+      chrome.runtime.sendMessage(
+        {
+          action: 'translateTexts',
+          texts: textsToTranslate,
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Chrome运行时错误:', chrome.runtime.lastError);
+            // 使用模拟翻译作为备选
+            const fallbackSubtitles = createFallbackTranslations(subtitlesToTranslate);
+            videoTranslatedSubtitles = fallbackSubtitles;
+            resolve(fallbackSubtitles);
+            return;
+          }
+          
+          if (response && response.success && Array.isArray(response.translations)) {
+            // 合并翻译结果
+            const translatedSubs = subtitlesToTranslate.map((subtitle, index) => {
+              const translation = cleanTextThoroughly(response.translations[index] || subtitle.text || '');
+              return {
+                ...subtitle,
+                translatedText: translation
+              };
+            });
+            
+            // 更新全局变量
+            videoTranslatedSubtitles = translatedSubs;
+            
+            console.log('视频字幕翻译完成，共翻译', translatedSubs.length, '条字幕');
+            
+            // 如果当前有显示的字幕，立即更新显示
+            if (currentVideoSubtitleIndex >= 0 && currentVideoSubtitleIndex < translatedSubs.length) {
+              displayVideoSubtitle(currentVideoSubtitleIndex);
+            }
+            
+            resolve(translatedSubs);
+          } else {
+            console.error('翻译请求失败或返回数据无效:', response);
+            // 使用模拟翻译作为备选
+            const fallbackSubtitles = createFallbackTranslations(subtitlesToTranslate);
+            videoTranslatedSubtitles = fallbackSubtitles;
+            resolve(fallbackSubtitles);
+          }
+        }
+      );
+    } catch (error) {
+      console.error('翻译视频字幕失败:', error);
+      // 使用模拟翻译作为备选
+      const fallbackSubtitles = createFallbackTranslations(subtitlesToTranslate);
+      videoTranslatedSubtitles = fallbackSubtitles;
+      resolve(fallbackSubtitles);
+    }
+  });
+}
+
+// 创建备用翻译字幕（在翻译失败时使用）
+function createFallbackTranslations(subtitles) {
+  console.log('使用备用翻译机制');
+  return subtitles.map((subtitle) => {
+    // 为不同的语言类型文本创建简单的翻译
+    let translatedText = '';
+    const text = subtitle.text || '';
+    
+    // 创建一个简单的备用翻译
+    if (text.length > 0) {
+      translatedText = `[中文] ${text}`;
+    }
+    
+    return {
+      ...subtitle,
+      translatedText: translatedText
+    };
+  });
+}
+
+// 开始视频字幕跟踪
+function startVideoSubtitleTracking() {
+  console.log('启动视频字幕跟踪');
+  
+  // 如果字幕功能被禁用，不启动跟踪
+  if (!isTransorSubtitleEnabled) {
+    console.log('字幕功能已禁用，不启动跟踪');
+    return;
+  }
+  
+  // 获取视频元素
+  const video = document.querySelector('video');
+  if (!video) {
+    console.error('找不到视频元素，无法启动字幕跟踪');
+    return;
+  }
+  
+  // 清除现有的定时器
+  if (videoSubtitleUpdateInterval) {
+    clearInterval(videoSubtitleUpdateInterval);
+    videoSubtitleUpdateInterval = null;
+  }
+  
+  // 初始化视频元素的字幕事件监听器集合
+  if (!video._subtitleEventListeners) {
+    video._subtitleEventListeners = {};
+    video._directTimer = null;
+    video._rafId = null;
+  } else {
+    // 如果已有监听器，先移除
+    if (video._subtitleEventListeners.timeupdate) {
+      video.removeEventListener('timeupdate', video._subtitleEventListeners.timeupdate);
+    }
+    if (video._subtitleEventListeners.seeking) {
+      video.removeEventListener('seeking', video._subtitleEventListeners.seeking);
+    }
+    if (video._subtitleEventListeners.seeked) {
+      video.removeEventListener('seeked', video._subtitleEventListeners.seeked);
+    }
+    if (video._subtitleEventListeners.play) {
+      video.removeEventListener('play', video._subtitleEventListeners.play);
+    }
+    if (video._subtitleEventListeners.pause) {
+      video.removeEventListener('pause', video._subtitleEventListeners.pause);
+    }
+    
+    // 清除定时器
+    if (video._directTimer) {
+      clearInterval(video._directTimer);
+      video._directTimer = null;
+    }
+    
+    // 取消动画帧
+    if (video._rafId) {
+      cancelAnimationFrame(video._rafId);
+      video._rafId = null;
+    }
+  }
+  
+  // 使用RequestAnimationFrame作为主要更新机制
+  const updateByRaf = () => {
+    if (video && videoSubtitles.length > 0 && isTransorSubtitleEnabled) {
+      updateVideoSubtitleByTime(video.currentTime);
+      
+      // 继续请求动画帧，但仅当字幕功能启用时
+      if (isTransorSubtitleEnabled) {
+        video._rafId = requestAnimationFrame(updateByRaf);
+      }
+    } else {
+      // 如果条件不满足，停止RAF循环
+      video._rafId = null;
+    }
+  };
+  
+  // 启动RAF
+  if (videoSubtitles.length > 0 && isTransorSubtitleEnabled) {
+    video._rafId = requestAnimationFrame(updateByRaf);
+  }
+  
+  // 直接计时器作为第二种更新机制
+  video._directTimer = setInterval(() => {
+    if (video && videoSubtitles.length > 0 && isTransorSubtitleEnabled) {
+      updateVideoSubtitleByTime(video.currentTime);
+    }
+  }, 50); // 每50毫秒更新一次，提供更高更新频率
+  
+  // 常规timeupdate事件作为第三种备份机制
+  video._subtitleEventListeners.timeupdate = () => {
+    if (videoSubtitles.length > 0 && isTransorSubtitleEnabled) {
+      updateVideoSubtitleByTime(video.currentTime);
+    }
+  };
+  
+  // 跳转中事件 - 用户拖动进度条时清除字幕
+  video._subtitleEventListeners.seeking = () => {
+    clearVideoSubtitleDisplay();
+  };
+  
+  // 跳转完成事件 - 跳转完成后立即更新字幕
+  video._subtitleEventListeners.seeked = () => {
+    if (videoSubtitles.length > 0 && isTransorSubtitleEnabled) {
+      // 先清除当前字幕状态，强制重新计算
+      currentVideoSubtitleIndex = -1;
+      clearVideoSubtitleDisplay();
+      
+      // 立即更新一次，不延迟
+      updateVideoSubtitleByTime(video.currentTime);
+      
+      // 额外触发一次更新，确保跳转后立即显示正确字幕
+      setTimeout(() => {
+        if (isTransorSubtitleEnabled) {
+          updateVideoSubtitleByTime(video.currentTime);
+        }
+      }, 100);
+    }
+  };
+  
+  // 播放事件 - 恢复显示字幕
+  video._subtitleEventListeners.play = () => {
+    if (videoSubtitleContainer && isTransorSubtitleEnabled) {
+      videoSubtitleContainer.style.display = 'block';
+      updateVideoSubtitleByTime(video.currentTime);
+      
+      // 确保RAF正在运行
+      if (!video._rafId && isTransorSubtitleEnabled) {
+        video._rafId = requestAnimationFrame(updateByRaf);
+      }
+      
+      // 确保直接定时器在运行
+      if (!video._directTimer && isTransorSubtitleEnabled) {
+        video._directTimer = setInterval(() => {
+          if (isTransorSubtitleEnabled) {
+            updateVideoSubtitleByTime(video.currentTime);
+          }
+        }, 50); // 每50毫秒更新一次
+      }
+    }
+  };
+  
+  // 暂停事件 - 确保字幕正确显示但停止高频更新
+  video._subtitleEventListeners.pause = () => {
+    if (isTransorSubtitleEnabled) {
+      updateVideoSubtitleByTime(video.currentTime);
+      
+      // 暂停时可以停止RAF以节省资源
+      if (video._rafId) {
+        cancelAnimationFrame(video._rafId);
+        video._rafId = null;
+      }
+      
+      // 同时停止直接定时器
+      if (video._directTimer) {
+        clearInterval(video._directTimer);
+        video._directTimer = null;
+      }
+    }
+  };
+  
+  // 添加事件监听
+  video.addEventListener('timeupdate', video._subtitleEventListeners.timeupdate);
+  video.addEventListener('seeking', video._subtitleEventListeners.seeking);
+  video.addEventListener('seeked', video._subtitleEventListeners.seeked);
+  video.addEventListener('play', video._subtitleEventListeners.play);
+  video.addEventListener('pause', video._subtitleEventListeners.pause);
+  
+  // 设置定时器作为备用更新机制，确保字幕更新不会丢失
+  // 降低频率到100毫秒，与RAF结合提供更稳定的更新
+  videoSubtitleUpdateInterval = setInterval(() => {
+    // 检查字幕功能是否启用
+    if (!isTransorSubtitleEnabled) {
+      // 如果已禁用，则停止计时器
+      clearInterval(videoSubtitleUpdateInterval);
+      videoSubtitleUpdateInterval = null;
+      return;
+    }
+    
+    if (video && videoSubtitles.length > 0 && isTransorSubtitleEnabled) {
+      updateVideoSubtitleByTime(video.currentTime);
+    }
+  }, 100);
+  
+  // 初始显示字幕
+  if (videoSubtitles.length > 0 && isTransorSubtitleEnabled) {
+    updateVideoSubtitleByTime(video.currentTime);
+  } else if (lastVideoId && isTransorSubtitleEnabled) {
+    // 如果没有字幕数据但有视频ID，尝试加载字幕
+    console.log('字幕数据为空，尝试加载字幕...');
+    loadVideoSubtitles();
+  }
+  
+  // 在开发者控制台提供调试指令
+  console.log('视频字幕跟踪已启动，使用RAF+事件监听+定时器三重机制');
+  console.log('提示: 设置 videoSubtitleContainer._debugEnabled = true 开启字幕调试模式');
+  
+  // 清理函数 - 用于在视频卸载时清理资源
+  video._cleanupSubtitleTracking = () => {
+    console.log('清理字幕跟踪资源');
+    
+    // 移除事件监听
+    video.removeEventListener('timeupdate', video._subtitleEventListeners.timeupdate);
+    video.removeEventListener('seeking', video._subtitleEventListeners.seeking);
+    video.removeEventListener('seeked', video._subtitleEventListeners.seeked);
+    video.removeEventListener('play', video._subtitleEventListeners.play);
+    video.removeEventListener('pause', video._subtitleEventListeners.pause);
+    
+    // 清除定时器
+    if (video._directTimer) {
+      clearInterval(video._directTimer);
+      video._directTimer = null;
+    }
+    
+    // 取消动画帧
+    if (video._rafId) {
+      cancelAnimationFrame(video._rafId);
+      video._rafId = null;
+    }
+    
+    // 清空监听器集合
+    video._subtitleEventListeners = {};
+  };
+  
+  return video._cleanupSubtitleTracking;
+}
+
+// 根据时间更新视频字幕 - 使用影院模式逻辑重写
+function updateVideoSubtitleByTime(currentTime) {
+  // 检查必要条件
+  if (!videoSubtitles || videoSubtitles.length === 0 || !isTransorSubtitleEnabled) {
+    return;
+  }
+  
+  try {
+    // 在字幕更新前，确保时间映射是最新的
+    buildSubtitleTimeMap();
+    
+    // 在每次更新前校准偏移量，提高精度
+    calibrateSubtitleTiming();
+    
+    // 检测大幅度时间变化（视频跳转）
+    const video = document.querySelector('video');
+    if (video && video._lastCheckedTime !== undefined) {
+      const timeDiff = Math.abs(currentTime - video._lastCheckedTime);
+      // 如果时间差超过1秒，可能是用户手动跳转
+      if (timeDiff > 1.0) {
+        // 重置字幕状态
+        currentVideoSubtitleIndex = -1;
+        console.log(`检测到视频时间跳转: ${video._lastCheckedTime.toFixed(2)}s -> ${currentTime.toFixed(2)}s`);
+      }
+    }
+    
+    // 更新最后检查的时间
+    if (video) {
+      video._lastCheckedTime = currentTime;
+    }
+    
+    // 时间戳处理和防抖
+    const now = Date.now();
+    
+    // 调试信息 - 减少日志输出频率
+    if (videoSubtitleContainer && videoSubtitleContainer._debugEnabled) {
+      if (!video._lastLogTime || now - video._lastLogTime > 1000) {
+        console.log(`当前时间: ${currentTime.toFixed(2)}秒, 查找匹配字幕...`);
+        video._lastLogTime = now;
+      }
+    }
+    
+    // 字幕提前显示时间 - 小幅提前显示字幕，提高精准度
+    const PREVIEW_TIME = 0.3; // 提前300毫秒显示字幕
+    
+    // 字幕切换防抖时间
+    const DEBOUNCE_TIME = 0.05; // 50毫秒
+    
+    let foundIndex = -1;
+    let closestStartTime = Infinity;
+    let foundSubtitle = null;
+    
+    // 预排序字幕数组，如果尚未排序
+    if (!video._subtitlesSorted) {
+      // 按开始时间排序
+      videoSubtitles.sort((a, b) => (a.start || 0) - (b.start || 0));
+      video._subtitlesSorted = true;
+      console.log('字幕已按时间排序，优化查找效率');
+    }
+    
+    // 优先查找在时间范围内的字幕
+    for (let i = 0; i < videoSubtitles.length; i++) {
+      const subtitle = videoSubtitles[i];
+      if (!subtitle || subtitle.start === undefined || subtitle.end === undefined) {
+        continue;
+      }
+      
+      // 判断当前时间是否落入字幕的时间范围内（包含提前量）
+      if (currentTime >= subtitle.start - PREVIEW_TIME && currentTime <= subtitle.end) {
+        // 如果当前时间在多个字幕的范围内，优先选择开始时间更接近的
+        if (foundIndex === -1 || Math.abs(subtitle.start - currentTime) < Math.abs(videoSubtitles[foundIndex].start - currentTime)) {
+          foundIndex = i;
+          foundSubtitle = subtitle;
+        }
+      }
+      
+      // 记录最接近的即将到来的字幕
+      if (subtitle.start > currentTime && subtitle.start < closestStartTime) {
+        closestStartTime = subtitle.start;
+      }
+    }
+    
+    // 如果没有找到当前范围内的字幕，但找到了即将显示的字幕
+    if (foundIndex === -1 && closestStartTime !== Infinity) {
+      // 找到最接近的即将显示的字幕
+      for (let i = 0; i < videoSubtitles.length; i++) {
+        const subtitle = videoSubtitles[i];
+        if (subtitle && subtitle.start === closestStartTime) {
+          const timeToNext = subtitle.start - currentTime;
+          
+          // 如果非常接近下一个字幕，提前显示
+          if (timeToNext > 0 && timeToNext < PREVIEW_TIME) {
+            foundIndex = i;
+            foundSubtitle = subtitle;
+            if (videoSubtitleContainer && videoSubtitleContainer._debugEnabled) {
+              console.log(`提前${timeToNext.toFixed(2)}秒显示字幕 #${foundIndex + 1}`);
+            }
+            break;
+          }
+        }
+      }
+    }
+    
+    // 检查是否找到了匹配的字幕
+    if (foundIndex !== -1 && foundSubtitle) {
+      // 检查是否需要更新显示
+      if (foundIndex !== currentVideoSubtitleIndex) {
+        // 防抖：检查上次切换时间，避免频繁切换
+        const lastSwitchTime = video._lastSubtitleSwitchTime || 0;
+        if (now - lastSwitchTime > DEBOUNCE_TIME * 1000) {
+          // 计算字幕延迟时间
+          const delay = currentTime - foundSubtitle.start;
+          const delayStatus = delay >= 0 ? `延迟=${delay.toFixed(2)}s` : `提前=${(-delay).toFixed(2)}s`;
+          
+          if (videoSubtitleContainer && videoSubtitleContainer._debugEnabled) {
+            console.log(`显示字幕 #${foundIndex + 1}/${videoSubtitles.length}: 起始=${foundSubtitle.start.toFixed(2)}s, 结束=${foundSubtitle.end.toFixed(2)}s, ${delayStatus}, 当前=${currentTime.toFixed(2)}s`);
+          }
+          
+          // 更新显示字幕
+          displayVideoSubtitle(foundIndex);
+          currentVideoSubtitleIndex = foundIndex;
+          
+          // 更新最后切换时间
+          video._lastSubtitleSwitchTime = now;
+          video._lastSubtitleIndex = foundIndex;
+        }
+      }
+    }
+    // 如果当前有字幕显示，但当前时间超出了该字幕的结束时间，清除显示
+    else if (currentVideoSubtitleIndex !== -1) {
+      const currentSub = videoSubtitles[currentVideoSubtitleIndex];
+      
+      // 当前时间超出结束时间，清除字幕
+      if (currentSub && currentSub.end !== undefined && currentTime > currentSub.end) {
+        if (videoSubtitleContainer && videoSubtitleContainer._debugEnabled) {
+          console.log(`清除字幕 #${currentVideoSubtitleIndex + 1}/${videoSubtitles.length}: 当前时间=${currentTime.toFixed(2)}s, 结束时间=${currentSub.end.toFixed(2)}s`);
+        }
+        
+        clearVideoSubtitleDisplay();
+        currentVideoSubtitleIndex = -1;
+        
+        // 记录下一个字幕的信息
+        if (closestStartTime !== Infinity) {
+          const timeToNext = closestStartTime - currentTime;
+          if (videoSubtitleContainer && videoSubtitleContainer._debugEnabled) {
+            console.log(`下一字幕在 ${timeToNext.toFixed(2)}秒后显示`);
+          }
+        }
+      }
+    }
+    
+  } catch (error) {
+    console.error('更新字幕时出错:', error);
+    // 出错时不改变字幕状态
+  }
+}
+
+// 显示视频字幕
+function displayVideoSubtitle(index) {
+  // 检查字幕功能是否启用
+  if (!isTransorSubtitleEnabled) {
+    console.log('字幕功能已禁用，不显示字幕');
+    return;
+  }
+  
+  if (!videoSubtitleContainer || !videoSubtitles[index]) {
+    return;
+  }
+  
+  const subtitle = videoSubtitles[index];
+  const translatedSubtitle = videoTranslatedSubtitles[index];
+  
+  let html = '<div class="transor-video-subtitle-wrapper">';
+  html += '<div class="transor-drag-handle"></div>';
+  
+  // 根据显示模式构建HTML
+  if (subtitleDisplayMode === '双语字幕') {
+    // 显示原文
+    html += `<div class="transor-video-subtitle-original">${cleanTextThoroughly(subtitle.text)}</div>`;
+    
+    // 显示翻译
+    if (translatedSubtitle && translatedSubtitle.translatedText) {
+      html += `<div class="transor-video-subtitle-translated">${cleanTextThoroughly(translatedSubtitle.translatedText)}</div>`;
+    } else {
+      html += `<div class="transor-video-subtitle-translated">加载翻译中...</div>`;
+    }
+  } else if (subtitleDisplayMode === '仅原文') {
+    html += `<div class="transor-video-subtitle-original">${cleanTextThoroughly(subtitle.text)}</div>`;
+  } else if (subtitleDisplayMode === '仅译文') {
+    if (translatedSubtitle && translatedSubtitle.translatedText) {
+      html += `<div class="transor-video-subtitle-translated">${cleanTextThoroughly(translatedSubtitle.translatedText)}</div>`;
+    } else {
+      // 如果译文不存在，显示加载中提示，而不是完全不显示
+      html += `<div class="transor-video-subtitle-translated">加载翻译中...</div>`;
+    }
+  }
+  
+  html += '</div>';
+  videoSubtitleContainer.innerHTML = html;
+}
+
+// 清空视频字幕显示
+function clearVideoSubtitleDisplay() {
+  if (videoSubtitleContainer) {
+    videoSubtitleContainer.innerHTML = '';
+  }
+}
+
+// 更新视频字幕显示
+function updateVideoSubtitleDisplay() {
+  // 检查字幕功能是否启用
+  if (!isTransorSubtitleEnabled) {
+    console.log('字幕功能已禁用，不更新显示');
+    return;
+  }
+  
+  // 如果当前有字幕显示，重新显示
+  if (currentVideoSubtitleIndex !== -1) {
+    displayVideoSubtitle(currentVideoSubtitleIndex);
+  }
+  
+  // 更新所有字幕的显示样式
+  if (videoSubtitleContainer) {
+    // 根据显示模式添加对应的CSS类
+    const oldClasses = ['mode-bilingual', 'mode-original-only', 'mode-translation-only'];
+    oldClasses.forEach(cls => videoSubtitleContainer.classList.remove(cls));
+    
+    if (subtitleDisplayMode === '双语字幕') {
+      videoSubtitleContainer.classList.add('mode-bilingual');
+    } else if (subtitleDisplayMode === '仅原文') {
+      videoSubtitleContainer.classList.add('mode-original-only');
+    } else if (subtitleDisplayMode === '仅译文') {
+      videoSubtitleContainer.classList.add('mode-translation-only');
+    }
+    
+    // 调试输出当前模式
+    console.log('当前字幕显示模式:', subtitleDisplayMode);
+  }
+}
+
+// 添加拖拽功能
+function makeDraggable(element) {
+  // 初始化变量
+  let offset = { x: 0, y: 0 };
+  
+  // 尝试恢复保存的位置
+  try {
+    const savedPosition = localStorage.getItem('transor-subtitle-position');
+    if (savedPosition) {
+      offset = JSON.parse(savedPosition);
+    }
+  } catch (e) {
+    console.error('恢复位置失败:', e);
+  }
+  
+  // 应用初始位置
+  applyPosition();
+  
+  // 定义拖拽所需函数
+  function mouseDown(e) {
+    // 检查是否点击在手柄或容器上
+    const target = e.target;
+    const isHandle = target.classList.contains('transor-drag-handle');
+    const isWrapper = target.classList.contains('transor-video-subtitle-wrapper') || 
+                      target.closest('.transor-video-subtitle-wrapper');
+    
+    if (!isHandle && !isWrapper) {
+      return;
+    }
+    
+    // 阻止默认行为和事件冒泡
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 记录初始鼠标位置
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    // 记录初始偏移量
+    const startOffset = { ...offset };
+    
+    // 添加移动和结束事件
+    document.addEventListener('mousemove', mouseMove);
+    document.addEventListener('mouseup', mouseUp);
+    
+    // 鼠标移动函数
+    function mouseMove(e) {
+      // 添加拖拽中样式
+      element.classList.add('transor-dragging');
+      
+      // 计算鼠标移动距离
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      
+      // 更新偏移量（直接基于初始偏移量加上鼠标移动距离）
+      offset.x = startOffset.x + dx;
+      offset.y = startOffset.y + dy;
+      
+      // 应用边界限制
+      const player = document.querySelector('#movie_player');
+      if (player) {
+        const playerRect = player.getBoundingClientRect();
+        
+        // 计算边界
+        const maxX = playerRect.width / 2;
+        const maxY = playerRect.height / 2;
+        
+        // 应用边界限制
+        offset.x = Math.min(Math.max(offset.x, -maxX), maxX);
+        offset.y = Math.min(Math.max(offset.y, -maxY), maxY);
+      }
+      
+      // 应用位置
+      applyPosition();
+    }
+    
+    // 鼠标释放函数
+    function mouseUp() {
+      // 移除拖拽中样式
+      element.classList.remove('transor-dragging');
+      
+      // 保存位置
+      try {
+        localStorage.setItem('transor-subtitle-position', JSON.stringify(offset));
+      } catch (e) {
+        console.error('保存位置失败:', e);
+      }
+      
+      // 移除事件监听
+      document.removeEventListener('mousemove', mouseMove);
+      document.removeEventListener('mouseup', mouseUp);
+    }
+  }
+  
+  // 触摸开始事件
+  function touchStart(e) {
+    // 检查是否点击在手柄或容器上
+    const target = e.target;
+    const isHandle = target.classList.contains('transor-drag-handle');
+    const isWrapper = target.classList.contains('transor-video-subtitle-wrapper') || 
+                      target.closest('.transor-video-subtitle-wrapper');
+    
+    if (!isHandle && !isWrapper) {
+      return;
+    }
+    
+    if (e.touches.length !== 1) return;
+    
+    // 阻止默认行为和事件冒泡
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 记录初始触摸位置
+    const startX = e.touches[0].clientX;
+    const startY = e.touches[0].clientY;
+    
+    // 记录初始偏移量
+    const startOffset = { ...offset };
+    
+    // 添加移动和结束事件
+    document.addEventListener('touchmove', touchMove, { passive: false });
+    document.addEventListener('touchend', touchEnd);
+    
+    // 触摸移动函数
+    function touchMove(e) {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      
+      // 添加拖拽中样式
+      element.classList.add('transor-dragging');
+      
+      // 计算触摸移动距离
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      
+      // 更新偏移量（直接基于初始偏移量加上触摸移动距离）
+      offset.x = startOffset.x + dx;
+      offset.y = startOffset.y + dy;
+      
+      // 应用边界限制
+      const player = document.querySelector('#movie_player');
+      if (player) {
+        const playerRect = player.getBoundingClientRect();
+        
+        // 计算边界
+        const maxX = playerRect.width / 2;
+        const maxY = playerRect.height / 2;
+        
+        // 应用边界限制
+        offset.x = Math.min(Math.max(offset.x, -maxX), maxX);
+        offset.y = Math.min(Math.max(offset.y, -maxY), maxY);
+      }
+      
+      // 应用位置
+      applyPosition();
+    }
+    
+    // 触摸结束函数
+    function touchEnd() {
+      // 移除拖拽中样式
+      element.classList.remove('transor-dragging');
+      
+      // 保存位置
+      try {
+        localStorage.setItem('transor-subtitle-position', JSON.stringify(offset));
+      } catch (e) {
+        console.error('保存位置失败:', e);
+      }
+      
+      // 移除事件监听
+      document.removeEventListener('touchmove', touchMove);
+      document.removeEventListener('touchend', touchEnd);
+    }
+  }
+  
+  // 应用位置的函数
+  function applyPosition() {
+    element.style.position = 'absolute';
+    element.style.left = '50%';
+    element.style.bottom = '60px';
+    element.style.transform = `translateX(-50%) translate(${offset.x}px, ${offset.y}px)`;
+  }
+  
+  // 移除之前的事件监听器
+  element.removeEventListener('mousedown', element._mouseDownHandler);
+  element.removeEventListener('touchstart', element._touchStartHandler);
+  
+  // 保存新的监听器引用
+  element._mouseDownHandler = mouseDown;
+  element._touchStartHandler = touchStart;
+  
+  // 添加事件监听器
+  element.addEventListener('mousedown', mouseDown);
+  element.addEventListener('touchstart', touchStart, { passive: false });
+  
+  // 确保拖拽手柄存在
+  ensureDragHandle();
+  
+  // 确保拖拽手柄存在的函数
+  function ensureDragHandle() {
+    // 为子元素添加事件委托
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        if (mutation.type === 'childList') {
+          const wrapper = element.querySelector('.transor-video-subtitle-wrapper');
+          if (wrapper) {
+            wrapper.style.cursor = 'move';
+            
+            // 确保有拖拽手柄
+            if (!wrapper.querySelector('.transor-drag-handle')) {
+              const dragHandle = document.createElement('div');
+              dragHandle.className = 'transor-drag-handle';
+              if (wrapper.firstChild) {
+                wrapper.insertBefore(dragHandle, wrapper.firstChild);
+              } else {
+                wrapper.appendChild(dragHandle);
+              }
+            }
+          }
+        }
+      });
+    });
+    
+    // 立即检查一次
+    const wrapper = element.querySelector('.transor-video-subtitle-wrapper');
+    if (wrapper) {
+      wrapper.style.cursor = 'move';
+      if (!wrapper.querySelector('.transor-drag-handle')) {
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'transor-drag-handle';
+        if (wrapper.firstChild) {
+          wrapper.insertBefore(dragHandle, wrapper.firstChild);
+        } else {
+          wrapper.appendChild(dragHandle);
+        }
+      }
+    }
+    
+    // 开始观察子元素变化
+    observer.observe(element, { childList: true, subtree: true });
+  }
+}
+
+// 校准字幕时间偏移 - 不再使用，保留API兼容性
+function calibrateSubtitleTiming() {
+  // 函数保留，但实际不进行偏移计算
+  console.log('不再使用时间偏移校准，使用直接匹配');
+}
+
+// 更新字幕样式
+function updateSubtitleStyle() {
+  // 如果当前有字幕显示，更新样式
+  if (videoSubtitleContainer) {
+    // 先移除所有样式类
+    const styleClasses = [
+      'subtitle-style-default',
+      'subtitle-style-translucent',
+      'subtitle-style-light',
+      'subtitle-style-nobg',
+      'subtitle-style-bold'
+    ];
+    
+    styleClasses.forEach(cls => videoSubtitleContainer.classList.remove(cls));
+    
+    // 根据当前样式添加对应的类
+    let classToAdd;
+    switch (subtitleStyle) {
+      case '半透明':
+        classToAdd = 'subtitle-style-translucent';
+        break;
+      case '浅色模式':
+        classToAdd = 'subtitle-style-light';
+        break;
+      case '无背景':
+        classToAdd = 'subtitle-style-nobg';
+        break;
+      case '醒目':
+        classToAdd = 'subtitle-style-bold';
+        break;
+      default:
+        classToAdd = 'subtitle-style-default';
+        break;
+    }
+    
+    videoSubtitleContainer.classList.add(classToAdd);
+    console.log('应用字幕样式:', classToAdd);
+    
+    // 如果当前有字幕显示，刷新显示
+    if (currentVideoSubtitleIndex !== -1) {
+      displayVideoSubtitle(currentVideoSubtitleIndex);
+    }
+  }
+}
