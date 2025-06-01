@@ -120,63 +120,63 @@ function showSubtitleOptionsPopup() {
   
   // 创建弹窗内容
   popupContainer.innerHTML = `
-    <div class="subtitle-options-content">
-      <div class="subtitle-options-body">
+    <div class="subtitle-options-content no-translate">
+      <div class="subtitle-options-body no-translate">
         
-        <div class="subtitle-option-item">
-          <div class="subtitle-option-icon">
+        <div class="subtitle-option-item no-translate">
+          <div class="subtitle-option-icon no-translate">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M21 3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3ZM21 19H3V5H21V19ZM6 8H18V10H6V8ZM6 11H18V13H6V11ZM6 14H14V16H6V14Z" fill="rgba(255, 255, 255, 0.8)"/>
             </svg>
           </div>
-          <div class="subtitle-option-label">字幕显示</div>
-          <div class="subtitle-option-value">
-            <select id="subtitle-display-select" class="subtitle-select">
-              <option value="双语字幕" selected>双语字幕</option>
-              <option value="仅原文">仅原文</option>
-              <option value="仅译文">仅译文</option>
+          <div class="subtitle-option-label no-translate">字幕显示</div>
+          <div class="subtitle-option-value no-translate">
+            <select id="subtitle-display-select" class="subtitle-select no-translate">
+              <option value="双语字幕" selected class="no-translate">双语字幕</option>
+              <option value="仅原文" class="no-translate">仅原文</option>
+              <option value="仅译文" class="no-translate">仅译文</option>
             </select>
           </div>
         </div>
-        <div class="subtitle-option-item">
-          <div class="subtitle-option-icon">
+        <div class="subtitle-option-item no-translate">
+          <div class="subtitle-option-icon no-translate">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M2.5 4V7H21.5V4H2.5ZM2.5 19H6.5V10H2.5V19ZM9.5 19H15.5V10H9.5V19ZM18.5 19H21.5V10H18.5V19Z" fill="rgba(255, 255, 255, 0.8)"/>
             </svg>
           </div>
-          <div class="subtitle-option-label">字幕样式</div>
-          <div class="subtitle-option-value">
-            <select id="subtitle-style-select" class="subtitle-select">
-              <option value="默认" selected>默认</option>
-              <option value="半透明">半透明</option>
-              <option value="浅色模式">浅色模式</option>
-              <option value="无背景">无背景</option>
-              <option value="醒目">醒目</option>
+          <div class="subtitle-option-label no-translate">字幕样式</div>
+          <div class="subtitle-option-value no-translate">
+            <select id="subtitle-style-select" class="subtitle-select no-translate">
+              <option value="默认" selected class="no-translate">默认</option>
+              <option value="半透明" class="no-translate">半透明</option>
+              <option value="浅色模式" class="no-translate">浅色模式</option>
+              <option value="无背景" class="no-translate">无背景</option>
+              <option value="醒目" class="no-translate">醒目</option>
             </select>
           </div>
         </div>
-        <div class="subtitle-option-item">
-          <div class="subtitle-option-icon">
+        <div class="subtitle-option-item no-translate">
+          <div class="subtitle-option-icon no-translate">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 4H4C2.89 4 2 4.89 2 6V18C2 19.11 2.89 20 4 20H20C21.11 20 22 19.11 22 18V6C22 4.89 21.11 4 20 4ZM20 18H4V12H20V18ZM20 10H4V6H20V10Z" fill="rgba(255, 255, 255, 0.8)"/>
             </svg>
           </div>
-          <div class="subtitle-option-label">Transor 字幕</div>
-          <div class="subtitle-option-toggle">
-            <label class="subtitle-switch">
+          <div class="subtitle-option-label no-translate">Transor 字幕</div>
+          <div class="subtitle-option-toggle no-translate">
+            <label class="subtitle-switch no-translate">
               <input type="checkbox" id="transor-subtitle-toggle" checked>
-              <span class="subtitle-slider"></span>
+              <span class="subtitle-slider no-translate"></span>
             </label>
           </div>
         </div>
-        <div class="subtitle-option-item enter-mode-item" id="enter-cinema-mode-btn">
-          <div class="subtitle-option-icon">
+        <div class="subtitle-option-item enter-mode-item no-translate" id="enter-cinema-mode-btn">
+          <div class="subtitle-option-icon no-translate">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M21 3H3C1.9 3 1 3.9 1 5V17C1 18.1 1.9 19 3 19H8V21H16V19H21C22.1 19 23 18.1 23 17V5C23 3.9 22.1 3 21 3ZM21 17H3V5H21V17ZM16 11L9 15V7L16 11Z" fill="rgba(255, 255, 255, 0.8)"/>
             </svg>
           </div>
-          <div class="subtitle-option-label">进入专注模式</div>
-          <div class="subtitle-option-arrow">
+          <div class="subtitle-option-label no-translate">进入专注模式</div>
+          <div class="subtitle-option-arrow no-translate">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8.59 16.59L13.17 12L8.59 7.41L10 6L16 12L10 18L8.59 16.59Z" fill="rgba(255, 255, 255, 0.8)"/>
             </svg>
@@ -1101,10 +1101,10 @@ function createCinemaUI() {
   // 创建加载进度UI
   subtitlesElement.innerHTML = `
     <div class="loading-container no-translate">
-      <div class="loading-bar">
-        <div class="loading-progress" style="width: 0%"></div>
+      <div class="loading-bar no-translate">
+        <div class="loading-progress no-translate" style="width: 0%"></div>
       </div>
-      <div class="loading-text">正在准备字幕...</div>
+      <div class="loading-text no-translate">正在准备字幕...</div>
     </div>
   `;
   
@@ -1961,10 +1961,10 @@ function showSubtitleError(errorMessage) {
   
   subtitlesContainer.innerHTML = `
     <div class="subtitle-error-container no-translate">
-      <div class="subtitle-error-icon">⚠️</div>
-      <div class="subtitle-error-message">${errorMessage || '未知错误'}</div>
-      <button id="btn-retry-subtitle" class="subtitle-retry-button">重试</button>
-      <button id="btn-use-mock" class="subtitle-retry-button" style="margin-left: 10px; background-color: #555;">使用模拟数据</button>
+      <div class="subtitle-error-icon no-translate">⚠️</div>
+      <div class="subtitle-error-message no-translate">${errorMessage || '未知错误'}</div>
+      <button id="btn-retry-subtitle" class="subtitle-retry-button no-translate">重试</button>
+      <button id="btn-use-mock" class="subtitle-retry-button no-translate" style="margin-left: 10px; background-color: #555;">使用模拟数据</button>
     </div>
   `;
   
@@ -2072,10 +2072,10 @@ function useBackupSubtitles() {
     if (subtitlesContainer) {
       subtitlesContainer.innerHTML = `
         <div style="color: white; text-align: center; padding: 20px;" class="no-translate">
-          <p>无法加载字幕: ${error.message}</p>
-          <p>请尝试刷新页面或退出影院模式后重试</p>
-    </div>
-  `;
+          <p class="no-translate">无法加载字幕: ${error.message}</p>
+          <p class="no-translate">请尝试刷新页面或退出影院模式后重试</p>
+        </div>
+      `;
     }
   }
 }
@@ -2995,7 +2995,7 @@ async function loadVideoSubtitles() {
     
     // 显示加载状态
     if (videoSubtitleContainer) {
-      videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper"><div class="transor-video-subtitle-translated">正在加载字幕...</div></div>';
+      videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper no-translate"><div class="transor-video-subtitle-translated no-translate">正在加载字幕...</div></div>';
     }
     
     // 使用无缓存请求获取YouTube页面
@@ -3024,7 +3024,7 @@ async function loadVideoSubtitles() {
       console.warn('未找到字幕轨道，尝试使用默认字幕');
       // 如果无法获取字幕，显示提示
       if (videoSubtitleContainer) {
-        videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper"><div class="transor-video-subtitle-translated">无法获取视频字幕</div></div>';
+        videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper no-translate"><div class="transor-video-subtitle-translated no-translate">无法获取视频字幕</div></div>';
       }
       return;
     }
@@ -3068,14 +3068,14 @@ async function loadVideoSubtitles() {
       console.error('未能获取字幕数据');
       // 显示错误信息
       if (videoSubtitleContainer) {
-        videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper"><div class="transor-video-subtitle-translated">字幕加载失败</div></div>';
+        videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper no-translate"><div class="transor-video-subtitle-translated no-translate">字幕加载失败</div></div>';
       }
     }
   } catch (error) {
     console.error('加载视频字幕失败:', error);
     // 显示错误信息
     if (videoSubtitleContainer) {
-      videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper"><div class="transor-video-subtitle-translated">字幕加载出错</div></div>';
+      videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper no-translate"><div class="transor-video-subtitle-translated no-translate">字幕加载出错</div></div>';
     }
     
     // 30秒后自动重试
@@ -3089,7 +3089,7 @@ async function loadVideoSubtitles() {
 // 构建字幕时间映射 - 不再使用，保留API兼容性
 function buildSubtitleTimeMap() {
   // 函数保留，但实际不进行映射构建
-  console.log('不再使用字幕时间映射，使用直接匹配');
+  // console.log('不再使用字幕时间映射，使用直接匹配');
 }
 
 // 翻译视频字幕
@@ -3584,28 +3584,28 @@ function displayVideoSubtitle(index) {
   const subtitle = videoSubtitles[index];
   const translatedSubtitle = videoTranslatedSubtitles[index];
   
-  let html = '<div class="transor-video-subtitle-wrapper">';
-  html += '<div class="transor-drag-handle"></div>';
+  let html = '<div class="transor-video-subtitle-wrapper no-translate">';
+  html += '<div class="transor-drag-handle no-translate"></div>';
   
   // 根据显示模式构建HTML
   if (subtitleDisplayMode === '双语字幕') {
     // 显示原文
-    html += `<div class="transor-video-subtitle-original">${cleanTextThoroughly(subtitle.text)}</div>`;
+    html += `<div class="transor-video-subtitle-original no-translate">${cleanTextThoroughly(subtitle.text)}</div>`;
     
     // 显示翻译
     if (translatedSubtitle && translatedSubtitle.translatedText) {
-      html += `<div class="transor-video-subtitle-translated">${cleanTextThoroughly(translatedSubtitle.translatedText)}</div>`;
+      html += `<div class="transor-video-subtitle-translated no-translate">${cleanTextThoroughly(translatedSubtitle.translatedText)}</div>`;
     } else {
-      html += `<div class="transor-video-subtitle-translated">加载翻译中...</div>`;
+      html += `<div class="transor-video-subtitle-translated no-translate">加载翻译中...</div>`;
     }
   } else if (subtitleDisplayMode === '仅原文') {
-    html += `<div class="transor-video-subtitle-original">${cleanTextThoroughly(subtitle.text)}</div>`;
+    html += `<div class="transor-video-subtitle-original no-translate">${cleanTextThoroughly(subtitle.text)}</div>`;
   } else if (subtitleDisplayMode === '仅译文') {
     if (translatedSubtitle && translatedSubtitle.translatedText) {
-      html += `<div class="transor-video-subtitle-translated">${cleanTextThoroughly(translatedSubtitle.translatedText)}</div>`;
+      html += `<div class="transor-video-subtitle-translated no-translate">${cleanTextThoroughly(translatedSubtitle.translatedText)}</div>`;
     } else {
       // 如果译文不存在，显示加载中提示，而不是完全不显示
-      html += `<div class="transor-video-subtitle-translated">加载翻译中...</div>`;
+      html += `<div class="transor-video-subtitle-translated no-translate">加载翻译中...</div>`;
     }
   }
   
