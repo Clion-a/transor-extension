@@ -192,37 +192,138 @@ function showSubtitleOptionsPopup() {
   // 获取弹窗内容元素
   const popupContent = popupContainer.querySelector('.subtitle-options-content');
   
-  // 根据按钮位置定位弹窗
-  if (popupContent) {
-    const viewportHeight = window.innerHeight;
-    // 计算弹窗位置 - 如果按钮在页面下半部分，则弹窗显示在按钮上方，否则显示在按钮下方
-    const isButtonInBottomHalf = buttonRect.top > viewportHeight / 2;
+  // 定位函数 - 提取为单独函数以便后续调用
+  function positionPopup() {
+    if (!popupContent) return;
     
+    // 获取最新的按钮位置（可能已变化）
+    const updatedButtonRect = cinemaButton.getBoundingClientRect();
+    
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // 获取播放器元素的边界，用于限制弹窗不超出视频区域
+    const player = document.querySelector('#movie_player');
+    const playerRect = player ? player.getBoundingClientRect() : null;
+    
+    // 计算弹窗位置 - 如果按钮在页面下半部分，则弹窗显示在按钮上方，否则显示在按钮下方
+    const isButtonInBottomHalf = updatedButtonRect.top > viewportHeight / 2;
+    
+    // 设置弹窗的基本样式
+    popupContent.style.position = 'absolute';
+    
+    // 弹窗尺寸 (320px宽)
+    const popupWidth = 320;
+    const popupHeight = popupContent.offsetHeight || 230; // 如果还没渲染，估计高度
+    
+    // 默认位置 - 水平居中对齐按钮
+    let left = updatedButtonRect.left + updatedButtonRect.width/2 - popupWidth/2;
+    
+    // 垂直位置根据按钮在上半部分还是下半部分决定
+    let top, bottom;
     if (isButtonInBottomHalf) {
       // 按钮在下半部分，弹窗显示在上方
-      popupContent.style.position = 'absolute';
-      popupContent.style.bottom = (viewportHeight - buttonRect.top + 10) + 'px';
-      popupContent.style.left = (buttonRect.left - 160 + buttonRect.width/2) + 'px'; // 居中对齐
+      bottom = viewportHeight - updatedButtonRect.top + 10;
+      popupContent.style.bottom = bottom + 'px';
+      // 移除可能存在的top值
+      popupContent.style.top = '';
     } else {
       // 按钮在上半部分，弹窗显示在下方
-      popupContent.style.position = 'absolute';
-      popupContent.style.top = (buttonRect.bottom + 10) + 'px';
-      popupContent.style.left = (buttonRect.left - 160 + buttonRect.width/2) + 'px'; // 居中对齐
+      top = updatedButtonRect.bottom + 10;
+      popupContent.style.top = top + 'px';
+      // 移除可能存在的bottom值
+      popupContent.style.bottom = '';
     }
+    
+    // 水平边界检查 - 确保弹窗不超出视口左右边界
+    left = Math.max(10, left); // 不超出左边界
+    left = Math.min(viewportWidth - popupWidth - 10, left); // 不超出右边界
+    
+    // 如果有播放器元素，进一步限制在播放器内
+    if (playerRect) {
+      // 限制水平位置在播放器范围内
+      left = Math.max(playerRect.left + 10, left);
+      left = Math.min(playerRect.right - popupWidth - 10, left);
+      
+      // 垂直位置也限制在播放器范围内
+      if (isButtonInBottomHalf) {
+        // 如果弹窗在按钮上方且按钮在下半部分
+        const newBottom = viewportHeight - updatedButtonRect.top + 10;
+        // 确保弹窗顶部不超出播放器顶部
+        const maxBottom = viewportHeight - playerRect.top - 10;
+        popupContent.style.bottom = Math.min(newBottom, maxBottom) + 'px';
+      } else {
+        // 如果弹窗在按钮下方且按钮在上半部分
+        const newTop = updatedButtonRect.bottom + 10;
+        // 确保弹窗底部不超出播放器底部
+        const maxTop = playerRect.bottom - popupHeight - 10;
+        popupContent.style.top = Math.min(newTop, maxTop) + 'px';
+      }
+    }
+    
+    // 应用最终的水平位置
+    popupContent.style.left = left + 'px';
   }
+  
+  // 首次定位弹窗
+  positionPopup();
+  
+  // 监听播放器尺寸变化，更新弹窗位置
+  const resizeObserver = new ResizeObserver(() => {
+    if (document.getElementById('subtitle-options-popup')) {
+      positionPopup();
+    } else {
+      // 如果弹窗已关闭，停止观察
+      resizeObserver.disconnect();
+    }
+  });
+  
+  // 观察播放器元素尺寸变化
+  const player = document.querySelector('#movie_player');
+  if (player) {
+    resizeObserver.observe(player);
+  }
+  
+  // 监听窗口尺寸变化，更新弹窗位置
+  const resizeHandler = () => {
+    if (document.getElementById('subtitle-options-popup')) {
+      positionPopup();
+    } else {
+      // 如果弹窗已关闭，移除监听器
+      window.removeEventListener('resize', resizeHandler);
+    }
+  };
+  window.addEventListener('resize', resizeHandler);
   
   // 添加事件监听器 - 关闭按钮
   const closeBtn = popupContainer.querySelector('.subtitle-options-close-btn');
   if (closeBtn) {
     closeBtn.addEventListener('click', () => {
-      document.body.removeChild(popupContainer);
+      closePopup();
     });
+  }
+  
+  // 关闭弹窗的函数
+  function closePopup() {
+    // 添加淡出动画
+    popupContainer.classList.add('subtitle-popup-fadeout');
+    
+    // 动画结束后移除元素
+    setTimeout(() => {
+      if (document.body.contains(popupContainer)) {
+        document.body.removeChild(popupContainer);
+      }
+      // 停止观察
+      resizeObserver.disconnect();
+      // 移除窗口尺寸变化监听器
+      window.removeEventListener('resize', resizeHandler);
+    }, 200); // 与CSS动画时长匹配
   }
   
   // 添加事件监听器 - 点击外部关闭
   popupContainer.addEventListener('click', (event) => {
     if (event.target === popupContainer) {
-      document.body.removeChild(popupContainer);
+      closePopup();
     }
   });
   
@@ -488,16 +589,16 @@ function addCinemaButton() {
     console.log('Logo URL:', logoUrl);
     
     // 使用Base64编码的图标作为备选方案
-    const fallbackIcon = `
-      <svg height="100%" viewBox="0 0 36 36" width="100%">
-        <path d="M7,9 L29,9 C30.1045695,9 31,9.8954305 31,11 L31,25 C31,26.1045695 30.1045695,27 29,27 L7,27 C5.8954305,27 5,26.1045695 5,25 L5,11 C5,9.8954305 5.8954305,9 7,9 Z M28,13 L8,13 L8,23 L28,23 L28,13 Z" fill="white"></path>
-        <path d="M12,17 L24,17 L24,19 L12,19 L12,17 Z" fill="white"></path>
-      </svg>
-    `;
+    // const fallbackIcon = `
+    //   <svg height="100%" viewBox="0 0 36 36" width="100%">
+    //     <path d="M7,9 L29,9 C30.1045695,9 31,9.8954305 31,11 L31,25 C31,26.1045695 30.1045695,27 29,27 L7,27 C5.8954305,27 5,26.1045695 5,25 L5,11 C5,9.8954305 5.8954305,9 7,9 Z M28,13 L8,13 L8,23 L28,23 L28,13 Z" fill="white"></path>
+    //     <path d="M12,17 L24,17 L24,19 L12,19 L12,17 Z" fill="white"></path>
+    //   </svg>
+    // `;
     
     // 使用logo图片作为按钮图标，如果加载失败则使用备选图标
     cinemaButton.innerHTML = `
-      <img src="${logoUrl}" alt="影院模式" style="width: 24px; height: 24px;" onerror="this.style.display='none'; this.parentNode.innerHTML='${fallbackIcon.replace(/'/g, "\\'")}'; ">
+      <img src="${logoUrl}" alt="影院模式" style="width: 24px; height: 24px;" onerror="this.style.display='none';">
     `;
     
     // 添加点击事件
@@ -621,14 +722,16 @@ function addCinemaStyles() {
     .transor-cinema-btn {
       opacity: 0.9;
       transition: opacity 0.2s;
-      width: 26px !important;
-      height: 40px !important;
+      // width: 26px !important;
+      // height: 40px !important;
       background: transparent !important;
       border: none !important;
       cursor: pointer !important;
     }
     
     .transor-cinema-btn img {
+      display: block;
+      margin: auto;
       width: 24px !important;
       height: 24px !important;
       filter: brightness(1.8);
@@ -656,6 +759,9 @@ function addCinemaStyles() {
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
       animation: popupFadeIn 0.3s ease-out;
+      max-height: calc(100vh - 80px); /* 限制最大高度 */
+      display: flex;
+      flex-direction: column;
     }
     
     @keyframes popupFadeIn {
@@ -669,8 +775,41 @@ function addCinemaStyles() {
       }
     }
     
+    @keyframes popupFadeOut {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+    }
+    
+    .subtitle-popup-fadeout {
+      animation: popupFadeOut 0.2s ease-out forwards;
+    }
+    
     .subtitle-options-body {
       padding: 16px;
+      overflow-y: auto; /* 添加垂直滚动条 */
+      max-height: calc(100vh - 120px); /* 设置最大高度，确保可以滚动 */
+      scrollbar-width: thin; /* Firefox的滚动条样式 */
+      scrollbar-color: rgba(255, 255, 255, 0.3) transparent; /* Firefox的滚动条颜色 */
+    }
+    
+    /* Chrome和Safari的滚动条样式 */
+    .subtitle-options-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .subtitle-options-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .subtitle-options-body::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
     }
     
     .subtitle-option-item {
@@ -3898,7 +4037,7 @@ function makeDraggable(element) {
 // 校准字幕时间偏移 - 不再使用，保留API兼容性
 function calibrateSubtitleTiming() {
   // 函数保留，但实际不进行偏移计算
-  console.log('不再使用时间偏移校准，使用直接匹配');
+  // console.log('不再使用时间偏移校准，使用直接匹配');
 }
 
 // 更新字幕样式
