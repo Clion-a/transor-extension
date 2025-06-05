@@ -59,8 +59,8 @@ function initYouTubeCinema() {
     console.error('加载字幕设置失败:', e);
   }
   
-  // 检查是否是 YouTube 视频页面
-  if (isYouTubeVideoPage()) {
+  // 检查是否是 YouTube 视频页面 - 使用增强版检测
+  if (isEnhancedYouTubeVideoPage()) {
     console.log('检测到 YouTube 视频页面');
     
     // 等待 YouTube 播放器加载完成
@@ -75,6 +75,37 @@ function initYouTubeCinema() {
       initVideoSubtitleTranslation();
     }).catch(error => {
       console.error('等待YouTube控制栏失败:', error);
+      
+      // 即使等待失败，也尝试通过轮询方式加载按钮
+      console.log('尝试通过轮询方式添加按钮...');
+      startButtonPoller();
+      
+      // 尝试初始化其他功能
+      setTimeout(() => {
+        observeVideoChange();
+        initVideoSubtitleTranslation();
+      }, 2000);
+    });
+  } else {
+    // 不是视频页面，可能是主页或其他页面
+    console.log('当前不是视频页面，仅设置监听器');
+    
+    // 仍然监听URL变化，以便在导航到视频页面时初始化
+    setTimeout(() => {
+      observeVideoChange();
+    }, 1000);
+  }
+  
+  // 页面加载完成后再次检查（双重保障）
+  if (document.readyState !== 'complete') {
+    window.addEventListener('load', () => {
+      if (isEnhancedYouTubeVideoPage() && !document.getElementById('cinema-mode-btn')) {
+        console.log('页面加载完成后再次检查，尝试加载影院模式');
+        setTimeout(() => {
+          addCinemaButton();
+          initVideoSubtitleTranslation();
+        }, 1500);
+      }
     });
   }
 }
@@ -83,6 +114,16 @@ function initYouTubeCinema() {
 function isYouTubeVideoPage() {
   return window.location.hostname.includes('youtube.com') && 
          window.location.pathname.includes('/watch');
+}
+
+// 增强版判断视频页面函数 - 增加兼容性
+function isEnhancedYouTubeVideoPage() {
+  const isStandardVideoPage = window.location.hostname.includes('youtube.com') && 
+                              window.location.pathname.includes('/watch');
+  const hasVideoElement = document.querySelector('video') !== null;
+  const hasVideoId = getYouTubeVideoId() !== '';
+  
+  return isStandardVideoPage && (hasVideoElement || hasVideoId);
 }
 
 // 切换影院模式
@@ -111,6 +152,7 @@ function showSubtitleOptionsPopup() {
     return;
   }
   
+  // 获取按钮位置用于弹窗定位 - 实际使用在positionPopup函数内
   const buttonRect = cinemaButton.getBoundingClientRect();
   
   // 创建弹窗容器
@@ -568,6 +610,8 @@ function addCinemaButton() {
     return;
   }
   
+  console.log('找到YouTube右侧控制栏，准备添加影院模式按钮');
+  
   // 获取用户界面语言设置，优先从Chrome存储中读取
   getUserLanguage().then(uiLanguage => {
     console.log('检测到用户界面语言:', uiLanguage);
@@ -588,14 +632,6 @@ function addCinemaButton() {
     const logoUrl = chrome.runtime.getURL('logos/logo48.png');
     console.log('Logo URL:', logoUrl);
     
-    // 使用Base64编码的图标作为备选方案
-    // const fallbackIcon = `
-    //   <svg height="100%" viewBox="0 0 36 36" width="100%">
-    //     <path d="M7,9 L29,9 C30.1045695,9 31,9.8954305 31,11 L31,25 C31,26.1045695 30.1045695,27 29,27 L7,27 C5.8954305,27 5,26.1045695 5,25 L5,11 C5,9.8954305 5.8954305,9 7,9 Z M28,13 L8,13 L8,23 L28,23 L28,13 Z" fill="white"></path>
-    //     <path d="M12,17 L24,17 L24,19 L12,19 L12,17 Z" fill="white"></path>
-    //   </svg>
-    // `;
-    
     // 使用logo图片作为按钮图标，如果加载失败则使用备选图标
     cinemaButton.innerHTML = `
       <img src="${logoUrl}" alt="影院模式" style="width: 24px; height: 24px;" onerror="this.style.display='none';">
@@ -610,9 +646,11 @@ function addCinemaButton() {
     if (transorButton) {
       // 在transor按钮前插入我们的按钮
       rightControlsContainer.insertBefore(cinemaButton, transorButton);
+      console.log('成功在transor按钮前插入影院模式按钮');
     } else {
       // 如果找不到transor按钮，则插入到右侧控制栏的最后
       rightControlsContainer.appendChild(cinemaButton);
+      console.log('未找到transor按钮，将影院模式按钮添加到最后');
     }
     
     // 添加样式
@@ -1065,7 +1103,7 @@ function waitForYouTubeControls() {
       } else if (document.readyState === 'complete') {
         // 如果已经完全加载且未找到，延迟重试几次
         let retryCount = 0;
-        const maxRetries = 5;
+        const maxRetries = 10; // 增加重试次数
         
         const retryFindControls = () => {
           const rightControls = document.querySelector('.ytp-right-controls');
@@ -1078,6 +1116,7 @@ function waitForYouTubeControls() {
               resolve(mobileControls);
             } else if (retryCount < maxRetries) {
               retryCount++;
+              console.log(`尝试查找控制栏 (${retryCount}/${maxRetries})...`);
               setTimeout(retryFindControls, 1000);
             } else {
               reject(new Error('未找到YouTube控制栏'));
@@ -1119,12 +1158,47 @@ function observeVideoChange() {
         exitCinemaMode();
       }
       
-      // 检查是否是视频页面
-      if (isYouTubeVideoPage()) {
-        // 添加影院模式按钮
+      // 检查是否是视频页面 - 使用增强版判断
+      if (isEnhancedYouTubeVideoPage()) {
+        // 添加影院模式按钮 - 使用多次尝试策略确保按钮加载
+        const maxAttempts = 5;
+        let attempts = 0;
+        
+        const tryAddButton = () => {
+          if (document.getElementById('cinema-mode-btn')) {
+            console.log('影院模式按钮已存在，无需重新添加');
+            return; // 按钮已存在，无需再添加
+          }
+          
+          if (attempts >= maxAttempts) {
+            console.warn('多次尝试添加按钮失败');
+            // 尝试启动按钮轮询器作为最后手段
+            startButtonPoller();
+            return;
+          }
+          
+          attempts++;
+          console.log(`尝试添加影院模式按钮 (${attempts}/${maxAttempts})...`);
+          
+          const rightControls = document.querySelector('.ytp-right-controls');
+          if (rightControls) {
+            addCinemaButton();
+          } else {
+            // 如果找不到控制栏，延迟重试
+            setTimeout(tryAddButton, 1000);
+          }
+        };
+        
+        // 开始尝试添加按钮
+        setTimeout(tryAddButton, 1000);
+        
+        // 延迟启动按钮轮询器，以防上述方法都失败
         setTimeout(() => {
-          addCinemaButton();
-        }, 1500);
+          if (!document.getElementById('cinema-mode-btn')) {
+            console.log('URL变化后按钮仍未加载，启动轮询器');
+            startButtonPoller();
+          }
+        }, 5000);
         
         // 清空字幕状态并重新加载
         videoSubtitles = [];
@@ -1144,7 +1218,7 @@ function observeVideoChange() {
   
   // 监听视频元素变化
   const observer = new MutationObserver(() => {
-    if (isYouTubeVideoPage()) {
+    if (isEnhancedYouTubeVideoPage()) {
       const currentVideoId = getYouTubeVideoId();
       const video = document.querySelector('video');
       
@@ -1153,9 +1227,35 @@ function observeVideoChange() {
         
         // 延迟添加按钮，确保右侧控制栏已加载
         if (!document.getElementById('cinema-mode-btn')) {
-          setTimeout(() => {
-            addCinemaButton();
-          }, 500);
+          // 使用多次尝试策略确保按钮加载
+          let buttonAttempts = 0;
+          const maxButtonAttempts = 5;
+          
+          const attemptAddButton = () => {
+            if (document.getElementById('cinema-mode-btn')) {
+              console.log('影院模式按钮已存在，不需要重新添加');
+              return;
+            }
+            
+            if (buttonAttempts >= maxButtonAttempts) {
+              console.warn('多次尝试添加按钮失败，将不再重试');
+              return;
+            }
+            
+            buttonAttempts++;
+            console.log(`尝试添加影院模式按钮 (${buttonAttempts}/${maxButtonAttempts})...`);
+            
+            const rightControls = document.querySelector('.ytp-right-controls');
+            if (rightControls) {
+              addCinemaButton();
+            } else {
+              // 控制栏未加载，继续重试
+              setTimeout(attemptAddButton, 800);
+            }
+          };
+          
+          // 开始尝试添加按钮
+          setTimeout(attemptAddButton, 500);
         }
         
         // 如果启用了字幕翻译，重新加载字幕
@@ -1180,9 +1280,12 @@ function observeVideoChange() {
     }
   });
   
+  // 使用更全面的观察配置
   observer.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
+    attributes: true, // 增加属性变化监听
+    attributeFilter: ['src', 'data-video-id'] // 关注视频相关属性变化
   });
   
   // 监听页面可见性变化，当从后台切回时检查字幕状态
@@ -1288,22 +1391,47 @@ async function loadSubtitles() {
     // 更新加载进度
     updateLoadingProgress(30, 'Loading...');
     
-    // 直接获取字幕，不再通过background.js
+    // 检测是否有进度条操作正在进行
+    const video = document.querySelector('video');
+    const isUserSeeking = video && video._userSeeking;
+    const progressBar = document.querySelector('.ytp-progress-bar');
+    const isProgressBarActive = progressBar && progressBar.classList.contains('ytp-progress-bar-hover');
+    
+    // 根据是否有用户操作决定是否强制刷新CC
+    const shouldForceRefresh = !isUserSeeking && !isProgressBarActive;
+    
+    // 首先尝试开启CC字幕，根据情况决定是否强制刷新
+    console.log('尝试开启CC字幕' + (shouldForceRefresh ? '并强制刷新' : ''));
+    await enableCCSubtitles(shouldForceRefresh);
+    
+    // 等待一段时间让字幕加载
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 发送消息到background获取捕获的字幕URL
     console.log(`正在获取视频ID为 ${currentVideoId} 的字幕...`);
-
-    const webUrlResponse = await fetch(`https://www.youtube.com/watch?v=${currentVideoId}`);
-    const html = await webUrlResponse.text();
-
-    console.log('html', html)
-    const ytInitialPlayerResponse = JSON.parse(html.split('ytInitialPlayerResponse = ')[1].split(`;var meta = document.createElement('meta')`)[0]);
-
-    console.log('ytInitialPlayerResponse', ytInitialPlayerResponse)
-
-    const defaultCaptionIndex = ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.audioTracks[0]?.defaultCaptionTrackIndex || 0;
-    const requestUrl = ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks[defaultCaptionIndex]?.baseUrl;
-
-    console.log('requestUrl', requestUrl)
-    const response = await fetchYouTubeSubtitles(`${requestUrl}&fmt=json3`)
+    
+    // 向background请求字幕URL
+    const subtitleUrlResponse = await new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { 
+          action: 'getYouTubeSubtitleUrl',
+          videoId: currentVideoId 
+        },
+        (response) => {
+          resolve(response);
+        }
+      );
+    });
+    
+    console.log('获取到的字幕URL响应:', subtitleUrlResponse);
+    
+    if (!subtitleUrlResponse || !subtitleUrlResponse.success || !subtitleUrlResponse.url) {
+      throw new Error('未能获取字幕URL');
+    }
+    
+    // 使用获取到的URL请求字幕
+    const response = await fetchYouTubeSubtitles(subtitleUrlResponse.url);
+    
     // 检查响应结构并提取字幕数据
     console.log('字幕获取响应:', response);
 
@@ -1337,32 +1465,6 @@ async function loadSubtitles() {
     window.subtitles = processedSubtitles;
     subtitles = processedSubtitles; // 确保本地变量也更新
     
-    // 检查第一条字幕的内容，判断是否为模拟数据
-    const isMockData = processedSubtitles[0]?.text?.includes('模拟字幕');
-    if (isMockData) {
-      console.log('使用模拟字幕数据');
-      // 对于模拟数据，我们可以直接构建翻译结果
-      window.translatedSubtitles = processedSubtitles.map(sub => ({
-        ...sub,
-        translatedText: sub.text  // 模拟数据本身就是中文，无需翻译
-      }));
-      translatedSubtitles = window.translatedSubtitles; // 确保本地变量也更新
-      
-      // 更新加载进度
-      updateLoadingProgress(100, '使用模拟字幕');
-      
-      // 显示字幕界面
-      setTimeout(() => {
-        console.log('显示模拟字幕UI...');
-        showSubtitlesUI();
-        
-        // 初始化字幕更新
-        initSubtitleTracking();
-      }, 500);
-      
-      return; // 使用模拟数据时，不需要进行翻译步骤
-    }
-    
     console.log(`成功获取并处理${processedSubtitles.length}条字幕`);
     
     // 更新加载进度
@@ -1387,26 +1489,97 @@ async function loadSubtitles() {
       const texts = processedSubtitles.map(sub => sub.text);
       const translations = generateMockTranslations(texts);
       window.translatedSubtitles = processedSubtitles.map((sub, index) => {
-      return {
-        ...sub,
+        return {
+          ...sub,
           translatedText: translations[index] || `[未翻译] ${sub.text}`
-      };
-    });
+        };
+      });
       translatedSubtitles = window.translatedSubtitles; // 确保本地变量也更新
-    
-    // 更新加载进度
+      
+      // 更新加载进度
       updateLoadingProgress(100, '使用模拟翻译完成');
-    
+      
       // 显示字幕UI
       showSubtitlesUI();
       initSubtitleTracking();
     }    
   } catch (error) {
     console.error('加载字幕失败:', error);
-    updateLoadingProgress(100, '加载失败，使用备用字幕');
+    updateLoadingProgress(100, '加载失败');
+    showSubtitleError(error.message || '加载字幕失败');
+  }
+}
 
-    // 直接使用备用字幕，而不是显示错误
-    useBackupSubtitles();
+// 自动开启CC字幕
+async function enableCCSubtitles(forceRefresh = false) {
+  try {
+    console.log('尝试自动开启CC字幕...');
+    
+    // 方法1: 尝试点击字幕按钮
+    const captionButton = document.querySelector('button.ytp-subtitles-button');
+    if (captionButton) {
+      const isEnabled = captionButton.getAttribute('aria-pressed') === 'true';
+      
+      if (forceRefresh && isEnabled) {
+        // 如果需要强制刷新且字幕已开启，先关闭再开启
+        console.log('强制刷新字幕 - 先关闭CC字幕');
+        captionButton.click();
+        
+        // 等待短暂时间后再次点击开启
+        await new Promise(resolve => setTimeout(resolve, 300));
+        console.log('强制刷新字幕 - 重新开启CC字幕');
+        captionButton.click();
+        return true;
+      } else if (!isEnabled) {
+        console.log('找到字幕按钮，点击开启字幕');
+        captionButton.click();
+        return true;
+      } else {
+        console.log('字幕已经开启');
+        return true;
+      }
+    }
+    
+    // 方法2: 使用键盘快捷键 'c' 来开启字幕
+    const videoElement = document.querySelector('video.html5-main-video');
+    if (videoElement) {
+      if (forceRefresh) {
+        // 如果需要强制刷新，发送两次键盘事件（关闭再开启）
+        const keyEventOff = new KeyboardEvent('keydown', {
+          key: 'c',
+          code: 'KeyC',
+          keyCode: 67,
+          which: 67,
+          bubbles: true,
+          cancelable: true
+        });
+        
+        document.body.dispatchEvent(keyEventOff);
+        console.log('已发送关闭字幕的键盘快捷键');
+        
+        // 等待短暂时间后再发送开启事件
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      
+      // 发送开启事件
+      const keyEventOn = new KeyboardEvent('keydown', {
+        key: 'c',
+        code: 'KeyC',
+        keyCode: 67,
+        which: 67,
+        bubbles: true,
+        cancelable: true
+      });
+      
+      document.body.dispatchEvent(keyEventOn);
+      console.log('已发送开启字幕的键盘快捷键');
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('自动开启字幕出错:', error);
+    return false;
   }
 }
 
@@ -1634,6 +1807,7 @@ function initSubtitleTracking() {
   iframe._playbackRate = 1.0;
   iframe._lastSubtitleIndex = -1;
   iframe._subtitleSwitchTime = 0;
+  iframe._userSeeking = false; // 添加用户拖动标记
 
   // 立即请求当前时间以显示第一条字幕
   if (iframe.contentWindow) {
@@ -2234,6 +2408,26 @@ function updateLoadingProgress(progress, message) {
 
 // 在页面加载时初始化
 window.addEventListener('load', function () {
+  console.log('YouTube 页面加载完成，准备初始化影院模式...');
+  
+  // 立即检查页面类型
+  if (isEnhancedYouTubeVideoPage()) {
+    console.log('检测到视频页面，立即尝试初始化影院模式...');
+    
+    // 优先初始化必要的UI元素
+    setTimeout(() => {
+      // 尝试预先添加按钮
+      const rightControls = document.querySelector('.ytp-right-controls');
+      if (rightControls && !document.getElementById('cinema-mode-btn')) {
+        console.log('找到控制栏，尝试预先添加按钮');
+        addCinemaButton();
+      }
+    }, 500);
+    
+    // 启动按钮轮询器，确保按钮加载
+    startButtonPoller();
+  }
+  
   chrome.storage.sync.get({ youtubeCinemaEnabled: true }, (res) => {
     if (res.youtubeCinemaEnabled !== false) {
       initYouTubeCinema();
@@ -2258,6 +2452,27 @@ window.addEventListener('load', function () {
     }
   });
 
+  // 监听页面可见性变化，当从后台切回时检查字幕状态
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isYouTubeVideoPage() && isTransorSubtitleEnabled) {
+      const currentVideoId = getYouTubeVideoId();
+      
+      // 如果当前没有字幕但有视频ID，尝试重新加载字幕
+      if (videoSubtitles.length === 0 && currentVideoId) {
+        console.log('页面可见性变化，尝试加载字幕');
+        setTimeout(() => {
+          loadVideoSubtitles();
+        }, 1000);
+      } else if (videoSubtitles.length > 0 && currentVideoId) {
+        // 如果已有字幕，尝试刷新CC状态
+        console.log('页面可见性变化，尝试刷新CC字幕状态');
+        setTimeout(() => {
+          enableCCSubtitles(true);
+        }, 1000);
+      }
+    }
+  });
+
   // 监听语言变化 - localStorage变化
   window.addEventListener('storage', function(event) {
     if (event.key === 'transor-ui-language') {
@@ -2271,6 +2486,33 @@ window.addEventListener('load', function () {
   try {
     chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       console.log('收到扩展消息:', message);
+      
+      // 处理启用CC字幕的消息
+      if (message.type === 'ENABLE_CAPTIONS') {
+        console.log('收到启用CC字幕的消息');
+        enableCCSubtitles(message.forceRefresh || false).then(success => {
+          sendResponse({ success });
+        });
+        return true; // 保持消息通道开放
+      }
+      
+      // 处理刷新字幕的消息
+      if (message.type === 'REFRESH_SUBTITLES') {
+        console.log('收到刷新字幕的消息');
+        
+        // 先刷新CC字幕状态
+        enableCCSubtitles(true).then(success => {
+          if (success) {
+            // 如果已有字幕数据，尝试重新加载
+            setTimeout(() => {
+              loadVideoSubtitles();
+            }, 500);
+          }
+          sendResponse({ success });
+        });
+        
+        return true; // 保持消息通道开放
+      }
       
       if (message.action === 'language-changed') {
         // 接收到语言变更通知
@@ -2693,7 +2935,8 @@ function initVideoSubtitleTranslation() {
     hasSubtitles: false,
     loadAttempts: 0,
     lastLoadTime: Date.now(),
-    subtitleFailures: 0
+    subtitleFailures: 0,
+    lastCCRefreshTime: Date.now() // 新增：上次CC刷新时间
   };
   
   // 监听视频变化，以确保在视频变化时重新加载字幕
@@ -2724,6 +2967,12 @@ function initVideoSubtitleTranslation() {
       !videoSubtitleContainer?.style.display || 
       videoSubtitleContainer?.style.display === 'none';
     
+    // 新增：定期刷新CC字幕状态（每60秒刷新一次）
+    const needsCCRefresh = currentVideoId && 
+      isTransorSubtitleEnabled && 
+      Date.now() - lastVideoStatus.lastCCRefreshTime > 60000 && // 60秒刷新一次
+      currentTime > 10; // 确保视频已经播放一段时间
+    
     if (isNewVideo) {
       console.log('检测到视频变化，重新加载字幕:', {
         oldId: lastVideoId,
@@ -2739,7 +2988,8 @@ function initVideoSubtitleTranslation() {
         hasSubtitles: false,
         loadAttempts: 0,
         lastLoadTime: Date.now(),
-        subtitleFailures: 0
+        subtitleFailures: 0,
+        lastCCRefreshTime: Date.now()
       };
       
       // 更新视频ID
@@ -2799,6 +3049,43 @@ function initVideoSubtitleTranslation() {
       // 重新启动字幕跟踪
       startVideoSubtitleTracking();
     }
+    // 新增：定期刷新CC字幕状态
+    else if (needsCCRefresh) {
+      // 获取视频元素并检查是否正在进行用户拖动操作
+      const video = document.querySelector('video');
+      const isUserSeeking = video && video._userSeeking;
+      
+      // 检查是否有进度条操作正在进行
+      const progressBar = document.querySelector('.ytp-progress-bar');
+      const isProgressBarActive = progressBar && progressBar.classList.contains('ytp-progress-bar-hover');
+      
+      // 只有在没有用户拖动和进度条操作时才刷新CC
+      if (!isUserSeeking && !isProgressBarActive) {
+        console.log('定期刷新CC字幕状态');
+        
+        // 更新最后刷新时间
+        lastVideoStatus.lastCCRefreshTime = Date.now();
+        
+        // 刷新CC字幕（关闭再开启）
+        enableCCSubtitles(true).then(success => {
+          if (success) {
+            console.log('CC字幕状态刷新成功');
+            
+            // 如果当前没有字幕数据，尝试重新加载
+            if (videoSubtitles.length === 0) {
+              setTimeout(() => {
+                loadVideoSubtitles();
+              }, 1000);
+            }
+          } else {
+            console.log('CC字幕状态刷新失败');
+          }
+        });
+      } else {
+        console.log('检测到用户进度条操作，暂停CC字幕刷新');
+        // 不更新最后刷新时间，下次检查时仍会尝试刷新
+      }
+    }
     
     // 更新状态跟踪
     if (video && currentVideoId) {
@@ -2813,13 +3100,120 @@ function initVideoSubtitleTranslation() {
   }, 2000); // 每2秒检查一次
   
   // 当播放器完全加载时，尝试再次加载字幕（增强可靠性）
-  document.addEventListener('loadeddata', function() {
-    if (isTransorSubtitleEnabled && videoSubtitles.length === 0) {
-      console.log('视频加载完成，尝试加载字幕');
-      lastVideoStatus.lastLoadTime = Date.now();
-      enableVideoSubtitles();
+  document.addEventListener('loadeddata', function(event) {
+    // 确保事件来自视频元素
+    if (event.target && event.target.tagName === 'VIDEO') {
+      console.log('视频加载完成，尝试刷新字幕状态');
+      
+      if (isTransorSubtitleEnabled) {
+        // 更新最后加载时间
+        lastVideoStatus.lastLoadTime = Date.now();
+        
+        // 如果没有字幕数据，尝试完整加载流程
+        if (videoSubtitles.length === 0) {
+          console.log('视频加载完成但没有字幕，尝试加载字幕');
+          setTimeout(() => {
+            loadVideoSubtitles();
+          }, 1000);
+        } else {
+          // 如果已有字幕数据，只刷新CC状态
+          console.log('视频加载完成且已有字幕，尝试刷新CC状态');
+          setTimeout(() => {
+            enableCCSubtitles(true);
+          }, 1000);
+        }
+      }
     }
   }, true);
+  
+  // 监听视频播放状态变化
+  document.addEventListener('play', function(event) {
+    // 确保事件来自视频元素
+    if (event.target && event.target.tagName === 'VIDEO') {
+      console.log('视频开始播放，检查字幕状态');
+      
+      if (isTransorSubtitleEnabled) {
+        // 如果没有字幕数据且视频已经播放，尝试加载字幕
+        if (videoSubtitles.length === 0 && event.target.currentTime > 3) {
+          console.log('视频播放中但没有字幕，尝试加载字幕');
+          setTimeout(() => {
+            loadVideoSubtitles();
+          }, 500);
+        }
+      }
+    }
+  }, true);
+  
+  // 监听视频暂停状态变化
+  document.addEventListener('pause', function(event) {
+    // 确保事件来自视频元素
+    if (event.target && event.target.tagName === 'VIDEO' && isTransorSubtitleEnabled) {
+      // 视频暂停时不做特殊处理，保持当前字幕状态
+      console.log('视频暂停');
+    }
+  }, true);
+  
+  // 监听视频跳转事件
+  document.addEventListener('seeking', function(event) {
+    // 确保事件来自视频元素
+    if (event.target && event.target.tagName === 'VIDEO' && isTransorSubtitleEnabled) {
+      console.log('视频跳转中，准备更新字幕');
+      
+      // 标记为用户主动进度条操作，不触发CC刷新
+      event.target._userSeeking = true;
+    }
+  }, true);
+  
+  document.addEventListener('seeked', function(event) {
+    // 确保事件来自视频元素
+    if (event.target && event.target.tagName === 'VIDEO' && isTransorSubtitleEnabled) {
+      console.log('视频跳转完成，更新字幕');
+      
+      // 大幅度跳转时（超过30秒），考虑刷新CC状态，但仅当不是由进度条操作引起时
+      const video = event.target;
+      
+      // 如果是用户主动进度条操作，不刷新CC状态
+      if (video._userSeeking) {
+        console.log('检测到用户进度条操作，不刷新CC状态');
+        video._userSeeking = false; // 重置标记
+      }
+      // 如果不是进度条操作，可能是其他原因导致的跳转，考虑刷新CC
+      else if (video._lastPosition && Math.abs(video.currentTime - video._lastPosition) > 30) {
+        console.log('检测到大幅度自动跳转，尝试刷新CC状态');
+        setTimeout(() => {
+          enableCCSubtitles(true);
+        }, 500);
+      }
+      
+      // 记录当前位置
+      video._lastPosition = video.currentTime;
+    }
+  }, true);
+  
+  // 监听进度条点击事件
+  const addProgressBarListeners = () => {
+    // 查找YouTube进度条元素
+    const progressBar = document.querySelector('.ytp-progress-bar');
+    if (progressBar) {
+      // 避免重复添加
+      if (!progressBar._hasTransorListener) {
+        progressBar.addEventListener('mousedown', () => {
+          console.log('检测到进度条点击，标记为用户操作');
+          const video = document.querySelector('video');
+          if (video) {
+            video._userSeeking = true;
+          }
+        });
+        progressBar._hasTransorListener = true;
+      }
+    } else {
+      // 如果还没找到进度条，延迟重试
+      setTimeout(addProgressBarListeners, 1000);
+    }
+  };
+  
+  // 启动进度条监听
+  addProgressBarListeners();
   
   // 监听YouTube播放器的样式变化，防止字幕被隐藏
   const observePlayerStyles = () => {
@@ -3137,48 +3531,43 @@ async function loadVideoSubtitles() {
       videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper no-translate"><div class="transor-video-subtitle-translated no-translate">正在加载字幕...</div></div>';
     }
     
-    // 使用无缓存请求获取YouTube页面
-    const webUrlResponse = await fetch(`https://www.youtube.com/watch?v=${currentVideoId}`, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      },
-      cache: 'no-store'
+    // 检测是否有进度条操作正在进行
+    const video = document.querySelector('video');
+    const isUserSeeking = video && video._userSeeking;
+    const progressBar = document.querySelector('.ytp-progress-bar');
+    const isProgressBarActive = progressBar && progressBar.classList.contains('ytp-progress-bar-hover');
+    
+    // 根据是否有用户操作决定是否强制刷新CC
+    const shouldForceRefresh = !isUserSeeking && !isProgressBarActive;
+    
+    // 首先尝试开启CC字幕，根据情况决定是否强制刷新
+    console.log('尝试开启CC字幕' + (shouldForceRefresh ? '并强制刷新' : ''));
+    await enableCCSubtitles(shouldForceRefresh);
+    
+    // 等待一段时间让字幕加载
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 向background请求字幕URL
+    const subtitleUrlResponse = await new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { 
+          action: 'getYouTubeSubtitleUrl',
+          videoId: currentVideoId 
+        },
+        (response) => {
+          resolve(response);
+        }
+      );
     });
     
-    const html = await webUrlResponse.text();
+    console.log('获取到的字幕URL响应:', subtitleUrlResponse);
     
-    // 提取YouTube初始响应数据
-    const ytInitialMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});\s*(?:var\s+meta|<\/script>)/);
-    if (!ytInitialMatch) {
-      throw new Error('无法提取YouTube播放器数据');
+    if (!subtitleUrlResponse || !subtitleUrlResponse.success || !subtitleUrlResponse.url) {
+      throw new Error('未能获取字幕URL');
     }
     
-    const ytInitialPlayerResponse = JSON.parse(ytInitialMatch[1]);
-    
-    // 获取字幕轨道信息
-    const captionTracks = ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-    if (!captionTracks || captionTracks.length === 0) {
-      console.warn('未找到字幕轨道，尝试使用默认字幕');
-      // 如果无法获取字幕，显示提示
-      if (videoSubtitleContainer) {
-        videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper no-translate"><div class="transor-video-subtitle-translated no-translate">无法获取视频字幕</div></div>';
-      }
-      return;
-    }
-    
-    // 选择第一个可用的字幕轨道
-    const defaultCaptionIndex = 0;
-    const requestUrl = captionTracks[defaultCaptionIndex]?.baseUrl;
-    
-    if (!requestUrl) {
-      console.error('未找到字幕URL');
-      return;
-    }
-    
-    // 添加无缓存参数获取字幕数据
-    const response = await fetchYouTubeSubtitles(`${requestUrl}&fmt=json3&_=${Date.now()}`);
+    // 使用获取到的URL请求字幕
+    const response = await fetchYouTubeSubtitles(subtitleUrlResponse.url);
     
     if (response && response.length > 0) {
       // 处理字幕
@@ -3216,12 +3605,6 @@ async function loadVideoSubtitles() {
     if (videoSubtitleContainer) {
       videoSubtitleContainer.innerHTML = '<div class="transor-video-subtitle-wrapper no-translate"><div class="transor-video-subtitle-translated no-translate">字幕加载出错</div></div>';
     }
-    
-    // 30秒后自动重试
-    setTimeout(() => {
-      console.log('自动重试加载字幕');
-      loadVideoSubtitles();
-    }, 30000);
   }
 }
 
@@ -4083,4 +4466,87 @@ function updateSubtitleStyle() {
       displayVideoSubtitle(currentVideoSubtitleIndex);
     }
   }
+}
+
+// 添加新函数: 启动按钮轮询器
+function startButtonPoller() {
+  console.log('启动按钮轮询器，确保按钮加载');
+  
+  // 轮询配置
+  const pollerConfig = {
+    intervalTime: 2000,    // 轮询间隔时间(毫秒)
+    maxAttempts: 10,       // 最大尝试次数
+    currentAttempt: 0,     // 当前尝试次数
+    pollerId: null,        // 轮询器ID
+    isRunning: false       // 是否正在运行
+  };
+  
+  // 轮询函数
+  const pollForButton = () => {
+    // 已达最大尝试次数，停止轮询
+    if (pollerConfig.currentAttempt >= pollerConfig.maxAttempts) {
+      console.log('已达最大轮询次数，停止按钮轮询');
+      stopPoller();
+      return;
+    }
+    
+    // 检查是否是视频页面
+    if (!isEnhancedYouTubeVideoPage()) {
+      console.log('不是视频页面，停止按钮轮询');
+      stopPoller();
+      return;
+    }
+    
+    // 检查按钮是否已存在
+    if (document.getElementById('cinema-mode-btn')) {
+      console.log('影院模式按钮已存在，停止轮询');
+      stopPoller();
+      return;
+    }
+    
+    // 增加尝试次数
+    pollerConfig.currentAttempt++;
+    console.log(`轮询检测按钮 (${pollerConfig.currentAttempt}/${pollerConfig.maxAttempts})...`);
+    
+    // 尝试添加按钮
+    const rightControls = document.querySelector('.ytp-right-controls');
+    if (rightControls) {
+      console.log('找到控制栏，添加影院模式按钮');
+      addCinemaButton();
+      
+      // 按钮已添加，等待验证
+      setTimeout(() => {
+        if (document.getElementById('cinema-mode-btn')) {
+          console.log('验证按钮已成功添加，停止轮询');
+          stopPoller();
+        } else {
+          console.log('按钮添加失败，继续轮询');
+        }
+      }, 500);
+    }
+  };
+  
+  // 停止轮询函数
+  const stopPoller = () => {
+    if (pollerConfig.pollerId) {
+      clearInterval(pollerConfig.pollerId);
+      pollerConfig.pollerId = null;
+      pollerConfig.isRunning = false;
+      console.log('按钮轮询器已停止');
+    }
+  };
+  
+  // 防止重复启动
+  if (pollerConfig.isRunning) {
+    console.log('按钮轮询器已在运行中');
+    return;
+  }
+  
+  // 立即执行一次
+  pollForButton();
+  
+  // 启动定期轮询
+  pollerConfig.pollerId = setInterval(pollForButton, pollerConfig.intervalTime);
+  pollerConfig.isRunning = true;
+  console.log('按钮轮询器已启动');
 }

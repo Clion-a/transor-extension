@@ -75,6 +75,9 @@ let contextImageUrl = '';
 let tesseractLoaded = false;
 let tesseractInitializing = false;
 
+// YouTube字幕相关变量
+let capturedYouTubeSubtitleUrls = [];
+
 // OCR 相关功能统一配置和常量
 const OCR_CONFIG = {
   apiKey: 'K81445045388957',
@@ -369,6 +372,9 @@ function init() {
 
   // 初始化Netflix字幕功能
   NetflixSubtitleHandler.initialize();
+  
+  // 初始化YouTube字幕捕获功能
+  initializeYouTubeSubtitleCapture();
 }
 
 // 初始化存储
@@ -620,6 +626,36 @@ function handleMessage(message, sender, sendResponse) {
           return true;
         }
         sendResponse({ success: false, error: '无效的AI配置数据' });
+        return true;
+      },
+      
+      // 获取YouTube字幕URL
+      getYouTubeSubtitleUrl: () => {
+        console.log('[YouTube字幕捕获] 收到获取字幕URL请求');
+        
+        // 获取最新的字幕URL
+        if (capturedYouTubeSubtitleUrls.length > 0) {
+          const latestUrl = capturedYouTubeSubtitleUrls[capturedYouTubeSubtitleUrls.length - 1];
+          console.log('[YouTube字幕捕获] 返回最新字幕URL:', latestUrl);
+          sendResponse({ 
+            success: true, 
+            url: latestUrl 
+          });
+        } else {
+          console.log('[YouTube字幕捕获] 没有捕获到字幕URL');
+          sendResponse({ 
+            success: false, 
+            error: '未捕获到字幕URL' 
+          });
+        }
+        return true;
+      },
+      
+      // 清除YouTube字幕URL缓存
+      clearYouTubeSubtitleUrls: () => {
+        capturedYouTubeSubtitleUrls = [];
+        console.log('[YouTube字幕捕获] 已清除字幕URL缓存');
+        sendResponse({ success: true });
         return true;
       },
     };
@@ -3405,3 +3441,84 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return handleMessage(message, sender, sendResponse);
   }
 }); 
+
+// 初始化YouTube字幕捕获功能
+function initializeYouTubeSubtitleCapture() {
+  console.log('[YouTube字幕捕获] 初始化');
+  
+  // 设置网络请求监听器
+  if (chrome.webRequest) {
+    // 监听YouTube字幕请求
+    chrome.webRequest.onBeforeRequest.addListener(
+      handleYouTubeSubtitleRequest,
+      { 
+        urls: [
+          "*://*.youtube.com/api/timedtext*", 
+          "*://*.googlevideo.com/timedtext*",
+          "*://*.youtube.com/youtubei/v1/get_transcript*"
+        ] 
+      },
+      ["requestBody"]
+    );
+    
+    console.log('[YouTube字幕捕获] 网络请求监听器已设置');
+  } else {
+    console.error('[YouTube字幕捕获] webRequest API不可用');
+  }
+  
+  // 监听标签页更新，自动开启CC字幕
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.url && tab.url.includes('youtube.com/watch')) {
+      // 延迟发送启用CC消息，确保内容脚本已加载
+      setTimeout(() => {
+        try {
+          chrome.tabs.sendMessage(tabId, { type: 'ENABLE_CAPTIONS' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.log('[YouTube字幕捕获] 内容脚本可能未加载:', chrome.runtime.lastError.message);
+            } else if (response && response.success) {
+              console.log('[YouTube字幕捕获] 成功启用CC字幕');
+            }
+          });
+        } catch (error) {
+          console.error('[YouTube字幕捕获] 发送启用CC消息出错:', error);
+        }
+      }, 2000);
+    }
+    
+    // 检测URL变化，清理字幕URL缓存
+    if (changeInfo.url && tab.url && tab.url.includes('youtube.com/watch')) {
+      console.log('[YouTube字幕捕获] 检测到YouTube视频URL变化，清理字幕URL缓存');
+      capturedYouTubeSubtitleUrls = [];
+    }
+  });
+  
+  // 监听导航事件，检测视频切换
+  if (chrome.webNavigation) {
+    chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+      if (details.url && details.url.includes('youtube.com/watch')) {
+        console.log('[YouTube字幕捕获] 检测到YouTube页面内导航，清理字幕URL缓存');
+        capturedYouTubeSubtitleUrls = [];
+      }
+    }, { url: [{ hostContains: 'youtube.com' }] });
+  }
+}
+
+// 处理YouTube字幕请求
+function handleYouTubeSubtitleRequest(details) {
+  if (isYouTubeSubtitleRequest(details.url)) {
+    console.log('[YouTube字幕捕获] 发现字幕请求:', details.url);
+    
+    // 保存字幕URL
+    if (!capturedYouTubeSubtitleUrls.includes(details.url)) {
+      capturedYouTubeSubtitleUrls.push(details.url);
+      console.log('[YouTube字幕捕获] 字幕URL已保存');
+    }
+  }
+  return { cancel: false };
+}
+
+// 检查URL是否是YouTube字幕请求
+function isYouTubeSubtitleRequest(url) {
+  const subtitleRegex = /youtube\.com\/api\/timedtext|googlevideo\.com\/timedtext|youtube\.com\/youtubei\/v1\/get_transcript/i;
+  return subtitleRegex.test(url);
+}

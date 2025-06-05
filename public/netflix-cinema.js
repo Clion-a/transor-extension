@@ -328,7 +328,8 @@ function addButtonToControlBar(controlBar) {
   // 添加点击事件
   const buttonElement = document.getElementById('transor-netflix-subtitle-btn');
   if (buttonElement) {
-    buttonElement.addEventListener('click', toggleSubtitleMode);
+    // 将点击事件改为显示弹窗，而不是直接切换字幕模式
+    buttonElement.addEventListener('click', showSubtitleOptionsPopup);
   }
   
   // 添加样式
@@ -420,6 +421,29 @@ function initNetflixSubtitles() {
     console.log('检测到Netflix视频页面，启动控制栏监听');
     startControlBarMonitoring();
     monitorUrlChanges();
+    
+    // 检查用户偏好设置，默认启用字幕
+    setTimeout(() => {
+      try {
+        // 获取保存的设置，如果没有设置过，默认为true（启用）
+        const savedEnabled = localStorage.getItem('transor-subtitle-enabled');
+        const shouldEnable = savedEnabled === null ? true : savedEnabled === 'true';
+        
+        console.log('字幕启用设置:', shouldEnable, '(保存的值:', savedEnabled, ')');
+        
+        // 如果应该启用且当前未启用，则自动启用
+        if (shouldEnable && !window.isSubtitleMode) {
+          console.log('自动启用双语字幕');
+          enterSubtitleMode();
+        }
+      } catch (e) {
+        console.error('读取字幕设置失败:', e);
+        // 出错时默认启用
+        if (!window.isSubtitleMode) {
+          enterSubtitleMode();
+        }
+      }
+    }, 3000); // 延迟3秒，确保页面元素加载完成
   } else {
     console.log('不是Netflix视频页面，仅监听URL变化');
     monitorUrlChanges();
@@ -458,6 +482,29 @@ function monitorUrlChanges() {
         
         // 启动控制栏监听
         startControlBarMonitoring();
+        
+        // 检查用户偏好设置，自动启用字幕
+        setTimeout(() => {
+          try {
+            // 获取保存的设置，如果没有设置过，默认为true（启用）
+            const savedEnabled = localStorage.getItem('transor-subtitle-enabled');
+            const shouldEnable = savedEnabled === null ? true : savedEnabled === 'true';
+            
+            console.log('URL变化后 - 字幕启用设置:', shouldEnable, '(保存的值:', savedEnabled, ')');
+            
+            // 如果应该启用且当前未启用，则自动启用
+            if (shouldEnable && !window.isSubtitleMode) {
+              console.log('URL变化后 - 自动启用双语字幕');
+              enterSubtitleMode();
+            }
+          } catch (e) {
+            console.error('URL变化后 - 读取字幕设置失败:', e);
+            // 出错时默认启用
+            if (!window.isSubtitleMode) {
+              enterSubtitleMode();
+            }
+          }
+        }, 3000); // 延迟3秒，确保页面元素加载完成
       }
     }
   }, 1000);
@@ -492,8 +539,8 @@ function addNetflixSubtitleStyles() {
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-     width: 4.8rem;
-      height: 4.8rem;
+      width: 4.2rem;
+      height: 4.2rem;
       padding: 0;
       background: transparent;
       border: none;
@@ -511,8 +558,8 @@ function addNetflixSubtitleStyles() {
     
     /* 按钮中的logo样式 */
     #transor-netflix-subtitle-btn img {
-      width: 24px;
-      height: 24px;
+      width: 100%;
+      height: 100%;
       filter: brightness(1.2);
       display: block;
       margin: auto;
@@ -532,8 +579,33 @@ function addNetflixSubtitleStyles() {
       padding: 20px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(10px);
-      pointer-events: none;
       user-select: none;
+      transition: transform 0.3s;
+      pointer-events: auto;
+      cursor: move;
+    }
+    
+    /* 拖拽相关样式 */
+    .transor-dragging {
+      opacity: 0.9;
+      transition: none !important;
+    }
+    
+    .transor-drag-handle {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30px;
+      height: 6px;
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      cursor: move;
+      transition: background-color 0.2s;
+    }
+    
+    .transor-drag-handle:hover {
+      background-color: rgba(255, 255, 255, 0.6);
     }
     
     /* 字幕文字样式 */
@@ -623,19 +695,212 @@ function addNetflixSubtitleStyles() {
       color: rgba(255, 255, 255, 0.8);
       font-size: 14px;
     }
+    
+    /* 字幕选项弹窗样式 */
+    .subtitle-options-popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.4);
+      z-index: 99999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .subtitle-options-content {
+      width: 320px;
+      background-color: #181818;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      animation: popupFadeIn 0.3s ease-out;
+      max-height: calc(100vh - 80px); /* 限制最大高度 */
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    @keyframes popupFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes popupFadeOut {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+    }
+    
+    .subtitle-popup-fadeout {
+      animation: popupFadeOut 0.2s ease-out forwards;
+    }
+    
+    .subtitle-options-body {
+      padding: 16px;
+      overflow-y: auto; /* 添加垂直滚动条 */
+      max-height: calc(100vh - 120px); /* 设置最大高度，确保可以滚动 */
+      scrollbar-width: thin; /* Firefox的滚动条样式 */
+      scrollbar-color: rgba(255, 255, 255, 0.3) transparent; /* Firefox的滚动条颜色 */
+    }
+    
+    /* Chrome和Safari的滚动条样式 */
+    .subtitle-options-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .subtitle-options-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .subtitle-options-body::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+    
+    .subtitle-option-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      transition: background-color 0.2s;
+    }
+    
+    .subtitle-option-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .subtitle-option-item:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .subtitle-option-icon {
+      margin-right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .subtitle-option-label {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 14px;
+      font-weight: 500;
+      flex-grow: 1;
+    }
+    
+    .subtitle-option-value {
+      min-width: 130px;
+    }
+    
+    .subtitle-option-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .subtitle-mode-item {
+      cursor: pointer;
+      background-color: rgba(229, 9, 20, 0.1);
+    }
+    
+    .subtitle-mode-item:hover {
+      background-color: rgba(229, 9, 20, 0.2);
+    }
+    
+    .subtitle-select {
+      width: 100%;
+      background-color: #303030;
+      color: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      appearance: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="6" viewBox="0 0 12 6"><path fill="%23ffffff" d="M0 0l6 6 6-6z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 30px;
+    }
+    
+    .subtitle-select:focus {
+      outline: none;
+      border-color: #e50914;
+    }
+    
+    .subtitle-select option {
+      background-color: #181818;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .subtitle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 22px;
+    }
+    
+    .subtitle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .subtitle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.2);
+      transition: .4s;
+      border-radius: 34px;
+    }
+    
+    .subtitle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 2px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .subtitle-slider {
+      background-color: #e50914;
+    }
+    
+    input:focus + .subtitle-slider {
+      box-shadow: 0 0 1px #e50914;
+    }
+    
+    input:checked + .subtitle-slider:before {
+      transform: translateX(20px);
+    }
   `;
   
   document.head.appendChild(style);
   console.log('Netflix双语字幕样式已添加');
-}
-
-// 切换字幕模式
-function toggleSubtitleMode() {
-  if (window.isSubtitleMode) {
-    exitSubtitleMode();
-  } else {
-    enterSubtitleMode();
-  }
 }
 
 // 进入字幕模式
@@ -649,33 +914,94 @@ function enterSubtitleMode() {
     window.currentVideoId = 'netflix-default';
   }
 
-  // 查找当前视频元素
-  window.originalVideo = document.querySelector('video');
-  if (!window.originalVideo) {
-    console.log('未找到视频元素');
-    showStatusMessage('未找到视频元素，请刷新页面重试');
-    return;
+  // 查找当前视频元素 - 增加重试机制
+  let retryCount = 0;
+  const maxRetries = 5;
+  
+  function findVideoElement() {
+    window.originalVideo = document.querySelector('video');
+    
+    if (!window.originalVideo && retryCount < maxRetries) {
+      retryCount++;
+      console.log(`未找到视频元素，第 ${retryCount} 次重试...`);
+      
+      // 延迟500毫秒后重试
+      setTimeout(findVideoElement, 500);
+      return;
+    }
+    
+    if (!window.originalVideo) {
+      console.log('未找到视频元素，已尝试 ' + maxRetries + ' 次');
+      console.log('当前页面URL:', window.location.href);
+      console.log('页面中的video元素数量:', document.querySelectorAll('video').length);
+      
+      // 显示错误消息
+      showStatusMessage('未找到视频元素，请刷新页面重试');
+      
+      // 尝试显示更明显的错误提示
+      const errorDiv = document.createElement('div');
+      errorDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(229, 9, 20, 0.95);
+        color: white;
+        padding: 20px 30px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        z-index: 999999;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      `;
+      errorDiv.textContent = '未找到视频元素，请确保视频已开始播放后再启用字幕';
+      document.body.appendChild(errorDiv);
+      
+      // 5秒后移除错误提示
+      setTimeout(() => {
+        if (errorDiv.parentNode) {
+          errorDiv.parentNode.removeChild(errorDiv);
+        }
+      }, 5000);
+      
+      return;
+    }
+    
+    console.log('成功找到视频元素');
+    
+    // 创建字幕覆盖层
+    createSubtitleOverlay();
+    
+    // 激活按钮状态
+    const button = document.getElementById('transor-netflix-subtitle-btn');
+    if (button) {
+      button.classList.add('active');
+    }
+    
+    // 开始监听视频
+    startVideoTimeTracking();
+    
+    // 加载字幕
+    loadSubtitles();
+    
+    // 标记状态
+    window.isSubtitleMode = true;
+    
+    // 更新字幕显示设置
+    if (typeof updateSubtitleDisplay === 'function') {
+      updateSubtitleDisplay();
+    }
+    
+    // 更新字幕样式设置
+    if (typeof updateSubtitleStyle === 'function') {
+      updateSubtitleStyle();
+    }
+    
+    showStatusMessage('双语字幕已启用');
   }
   
-  // 创建字幕覆盖层
-  createSubtitleOverlay();
-  
-  // 激活按钮状态
-  const button = document.getElementById('transor-netflix-subtitle-btn');
-  if (button) {
-    button.classList.add('active');
-  }
-  
-  // 开始监听视频
-  startVideoTimeTracking();
-  
-  // 加载字幕
-  loadSubtitles();
-  
-  // 标记状态
-  window.isSubtitleMode = true;
-  
-  showStatusMessage('双语字幕已启用');
+  // 开始查找视频元素
+  findVideoElement();
 }
 
 // 退出字幕模式
@@ -703,29 +1029,35 @@ function exitSubtitleMode() {
     if (window.mainObserver) {
       window.mainObserver.disconnect();
       window.mainObserver = null;
-  }
+    }
   
     if (window.videoObserver) {
       window.videoObserver.disconnect();
       window.videoObserver = null;
-  }
+    }
   
     // 停止定时器
     if (window.subtitleUpdateInterval) {
       clearInterval(window.subtitleUpdateInterval);
       window.subtitleUpdateInterval = null;
-  }
+    }
   
     if (window.originalVideo) {
       window.originalVideo.removeEventListener('seeked', updateSubtitleByTime);
       window.originalVideo.removeEventListener('timeupdate', updateSubtitleByTime);
-  }
+    }
   
     // 移除字幕覆盖层
     if (window.subtitlesOverlay && window.subtitlesOverlay.parentNode) {
       window.subtitlesOverlay.parentNode.removeChild(window.subtitlesOverlay);
       window.subtitlesOverlay = null;
-  }
+    }
+    
+    // 更新按钮状态
+    const button = document.getElementById('transor-netflix-subtitle-btn');
+    if (button) {
+      button.classList.remove('active');
+    }
   
     // 重置所有状态变量
     window.isSubtitleMode = false;
@@ -734,6 +1066,7 @@ function exitSubtitleMode() {
     window.translatedSubtitles = [];
     window.currentSubtitleIndex = -1;
 
+    showStatusMessage('双语字幕已禁用');
     console.log('字幕模式已成功退出，所有资源已清理');
   } catch (error) {
     console.log('退出字幕模式时出错:', error);
@@ -785,6 +1118,9 @@ function createSubtitleOverlay() {
   
   document.body.appendChild(window.subtitlesOverlay);
   console.log('字幕覆盖层已创建（初始为隐藏状态）');
+  
+  // 添加拖拽功能
+  makeDraggable(window.subtitlesOverlay);
 }
 
 // 开始视频时间跟踪
@@ -2731,4 +3067,640 @@ async function getLatestSubtitleUrl() {
       resolve(null);
     }
   });
+}
+
+// 显示字幕选项弹窗
+function showSubtitleOptionsPopup() {
+  console.log('显示字幕选项弹窗');
+  
+  // 检查弹窗是否已存在
+  if (document.getElementById('subtitle-options-popup')) {
+    return;
+  }
+  
+  // 获取双语字幕按钮位置，用于定位弹窗
+  const subtitleButton = document.getElementById('transor-netflix-subtitle-btn');
+  if (!subtitleButton) {
+    console.error('未找到双语字幕按钮，无法定位弹窗');
+    return;
+  }
+  
+  // 创建弹窗容器
+  const popupContainer = document.createElement('div');
+  popupContainer.id = 'subtitle-options-popup';
+  popupContainer.className = 'subtitle-options-popup';
+  
+  // 创建弹窗内容
+  popupContainer.innerHTML = `
+    <div class="subtitle-options-content no-translate">
+      <div class="subtitle-options-body no-translate">
+        
+        <div class="subtitle-option-item no-translate">
+          <div class="subtitle-option-icon no-translate">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3ZM21 19H3V5H21V19ZM6 8H18V10H6V8ZM6 11H18V13H6V11ZM6 14H14V16H6V14Z" fill="rgba(255, 255, 255, 0.8)"/>
+            </svg>
+          </div>
+          <div class="subtitle-option-label no-translate">字幕显示</div>
+          <div class="subtitle-option-value no-translate">
+            <select id="subtitle-display-select" class="subtitle-select no-translate">
+              <option value="双语字幕" selected class="no-translate">双语字幕</option>
+              <option value="仅原文" class="no-translate">仅原文</option>
+              <option value="仅译文" class="no-translate">仅译文</option>
+            </select>
+          </div>
+        </div>
+        <div class="subtitle-option-item no-translate">
+          <div class="subtitle-option-icon no-translate">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.5 4V7H21.5V4H2.5ZM2.5 19H6.5V10H2.5V19ZM9.5 19H15.5V10H9.5V19ZM18.5 19H21.5V10H18.5V19Z" fill="rgba(255, 255, 255, 0.8)"/>
+            </svg>
+          </div>
+          <div class="subtitle-option-label no-translate">字幕样式</div>
+          <div class="subtitle-option-value no-translate">
+            <select id="subtitle-style-select" class="subtitle-select no-translate">
+              <option value="默认" selected class="no-translate">默认</option>
+              <option value="半透明" class="no-translate">半透明</option>
+              <option value="浅色模式" class="no-translate">浅色模式</option>
+              <option value="无背景" class="no-translate">无背景</option>
+              <option value="醒目" class="no-translate">醒目</option>
+            </select>
+          </div>
+        </div>
+        <div class="subtitle-option-item no-translate">
+          <div class="subtitle-option-icon no-translate">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 4H4C2.89 4 2 4.89 2 6V18C2 19.11 2.89 20 4 20H20C21.11 20 22 19.11 22 18V6C22 4.89 21.11 4 20 4ZM20 18H4V12H20V18ZM20 10H4V6H20V10Z" fill="rgba(255, 255, 255, 0.8)"/>
+            </svg>
+          </div>
+          <div class="subtitle-option-label no-translate">Transor 字幕</div>
+          <div class="subtitle-option-toggle no-translate">
+            <label class="subtitle-switch no-translate">
+              <input type="checkbox" id="transor-subtitle-toggle" checked>
+              <span class="subtitle-slider no-translate"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // 添加到页面
+  document.body.appendChild(popupContainer);
+  
+  // 获取弹窗内容元素
+  const popupContent = popupContainer.querySelector('.subtitle-options-content');
+  
+  // 定位函数 - 提取为单独函数以便后续调用
+  function positionPopup() {
+    if (!popupContent) return;
+    
+    // 获取最新的按钮位置（可能已变化）
+    const updatedButtonRect = subtitleButton.getBoundingClientRect();
+    
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // 获取播放器元素的边界，用于限制弹窗不超出视频区域
+    const player = document.querySelector('.NFPlayer');
+    const playerRect = player ? player.getBoundingClientRect() : null;
+    
+    // 计算弹窗位置 - 如果按钮在页面下半部分，则弹窗显示在按钮上方，否则显示在按钮下方
+    const isButtonInBottomHalf = updatedButtonRect.top > viewportHeight / 2;
+    
+    // 设置弹窗的基本样式
+    popupContent.style.position = 'absolute';
+    
+    // 弹窗尺寸 (320px宽)
+    const popupWidth = 320;
+    const popupHeight = popupContent.offsetHeight || 230; // 如果还没渲染，估计高度
+    
+    // 默认位置 - 水平居中对齐按钮
+    let left = updatedButtonRect.left + updatedButtonRect.width/2 - popupWidth/2;
+    
+    // 垂直位置根据按钮在上半部分还是下半部分决定
+    let top, bottom;
+    if (isButtonInBottomHalf) {
+      // 按钮在下半部分，弹窗显示在上方
+      bottom = viewportHeight - updatedButtonRect.top + 10;
+      popupContent.style.bottom = bottom + 'px';
+      // 移除可能存在的top值
+      popupContent.style.top = '';
+    } else {
+      // 按钮在上半部分，弹窗显示在下方
+      top = updatedButtonRect.bottom + 10;
+      popupContent.style.top = top + 'px';
+      // 移除可能存在的bottom值
+      popupContent.style.bottom = '';
+    }
+    
+    // 水平边界检查 - 确保弹窗不超出视口左右边界
+    left = Math.max(10, left); // 不超出左边界
+    left = Math.min(viewportWidth - popupWidth - 10, left); // 不超出右边界
+    
+    // 如果有播放器元素，进一步限制在播放器内
+    if (playerRect) {
+      // 限制水平位置在播放器范围内
+      left = Math.max(playerRect.left + 10, left);
+      left = Math.min(playerRect.right - popupWidth - 10, left);
+      
+      // 垂直位置也限制在播放器范围内
+      if (isButtonInBottomHalf) {
+        // 如果弹窗在按钮上方且按钮在下半部分
+        const newBottom = viewportHeight - updatedButtonRect.top + 10;
+        // 确保弹窗顶部不超出播放器顶部
+        const maxBottom = viewportHeight - playerRect.top - 10;
+        popupContent.style.bottom = Math.min(newBottom, maxBottom) + 'px';
+      } else {
+        // 如果弹窗在按钮下方且按钮在上半部分
+        const newTop = updatedButtonRect.bottom + 10;
+        // 确保弹窗底部不超出播放器底部
+        const maxTop = playerRect.bottom - popupHeight - 10;
+        popupContent.style.top = Math.min(newTop, maxTop) + 'px';
+      }
+    }
+    
+    // 应用最终的水平位置
+    popupContent.style.left = left + 'px';
+  }
+  
+  // 首次定位弹窗
+  positionPopup();
+  
+  // 监听播放器尺寸变化，更新弹窗位置
+  const resizeObserver = new ResizeObserver(() => {
+    if (document.getElementById('subtitle-options-popup')) {
+      positionPopup();
+    } else {
+      // 如果弹窗已关闭，停止观察
+      resizeObserver.disconnect();
+    }
+  });
+  
+  // 观察播放器元素尺寸变化
+  const player = document.querySelector('.NFPlayer');
+  if (player) {
+    resizeObserver.observe(player);
+  }
+  
+  // 监听窗口尺寸变化，更新弹窗位置
+  const resizeHandler = () => {
+    if (document.getElementById('subtitle-options-popup')) {
+      positionPopup();
+    } else {
+      // 如果弹窗已关闭，移除监听器
+      window.removeEventListener('resize', resizeHandler);
+    }
+  };
+  window.addEventListener('resize', resizeHandler);
+  
+  // 关闭弹窗的函数
+  function closePopup() {
+    // 添加淡出动画
+    popupContainer.classList.add('subtitle-popup-fadeout');
+    
+    // 动画结束后移除元素
+    setTimeout(() => {
+      if (document.body.contains(popupContainer)) {
+        document.body.removeChild(popupContainer);
+      }
+      // 停止观察
+      resizeObserver.disconnect();
+      // 移除窗口尺寸变化监听器
+      window.removeEventListener('resize', resizeHandler);
+    }, 200); // 与CSS动画时长匹配
+  }
+  
+  // 添加事件监听器 - 点击外部关闭
+  popupContainer.addEventListener('click', (event) => {
+    if (event.target === popupContainer) {
+      closePopup();
+    }
+  });
+  
+  // 添加事件监听器 - Transor字幕开关
+  const transorToggle = document.getElementById('transor-subtitle-toggle');
+  if (transorToggle) {
+    // 设置初始状态 - 如果没有保存的设置，默认为true（启用）
+    const savedEnabled = localStorage.getItem('transor-subtitle-enabled');
+    const shouldBeChecked = savedEnabled === null ? true : savedEnabled === 'true';
+    
+    // 设置开关状态 - 优先使用当前实际状态，其次使用保存的设置
+    transorToggle.checked = window.isSubtitleMode !== undefined ? window.isSubtitleMode : shouldBeChecked;
+    
+    console.log('Transor字幕开关初始状态:', transorToggle.checked, '(当前模式:', window.isSubtitleMode, ', 保存的设置:', savedEnabled, ')');
+    
+    transorToggle.addEventListener('change', (event) => {
+      const enabled = event.target.checked;
+      console.log('Transor字幕设置已更新:', enabled);
+      
+      // 根据开关状态切换字幕模式
+      if (enabled && !window.isSubtitleMode) {
+        enterSubtitleMode();
+      } else if (!enabled && window.isSubtitleMode) {
+        exitSubtitleMode();
+      }
+      
+      // 保存用户偏好设置到本地存储
+      try {
+        localStorage.setItem('transor-subtitle-enabled', enabled);
+        console.log('已保存字幕开关设置:', enabled);
+      } catch (e) {
+        console.error('保存字幕开关设置失败:', e);
+      }
+      
+      // 关闭弹窗
+      closePopup();
+    });
+  }
+  
+  // 添加字幕显示选择器事件监听
+  const displaySelect = document.getElementById('subtitle-display-select');
+  if (displaySelect) {
+    // 设置初始值
+    const savedDisplayMode = localStorage.getItem('netflix-subtitle-display-mode') || '双语字幕';
+    displaySelect.value = savedDisplayMode;
+    
+    displaySelect.addEventListener('change', (event) => {
+      const mode = event.target.value;
+      console.log('字幕显示模式已更改:', mode);
+      
+      // 保存设置
+      localStorage.setItem('netflix-subtitle-display-mode', mode);
+      
+      // 更新字幕显示
+      updateSubtitleDisplay();
+    });
+  }
+  
+  // 添加字幕样式选择器事件监听
+  const styleSelect = document.getElementById('subtitle-style-select');
+  if (styleSelect) {
+    // 设置初始值
+    const savedStyle = localStorage.getItem('netflix-subtitle-style') || '默认';
+    styleSelect.value = savedStyle;
+    
+    styleSelect.addEventListener('change', (event) => {
+      const style = event.target.value;
+      console.log('字幕样式已更改:', style);
+      
+      // 保存设置
+      localStorage.setItem('netflix-subtitle-style', style);
+      
+      // 更新字幕样式
+      updateSubtitleStyle();
+    });
+  }
+  
+  // 添加事件监听器 - 关闭按钮
+  const closeBtn = popupContainer.querySelector('.subtitle-options-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      closePopup();
+    });
+  }
+  
+  // 添加事件监听器 - 点击外部关闭
+  popupContainer.addEventListener('click', (event) => {
+    if (event.target === popupContainer) {
+      closePopup();
+    }
+  });
+}
+
+// 更新字幕显示模式
+function updateSubtitleDisplay() {
+  try {
+    const displayMode = localStorage.getItem('netflix-subtitle-display-mode') || '双语字幕';
+    console.log('应用字幕显示模式:', displayMode);
+    
+    if (!window.subtitlesOverlay) {
+      console.log('字幕覆盖层不存在，无法更新显示模式');
+      return;
+    }
+    
+    const originalElement = window.subtitlesOverlay.querySelector('.netflix-subtitle-original');
+    const translationElement = window.subtitlesOverlay.querySelector('.netflix-subtitle-translation');
+    
+    if (!originalElement || !translationElement) {
+      console.log('字幕文本元素不存在，无法更新显示模式');
+      return;
+    }
+    
+    // 根据显示模式设置可见性
+    if (displayMode === '仅原文') {
+      originalElement.style.display = 'block';
+      translationElement.style.display = 'none';
+    } else if (displayMode === '仅译文') {
+      originalElement.style.display = 'none';
+      translationElement.style.display = 'block';
+    } else {
+      // 默认双语字幕
+      originalElement.style.display = 'block';
+      translationElement.style.display = 'block';
+    }
+    
+    // 更新当前字幕显示
+    if (window.currentSubtitleIndex !== -1) {
+      displaySubtitle(window.currentSubtitleIndex);
+    }
+    
+    console.log('字幕显示模式已更新');
+  } catch (error) {
+    console.error('更新字幕显示模式时出错:', error);
+  }
+}
+
+// 更新字幕样式
+function updateSubtitleStyle() {
+  try {
+    const styleMode = localStorage.getItem('netflix-subtitle-style') || '默认';
+    console.log('应用字幕样式:', styleMode);
+    
+    if (!window.subtitlesOverlay) {
+      console.log('字幕覆盖层不存在，无法更新样式');
+      return;
+    }
+    
+    // 移除所有样式类
+    window.subtitlesOverlay.classList.remove(
+      'subtitle-style-default',
+      'subtitle-style-transparent',
+      'subtitle-style-light',
+      'subtitle-style-no-bg',
+      'subtitle-style-bold'
+    );
+    
+    // 应用选定的样式
+    switch (styleMode) {
+      case '半透明':
+        window.subtitlesOverlay.classList.add('subtitle-style-transparent');
+        window.subtitlesOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        break;
+      case '浅色模式':
+        window.subtitlesOverlay.classList.add('subtitle-style-light');
+        window.subtitlesOverlay.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+        window.subtitlesOverlay.style.color = '#000';
+        break;
+      case '无背景':
+        window.subtitlesOverlay.classList.add('subtitle-style-no-bg');
+        window.subtitlesOverlay.style.backgroundColor = 'transparent';
+        window.subtitlesOverlay.style.boxShadow = 'none';
+        break;
+      case '醒目':
+        window.subtitlesOverlay.classList.add('subtitle-style-bold');
+        window.subtitlesOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        break;
+      default:
+        // 默认样式
+        window.subtitlesOverlay.classList.add('subtitle-style-default');
+        window.subtitlesOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        window.subtitlesOverlay.style.color = '#fff';
+    }
+    
+    console.log('字幕样式已更新');
+  } catch (error) {
+    console.error('更新字幕样式时出错:', error);
+  }
+}
+
+// 添加拖拽功能
+function makeDraggable(element) {
+  // 初始化变量
+  let offset = { x: 0, y: 0 };
+  
+  // 尝试恢复保存的位置
+  try {
+    const savedPosition = localStorage.getItem('transor-netflix-subtitle-position');
+    if (savedPosition) {
+      offset = JSON.parse(savedPosition);
+    }
+  } catch (e) {
+    console.error('恢复位置失败:', e);
+  }
+  
+  // 应用初始位置
+  applyPosition();
+  
+  // 定义拖拽所需函数
+  function mouseDown(e) {
+    // 检查是否点击在手柄或容器上
+    const target = e.target;
+    const isHandle = target.classList.contains('transor-drag-handle');
+    const isWrapper = target.classList.contains('netflix-subtitle-text') || 
+                      target.closest('.netflix-subtitle-text');
+    
+    if (!isHandle && !isWrapper) {
+      return;
+    }
+    
+    // 阻止默认行为和事件冒泡
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 记录初始鼠标位置
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    // 记录初始偏移量
+    const startOffset = { ...offset };
+    
+    // 添加移动和结束事件
+    document.addEventListener('mousemove', mouseMove);
+    document.addEventListener('mouseup', mouseUp);
+    
+    // 鼠标移动函数
+    function mouseMove(e) {
+      // 添加拖拽中样式
+      element.classList.add('transor-dragging');
+      
+      // 计算鼠标移动距离
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      
+      // 更新偏移量（直接基于初始偏移量加上鼠标移动距离）
+      offset.x = startOffset.x + dx;
+      offset.y = startOffset.y + dy;
+      
+      // 应用边界限制
+      const videoElement = window.originalVideo;
+      if (videoElement) {
+        const videoRect = videoElement.getBoundingClientRect();
+        
+        // 计算边界
+        const maxX = videoRect.width / 2;
+        const maxY = videoRect.height / 2;
+        
+        // 应用边界限制
+        offset.x = Math.min(Math.max(offset.x, -maxX), maxX);
+        offset.y = Math.min(Math.max(offset.y, -maxY), maxY);
+      }
+      
+      // 应用位置
+      applyPosition();
+    }
+    
+    // 鼠标释放函数
+    function mouseUp() {
+      // 移除拖拽中样式
+      element.classList.remove('transor-dragging');
+      
+      // 保存位置
+      try {
+        localStorage.setItem('transor-netflix-subtitle-position', JSON.stringify(offset));
+      } catch (e) {
+        console.error('保存位置失败:', e);
+      }
+      
+      // 移除事件监听
+      document.removeEventListener('mousemove', mouseMove);
+      document.removeEventListener('mouseup', mouseUp);
+    }
+  }
+  
+  // 触摸开始事件
+  function touchStart(e) {
+    // 检查是否点击在手柄或容器上
+    const target = e.target;
+    const isHandle = target.classList.contains('transor-drag-handle');
+    const isWrapper = target.classList.contains('netflix-subtitle-text') || 
+                      target.closest('.netflix-subtitle-text');
+    
+    if (!isHandle && !isWrapper) {
+      return;
+    }
+    
+    if (e.touches.length !== 1) return;
+    
+    // 阻止默认行为和事件冒泡
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 记录初始触摸位置
+    const startX = e.touches[0].clientX;
+    const startY = e.touches[0].clientY;
+    
+    // 记录初始偏移量
+    const startOffset = { ...offset };
+    
+    // 添加移动和结束事件
+    document.addEventListener('touchmove', touchMove, { passive: false });
+    document.addEventListener('touchend', touchEnd);
+    
+    // 触摸移动函数
+    function touchMove(e) {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      
+      // 添加拖拽中样式
+      element.classList.add('transor-dragging');
+      
+      // 计算触摸移动距离
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      
+      // 更新偏移量（直接基于初始偏移量加上触摸移动距离）
+      offset.x = startOffset.x + dx;
+      offset.y = startOffset.y + dy;
+      
+      // 应用边界限制
+      const videoElement = window.originalVideo;
+      if (videoElement) {
+        const videoRect = videoElement.getBoundingClientRect();
+        
+        // 计算边界
+        const maxX = videoRect.width / 2;
+        const maxY = videoRect.height / 2;
+        
+        // 应用边界限制
+        offset.x = Math.min(Math.max(offset.x, -maxX), maxX);
+        offset.y = Math.min(Math.max(offset.y, -maxY), maxY);
+      }
+      
+      // 应用位置
+      applyPosition();
+    }
+    
+    // 触摸结束函数
+    function touchEnd() {
+      // 移除拖拽中样式
+      element.classList.remove('transor-dragging');
+      
+      // 保存位置
+      try {
+        localStorage.setItem('transor-netflix-subtitle-position', JSON.stringify(offset));
+      } catch (e) {
+        console.error('保存位置失败:', e);
+      }
+      
+      // 移除事件监听
+      document.removeEventListener('touchmove', touchMove);
+      document.removeEventListener('touchend', touchEnd);
+    }
+  }
+  
+  // 应用位置的函数
+  function applyPosition() {
+    element.style.position = 'fixed';
+    element.style.left = '50%';
+    element.style.bottom = '80px';
+    element.style.transform = `translateX(-50%) translate(${offset.x}px, ${offset.y}px)`;
+  }
+  
+  // 移除之前的事件监听器
+  element.removeEventListener('mousedown', element._mouseDownHandler);
+  element.removeEventListener('touchstart', element._touchStartHandler);
+  
+  // 保存新的监听器引用
+  element._mouseDownHandler = mouseDown;
+  element._touchStartHandler = touchStart;
+  
+  // 添加事件监听器
+  element.addEventListener('mousedown', mouseDown);
+  element.addEventListener('touchstart', touchStart, { passive: false });
+  
+  // 确保拖拽手柄存在
+  ensureDragHandle();
+  
+  // 确保拖拽手柄存在的函数
+  function ensureDragHandle() {
+    // 为子元素添加事件委托
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        if (mutation.type === 'childList') {
+          // 添加拖拽样式和手柄
+          element.style.cursor = 'move';
+          element.style.pointerEvents = 'auto';
+          
+          // 确保有拖拽手柄
+          if (!element.querySelector('.transor-drag-handle')) {
+            const dragHandle = document.createElement('div');
+            dragHandle.className = 'transor-drag-handle';
+            if (element.firstChild) {
+              element.insertBefore(dragHandle, element.firstChild);
+            } else {
+              element.appendChild(dragHandle);
+            }
+          }
+        }
+      });
+    });
+    
+    // 立即检查一次
+    element.style.cursor = 'move';
+    element.style.pointerEvents = 'auto';
+    
+    if (!element.querySelector('.transor-drag-handle')) {
+      const dragHandle = document.createElement('div');
+      dragHandle.className = 'transor-drag-handle';
+      if (element.firstChild) {
+        element.insertBefore(dragHandle, element.firstChild);
+      } else {
+        element.appendChild(dragHandle);
+      }
+    }
+    
+    // 开始观察子元素变化
+    observer.observe(element, { childList: true, subtree: true });
+  }
 }
