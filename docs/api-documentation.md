@@ -2,7 +2,8 @@
 
 ## 基本信息
 
-- 基础URL: `https://api.transor.com/`
+- 基础URL: `https://api.transor.ai/`
+- 测试基础URL: `http://api-test.transor.ai`
 - 请求格式: GET or POST
 - 响应格式: JSON
 - 认证方式: Token
