@@ -396,7 +396,8 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 **接口描述**: 获取所有可订阅的套餐信息
 
-**请求URL**: `/subscriptions/plans`
+**请求URL**: `/pubapi1/get_plan_config`
+http://api-test.transor.ai/pubapi1/get_plan_config
 
 **请求方法**: GET
 
@@ -407,11 +408,68 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名     | 类型    | 描述                 |
 |------------|---------|----------------------|
-| success    | Boolean | 请求是否成功         |
-| plans      | Array   | 套餐信息数组         |
+| code    | Int | 请求是否成功         |
+| data      | Array   | 套餐信息数组         |
+| info      | String   | 错误信息        |
+
+这里的多国语言还没想好怎么处理 !!!!
 
 **响应示例**:
 ```json
+{
+	"code": 1,
+	"data": [{
+		"id": "1",
+		"type": "free", // free, pro, max
+		"token_monthly": "0.0000", //每月赠送token量
+		"img_monthly": "0", //每月可以翻译的图片数量
+		"doc_monthly": "0", //每月可以翻译的文档的页数
+		"collections_amount": "0", //收藏上限
+		"usd_price_monthly": "0.0000", //按月支付每月USD价格
+		"usd_price_monthly_original": "0.0000", //每月USD原价
+		"usd_price_yearly": "0.0000", //按年支付每年价格
+		"usd_price_yearly_original": "0.0000", //按年支付原价多少
+		"stripe_monthly": "", //Stripe 按月支付的链接
+		"stripe_yearly": "", //Stripe 按年支付的链接
+		"ctime": "2025-04-09 13:53:55",
+		"uptime": "2025-04-08 19:21:09",
+		"status": "1"
+	}, {
+		"id": "2",
+		"type": "pro",
+		"token_monthly": "1000000.0000",
+		"img_monthly": "100",
+		"doc_monthly": "500",
+		"collections_amount": "1000",
+		"usd_price_monthly": "3.0000",
+		"usd_price_monthly_original": "5.0000",
+		"usd_price_yearly": "30.0000",
+		"usd_price_yearly_original": "60.0000",
+		"stripe_monthly": "https:\/\/buy.stripe.com\/cNifZi2FY6uT21xfpa1kA00",
+		"stripe_yearly": "https:\/\/buy.stripe.com\/4gMaEY2FY9H521x90M1kA03",
+		"ctime": "2025-04-09 13:54:33",
+		"uptime": "2025-04-08 19:25:09",
+		"status": "1"
+	}, {
+		"id": "3",
+		"type": "max",
+		"token_monthly": "10000000.0000",
+		"img_monthly": "1000",
+		"doc_monthly": "5000",
+		"collections_amount": "10000",
+		"usd_price_monthly": "10.0000",
+		"usd_price_monthly_original": "12.0000",
+		"usd_price_yearly": "100.0000",
+		"usd_price_yearly_original": "144.0000",
+		"stripe_monthly": "https:\/\/buy.stripe.com\/6oU14ofsK8D1eOjel61kA01",
+		"stripe_yearly": "https:\/\/buy.stripe.com\/bJedRafsKaL935B7WI1kA02",
+		"ctime": "2025-04-09 13:54:39",
+		"uptime": "2025-04-08 19:25:09",
+		"status": "1"
+	}],
+	"info": ""
+}
+
 {
   "success": true,
   "plans": [
