@@ -578,16 +578,18 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名      | 类型    | 描述                         |
 |-------------|---------|------------------------------|
-| success     | Boolean | 请求是否成功                 |
-| redirectUrl | String  | 支付页面URL                  |
-| orderId     | String  | 订单ID                       |
+| code     | Boolean | 1 删除成功 -1 删除失败                |
+| data.id | Int  | 数组 返回收藏id               |
+| info     | String  | info                       |
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "redirectUrl": "https://payment.transor.com/checkout?session=xyz123",
-  "orderId": "ord_987654321"
+	"code": -1,
+	"data": {
+		"id": 34
+	},
+	"info": "删除失败"
 }
 ```
 
@@ -625,6 +627,42 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 		"id": "43"
 	},
 	"info": "Collection success"
+}
+```
+
+### 2. 删除收藏单词
+
+**接口描述**: 删除收藏收藏单词
+
+**请求URL**: `/priapi1/del_my_words`
+
+**请求方法**: POST
+
+**请求头**:
+- Authorization: Bearer {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| id   | Int | 是   | 收藏的id                    |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| code     | Boolean | 1 成功 or -1失败                 |
+| data.id | String or Int  | 收藏之后的id               |
+| info     | String  | 成功 失败                    |
+
+**响应示例**:
+```json
+{
+	"code": -1,
+	"data": {
+		"id": 34
+	},
+	"info": "删除失败"
 }
 ```
 
