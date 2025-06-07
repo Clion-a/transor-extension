@@ -620,9 +620,11 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 **响应示例**:
 ```json
 {
-  "success": true,
-  "redirectUrl": "https://payment.transor.com/checkout?session=xyz123",
-  "orderId": "ord_987654321"
+	"code": 1,
+	"data": {
+		"id": "43"
+	},
+	"info": "Collection success"
 }
 ```
 
@@ -658,7 +660,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 | data.ctime | Int  | 创建时间  Timestamp，需要根据前端时间进行转换               |
 | data.uptime | Int  | 更新时间，Timestamp                 |
 | data.status | Int  | 现在都是1，如果删除，就直接删除数据了                  |
-| info     | String  | 订单ID                       |
+| info     | String  |                        |
 
 **响应示例**:
 ```json
