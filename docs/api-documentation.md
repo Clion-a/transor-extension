@@ -130,11 +130,11 @@ http://api-test.transor.ai/pubapi1/google_login
 
 
 
-### 4. 用户注册
+### 4. 用户注册 [暂时还没有】
 
 **接口描述**: 新用户注册账号
 
-**请求URL**: `/auth/register`
+**请求URL**: `/pubapi1/email_regist`
 
 **请求方法**: POST
 
@@ -143,7 +143,7 @@ http://api-test.transor.ai/pubapi1/google_login
 | 参数名     | 类型   | 必填 | 描述     |
 |------------|--------|------|----------|
 | email      | String | 是   | 用户邮箱 |
-| password   | String | 是   | 用户密码 |
+| psw   | String | 是   | 用户密码 |
 
 **请求示例**:
 ```json
@@ -174,54 +174,8 @@ http://api-test.transor.ai/pubapi1/google_login
 
 | 错误码 | 描述                   |
 |--------|------------------------|
-| 400    | 请求参数不完整或无效   |
-| 409    | 邮箱已被注册           |
-| 429    | 注册请求过于频繁，请稍后再试 |
+| -1    | 请求参数不完整或无效   |
 
-### 5. 刷新令牌
-
-**接口描述**: 使用刷新令牌获取新的访问令牌
-
-**请求URL**: `/auth/refresh-token`
-
-**请求方法**: POST
-
-**请求参数**:
-
-| 参数名       | 类型   | 必填 | 描述     |
-|--------------|--------|------|----------|
-| refreshToken | String | 是   | 刷新令牌 |
-
-**请求示例**:
-```json
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**响应参数**:
-
-| 参数名      | 类型   | 描述                     |
-|-------------|--------|--------------------------|
-| success     | Boolean| 请求是否成功             |
-| token       | String | 新的访问令牌             |
-| expiresIn   | Number | 令牌有效期(秒)           |
-
-**响应示例**:
-```json
-{
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresIn": 86400
-}
-```
-
-**错误码**:
-
-| 错误码 | 描述                   |
-|--------|------------------------|
-| 401    | 无效的刷新令牌         |
-| 403    | 刷新令牌已过期         |
 
 
 ## 翻译相关接口
