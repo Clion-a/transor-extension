@@ -180,7 +180,7 @@ http://api-test.transor.ai/pubapi1/google_login
 
 ## 翻译相关接口
 
-### 1. 文本翻译
+### 1. 文本翻译 【大概能用】
 
 **接口描述**: 翻译单条或多条文本
 
@@ -252,9 +252,10 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 | 错误码 | 描述                   |
 |--------|------------------------|
 | -1    | 目前所有错误code都是-1   |
-## 用户配置接口
 
-### 1. 获取用户配置
+## 用户配置接口 【 已调整】
+
+### 1. 获取用户Chrome配置 【已确定】
 
 **接口描述**: 获取用户的翻译配置
 
@@ -302,7 +303,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 ### 2. 更新用户配置
 
-**接口描述**: 更新用户的翻译配置
+**接口描述**: 更新用户的翻译配置 【已确定】
 
 **请求URL**: `/priapi1/update_chrome_settings`
 
