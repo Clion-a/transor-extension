@@ -353,11 +353,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 错误码 | 描述                   |
 |--------|------------------------|
-| 400    | 请求参数不完整或无效   |
-| 401    | 未授权或令牌无效       |
-| 402    | 已超出使用限制         |
-| 429    | 请求频率过高           |
-
+| -1    | 目前所有错误code都是-1   |
 ## 用户配置接口
 
 ### 1. 获取用户配置
@@ -617,8 +613,8 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名      | 类型    | 描述                         |
 |-------------|---------|------------------------------|
-| code     | Boolean | 1 -1                 |
-| data | String  | 空                 |
+| code     | Boolean | 1 or -1                 |
+| data.collect_id | String or Int  | 收藏之后的id               |
 | info     | String  | 成功 失败                    |
 
 **响应示例**:
@@ -639,28 +635,37 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 **请求方法**: GET
 
 **请求头**:
-- Authorization: Bearer {token}
+- Authorization:  {token}
 
 **请求参数**:
 
 | 参数名   | 类型   | 必填 | 描述                        |
 |----------|--------|------|----------------------------|
-| 现在啥也不用传   | String | 是   | 套餐ID                     |
+| page_size   | Int | 否   | 每页多少，默认100，不穿就是取所有                    |
+| page   | Int | 否   | 当前多少页， 默认1                    |
 
 **响应参数**:
 
 | 参数名      | 类型    | 描述                         |
 |-------------|---------|------------------------------|
-| success     | Boolean | 请求是否成功                 |
-| redirectUrl | String  | 支付页面URL                  |
-| orderId     | String  | 订单ID                       |
+| code     | Boolean | 请求是否成功                 |
+| data.id | Int  | 收藏ID                 |
+| data.user_id | Int  | 用户ID                  |
+| data.source_text | String  | 收藏的文字                |
+| data.source_md5 | String  | 排重MD5                  |
+| data.source_lang | String  | 源语言 zh-CN, zh-TW, en                  |
+| data.trans_times | Int  | 查询次数，每次查询之后，都会增加一次          |
+| data.ctime | Int  | 创建时间  Timestamp               |
+| data.uptime | Int  | 更新时间，Timestamp                 |
+| data.status | Int  | 现在都是1，如果删除，就直接删除数据了                  |
+| info     | String  | 订单ID                       |
 
 **响应示例**:
 ```json
 {
   "code": 1,
   "data": "一个数组",
- 
+  "info": " "
 }
 ```
 
