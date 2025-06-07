@@ -655,7 +655,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 | data.source_md5 | String  | 排重MD5                  |
 | data.source_lang | String  | 源语言 zh-CN, zh-TW, en                  |
 | data.trans_times | Int  | 查询次数，每次查询之后，都会增加一次          |
-| data.ctime | Int  | 创建时间  Timestamp               |
+| data.ctime | Int  | 创建时间  Timestamp，需要根据前端时间进行转换               |
 | data.uptime | Int  | 更新时间，Timestamp                 |
 | data.status | Int  | 现在都是1，如果删除，就直接删除数据了                  |
 | info     | String  | 订单ID                       |
@@ -663,9 +663,31 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 **响应示例**:
 ```json
 {
-  "code": 1,
-  "data": "一个数组",
-  "info": " "
+	"code": 1,
+	"data": [{
+		"id": "23",
+		"user_id": "8",
+		"source_text": "nice",
+		"source_md5": "461946c73121692b36e8fa2824d8cabd",
+		"source_lang": "en",
+		"target_lang": "",
+		"trans_times": "8",
+		"ctime": 1749289339,
+		"uptime": 1749290010,
+		"status": "0"
+	}, {
+		"id": "24",
+		"user_id": "8",
+		"source_text": "mark",
+		"source_md5": "f0692dc2b5b2ebe529078f86c7b92482",
+		"source_lang": "en",
+		"target_lang": "zh-CN",
+		"trans_times": "5",
+		"ctime": 1749290013,
+		"uptime": 1749290148,
+		"status": "1"
+	}],
+	"info": ""
 }
 ```
 
