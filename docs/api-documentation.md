@@ -342,7 +342,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 }
 ```
 
-## 用户账户接口
+## 用户账户接口 [已确定】
 
 ### 1. 获取用户信息
 
@@ -360,32 +360,32 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 | 参数名             | 类型    | 描述                     |
 |--------------------|---------|--------------------------|
 | code            | int | 请求是否成功  1 -1            |
-| data            | Object  | 用户资料对象             |
-| data.id         | String  | 用户ID                   |
+| data            | Array  | 用户资料对象             |
+| data.id         | String  | 用户昵称，应该没有       |
+| data.name        | String  | 用户ID                   |
 | data.email       | String  | 用户邮箱                 |
-| data.status      | String  | 用户状态，1正常，-1被锁定                 |
-| data.plan     | String  | 用户套餐类型               |
+| data.status      | Int  | 用户状态，1正常，-1被锁定                 |
+| data.add_time     | Int  | Timestamp 用户加入时间            |
+| data.plan     | String  | 用户套餐，默认free, 还有pro,max               |
+| data.TOKENS     | String  | 用户的TOKENS剩余量               |
+| data.plan_endtime     | Int| Timestamp 计划套餐结束时间              |
 
 
 **响应示例**:
 ```json
 {
-  "code": 1,
-  "data": {
-    "id": "usr_123456789",
-    "name": "John Doe", //暂时没有
-    "email": "user@example.com",
-    //"avatar": "https://api.transor.com/avatars/default.png",
-    "plan": "free",
-    //"usageStats": {
-    //  "charactersTranslated": 3547,
-    //  "imagesProcessed": 5,
-    //  "subtitlesTranslated": 245,
-    //  "charactersLimit": 500000,
-    //  "remainingCharacters": 496453
-    //},
-    //"createdAt": "2023-01-15T08:30:00Z"
-  }
+	"code": 1,
+	"data": {
+		"id": "8",
+		"email": "test@gmail.com",
+		"status": "0",
+		"name": "",
+		"plan": "free",
+		"add_time": 1745298993,
+		"TOKENS": "0.00000000",
+		"plan_endtime": "2025-06-07 20:39:45"
+	},
+	"info": ""
 }
 ```
 
