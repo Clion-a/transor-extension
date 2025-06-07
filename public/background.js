@@ -264,22 +264,26 @@ const UI = {
   
   // 创建右键菜单项
   createContextMenu: () => {
-    chrome.contextMenus.create({
-      id: "transor-translate-selection",
-      title: "使用Transor翻译选中文本",
-      contexts: ["selection"]
-    });
-    
-    chrome.contextMenus.create({
-      id: "transor-open-favorites",
-      title: "打开英语学习收藏夹",
-      contexts: ["browser_action"]
-    });
-    
-    chrome.contextMenus.create({
-      id: "transor-translate-image",
-      title: "翻译图片中的文字",
-      contexts: ["image"]
+    // 先移除所有现有的菜单项
+    chrome.contextMenus.removeAll(() => {
+      // 然后重新创建菜单项
+      chrome.contextMenus.create({
+        id: "transor-translate-selection",
+        title: "使用Transor翻译选中文本",
+        contexts: ["selection"]
+      });
+      
+      chrome.contextMenus.create({
+        id: "transor-open-favorites",
+        title: "打开英语学习收藏夹",
+        contexts: ["browser_action"]
+      });
+      
+      chrome.contextMenus.create({
+        id: "transor-translate-image",
+        title: "翻译图片中的文字",
+        contexts: ["image"]
+      });
     });
     
     // 处理右键菜单点击事件
@@ -3333,14 +3337,30 @@ const NetflixSubtitleHandler = {
       }
     });
     
-    // 监听导航事件
-    chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
-      // 检查是否是Netflix页面内的导航（切换视频）
-      if (details.url && details.url.includes('netflix.com/watch/')) {
-        console.log('[Netflix 字幕获取器] 检测到Netflix页面内导航，清理字幕URL');
-        this.clearSubtitleUrl();
-      }
-    }, { url: [{ hostContains: 'netflix.com' }] });
+    // 监听导航事件，检查 webNavigation API 是否可用
+    if (chrome.webNavigation && chrome.webNavigation.onHistoryStateUpdated) {
+      // webNavigation API 可用，设置监听器
+      chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+        // 检查是否是Netflix页面内的导航（切换视频）
+        if (details.url && details.url.includes('netflix.com/watch/')) {
+          console.log('[Netflix 字幕获取器] 检测到Netflix页面内导航，清理字幕URL');
+          this.clearSubtitleUrl();
+        }
+      }, { url: [{ hostContains: 'netflix.com' }] });
+    } else {
+      console.warn('[Netflix 字幕获取器] webNavigation API 不可用，无法监听页面内导航事件');
+      
+      // 备用方案：更频繁地检查标签页更新
+      chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        // 任何标签页更新都检查是否是Netflix页面
+        if (tab.url && tab.url.includes('netflix.com/watch/')) {
+          if (tabId === this.activeNetflixTabId && changeInfo.url) {
+            console.log('[Netflix 字幕获取器] 检测到Netflix页面URL变化，清理字幕URL');
+            this.clearSubtitleUrl();
+          }
+        }
+      });
+    }
   },
 
   // 初始化Netflix字幕功能
@@ -3493,13 +3513,15 @@ function initializeYouTubeSubtitleCapture() {
   });
   
   // 监听导航事件，检测视频切换
-  if (chrome.webNavigation) {
+  if (chrome.webNavigation && chrome.webNavigation.onHistoryStateUpdated) {
     chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
       if (details.url && details.url.includes('youtube.com/watch')) {
         console.log('[YouTube字幕捕获] 检测到YouTube页面内导航，清理字幕URL缓存');
         capturedYouTubeSubtitleUrls = [];
       }
     }, { url: [{ hostContains: 'youtube.com' }] });
+  } else {
+    console.warn('[YouTube字幕捕获] webNavigation.onHistoryStateUpdated API 不可用，无法监听页面内导航事件');
   }
 }
 

@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('search-input');
   const searchBtn = document.getElementById('search-button');
   const filterBtns = document.querySelectorAll('.filter-button');
-  const loadingSpinner = document.getElementById('loading-spinner');
   const toastMessage = document.getElementById('toast-message');
   
   // 存储所有收藏
@@ -160,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="favorite-translation">${escapeHtml(favorite.translation)}</div>
         <div class="favorite-meta">
           <div class="favorite-source">
-            <a href="${favorite.url || '#'}" target="_blank" title="${favorite.source || (window.i18n ? window.i18n.t('unknown_source') : '未知来源')}">
+            <a href="${favorite.source || '#'}" target="_blank" title="${favorite.source || (window.i18n ? window.i18n.t('unknown_source') : '未知来源')}">
               ${favorite.title ? escapeHtml(favorite.title) : (window.i18n ? window.i18n.t('unknown_page') : '未知页面')}
             </a> · ${timeStr}
           </div>
@@ -239,10 +238,8 @@ document.addEventListener('DOMContentLoaded', function() {
       case 'sentence':
         return favorites.filter(f => {
           const words = f.original.split(/\s+/).length;
-          return words > 2 && words <= 20;
+          return words > 2;
         });
-      case 'paragraph':
-        return favorites.filter(f => f.original.split(/\s+/).length > 20);
       case 'today':
         return favorites.filter(f => new Date(f.timestamp) >= today);
       case 'week':

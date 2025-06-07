@@ -13,9 +13,11 @@ let translationSettings = {
   excludedTags: ['code', 'pre', 'script', 'style'],
   excludedClasses: ['no-translate'],
   customCss: '',
-  enableSelectionTranslator: true,
+  enableSelectionTranslator: true, // 旧版本使用的属性名，保留以兼容
+  enableSelectionTranslation: true, // 新版本使用的属性名
   enableInputSpaceTranslation: true,
-  fontColor: '#ff5588' // 添加字体颜色设置
+  fontColor: '#ff5588', // 添加字体颜色设置
+  showTipDots: false // 控制是否显示小圆点，默认不显示
 };
 
 // 翻译缓存
@@ -87,23 +89,28 @@ const translationQueue = {
       const textsToTranslate = Array.from(this.pendingTexts.keys());
       console.log(`[翻译队列] 处理翻译队列: ${textsToTranslate.length} 条唯一文本`);
       
-      // 过滤掉看起来像代码的文本
+      // 过滤掉看起来像代码的文本和不符合源语言的文本
       const filteredTexts = [];
       const codeTexts = [];
+      const nonSourceLangTexts = [];
+      
+      // 获取源语言设置
+      const sourceLanguage = translationSettings.sourceLanguage;
       
       textsToTranslate.forEach(text => {
         if (looksLikeCode(text)) {
           console.log('[翻译队列] 跳过代码翻译:', text.substring(0, 30) + '...');
           codeTexts.push(text);
+        } else if (sourceLanguage && sourceLanguage !== 'auto' && !isTextInLanguage(text, sourceLanguage)) {
+          // 如果设置了特定源语言，且文本不符合该语言，跳过翻译
+          console.log('[翻译队列] 跳过非源语言文本:', text.substring(0, 30) + '...', '期望语言:', sourceLanguage);
+          nonSourceLangTexts.push(text);
         } else {
           filteredTexts.push(text);
         }
       });
       
-      console.log(`[翻译队列] 过滤后待翻译文本: ${filteredTexts.length} 条`);
-      
-      // 处理源语言检测
-      let sourceLanguage = translationSettings.sourceLanguage;
+      console.log(`[翻译队列] 过滤后待翻译文本: ${filteredTexts.length} 条 (跳过代码: ${codeTexts.length} 条, 跳过非源语言: ${nonSourceLangTexts.length} 条)`);
       
       // 分批处理翻译请求
       for (let i = 0; i < filteredTexts.length; i += this.batchSize) {
@@ -203,6 +210,22 @@ const translationQueue = {
               console.error('[翻译队列] 执行代码文本回调时出错:', callbackError);
             }
           }); // 代码返回原文作为结果
+          this.pendingTexts.delete(text);
+        });
+      }
+      
+      // 处理非源语言文本
+      if (nonSourceLangTexts.length > 0) {
+        console.log(`[翻译队列] 处理 ${nonSourceLangTexts.length} 条非源语言文本`);
+        nonSourceLangTexts.forEach(text => {
+          const callbacks = this.pendingTexts.get(text) || [];
+          callbacks.forEach(callback => {
+            try {
+              callback(text); // 非源语言文本返回原文
+            } catch (callbackError) {
+              console.error('[翻译队列] 执行非源语言文本回调时出错:', callbackError);
+            }
+          });
           this.pendingTexts.delete(text);
         });
       }
@@ -337,6 +360,15 @@ async function init() {
       console.error('初始化输入框空格翻译功能失败:', inputTransError);
     }
     
+    // 初始化悬浮球功能
+    console.log('初始化悬浮球功能');
+    try {
+      initFloatingBall();
+      console.log('悬浮球功能初始化成功');
+    } catch (floatingBallError) {
+      console.error('初始化悬浮球功能失败:', floatingBallError);
+    }
+    
     // 自动翻译（如果启用）
     if (translationSettings.isEnabled) {
       console.log('翻译功能已启用，将在延迟后开始翻译');
@@ -394,6 +426,14 @@ async function loadSettings() {
       // 添加字体颜色设置
       if (result.fontColor) translationSettings.fontColor = result.fontColor;
       
+      // 加载小圆点显示设置
+      if (result.showTipDots !== undefined) {
+        console.log('发现小圆点显示设置:', result.showTipDots);
+        translationSettings.showTipDots = result.showTipDots;
+      } else {
+        console.log('未找到小圆点显示设置，使用默认值:', translationSettings.showTipDots);
+      }
+      
       // 特别注意这个设置
       if (result.enableInputSpaceTranslation !== undefined) {
         console.log('发现空格翻译功能设置:', result.enableInputSpaceTranslation);
@@ -402,11 +442,22 @@ async function loadSettings() {
         console.log('未找到空格翻译功能设置，使用默认值:', translationSettings.enableInputSpaceTranslation);
       }
       
+      // 加载划词翻译设置
+      if (result.enableSelectionTranslation !== undefined) {
+        console.log('发现划词翻译功能设置:', result.enableSelectionTranslation);
+        translationSettings.enableSelectionTranslation = result.enableSelectionTranslation;
+      } else {
+        console.log('未找到划词翻译功能设置，使用默认值:', true);
+        translationSettings.enableSelectionTranslation = true;
+      }
+      
       // 记录设置变化
       console.log('设置已更新，关键设置变化:');
       console.log('- 翻译开关(isEnabled):', prevSettings.isEnabled, '->', translationSettings.isEnabled);
       console.log('- 空格翻译(enableInputSpaceTranslation):', prevSettings.enableInputSpaceTranslation, 
                   '->', translationSettings.enableInputSpaceTranslation);
+      console.log('- 划词翻译(enableSelectionTranslation):', prevSettings.enableSelectionTranslation, 
+                  '->', translationSettings.enableSelectionTranslation);
       console.log('- 字体颜色(fontColor):', prevSettings.fontColor, '->', translationSettings.fontColor);
       
       console.log('所有设置已加载完成:', translationSettings);
@@ -1161,6 +1212,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // 更新设置
     Object.assign(translationSettings, message.settings);
     
+    // 检查划词翻译设置是否改变
+    if (oldSettings.enableSelectionTranslation !== translationSettings.enableSelectionTranslation) {
+      console.log('划词翻译设置已变更:', translationSettings.enableSelectionTranslation);
+      // 如果页面已初始化完成，尝试在设置开启时重新初始化划词翻译
+      if (document.readyState === 'complete' && translationSettings.enableSelectionTranslation) {
+        initSelectionTranslator();
+      }
+    }
+    
     // 如果翻译引擎、源语言、目标语言或翻译样式改变，需要清除缓存和重新翻译
     if (oldSettings.translationEngine !== translationSettings.translationEngine ||
         oldSettings.sourceLanguage !== translationSettings.sourceLanguage ||
@@ -1364,6 +1424,11 @@ function createSelectionTranslator() {
       color: #ff9500;
     }
     
+    /* 鼠标悬停在已收藏按钮上时的样式 */
+    .transor-favorite-btn.active:hover {
+      color: #ff5588;
+    }
+    
     .transor-selection-content {
       padding: 12px 16px;
       max-height: 400px;
@@ -1388,9 +1453,24 @@ function createSelectionTranslator() {
     }
     
     .transor-selection-phonetic {
-      color: #ff6b6b;
+      color: #ff5588;
       margin-bottom: 12px;
       font-size: 14px;
+    }
+    
+    .transor-phonetic-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .transor-phonetic-container .transor-selection-phonetic {
+      margin-bottom: 0;
+      margin-right: 8px;
+    }
+    
+    .transor-phonetic-container .transor-play-btn {
+      margin-left: 4px; /* 只保留特殊的边距设置，其他继承自通用样式 */
     }
     
     .transor-selection-word-details {
@@ -1414,7 +1494,6 @@ function createSelectionTranslator() {
     
     .transor-selection-pos-block .transor-selection-pos {
       margin-bottom: 6px;
-      display: block;
       margin-right: 0;
     }
     
@@ -1467,9 +1546,15 @@ function createSelectionTranslator() {
       margin-bottom: 12px;
       padding-bottom: 10px;
       border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
-      display: block;
+      display: flex;
+      align-items: center;
       font-size: 14px;
       line-height: 1.6;
+    }
+    
+    /* 特殊情况下的播放按钮位置调整 */
+    .transor-selection-word .transor-play-btn {
+      margin-left: 5px;
     }
     
     .transor-selection-translation {
@@ -1478,6 +1563,42 @@ function createSelectionTranslator() {
       display: block;
       font-size: 15px;
       line-height: 1.6;
+    }
+    
+    .transor-selection-translation-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    
+    /* 统一所有播放按钮的基础样式 */
+    .transor-play-btn,
+    .transor-translation-play-btn {
+      margin-left: 8px;
+      padding: 2px;
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      background-color: rgba(255, 85, 136, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+    }
+    
+    /* 统一所有播放按钮的悬停样式 */
+    .transor-play-btn:hover,
+    .transor-translation-play-btn:hover {
+      background-color: rgba(255, 85, 136, 0.2);
+      color: #ff5588;
+    }
+    
+    /* 统一所有播放按钮的激活样式 */
+    .transor-play-btn.active,
+    .transor-translation-play-btn.active {
+      background-color: rgba(255, 85, 136, 0.3);
+      color: #ff5588;
     }
     
     .transor-loading-dots {
@@ -1523,36 +1644,7 @@ function createSelectionTranslator() {
       border-radius: 2px;
     }
     
-    .transor-tabs {
-      display: flex;
-      margin-top: 15px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-      margin-bottom: 12px;
-    }
-    
-    .transor-tab {
-      padding: 6px 12px;
-      cursor: pointer;
-      color: #666;
-      border-bottom: 2px solid transparent;
-      margin-right: 8px;
-      font-size: 13px;
-      font-weight: 500;
-    }
-    
-    .transor-tab.active {
-      color: #ff5588;
-      border-bottom: 2px solid #ff5588;
-    }
-    
-    .transor-panel {
-      display: none;
-      padding-top: 10px;
-    }
-    
-    .transor-panel.active {
-      display: block;
-    }
+    /* 移除Tab相关样式，改为直接显示所有内容 */
     
     @keyframes transorDotPulse {
       0%, 80%, 100% { 
@@ -1709,25 +1801,7 @@ function createSelectionTranslator() {
     }
   });
   
-  // 处理标签页切换
-  popup.addEventListener('click', function(e) {
-    if (e.target.classList.contains('transor-tab')) {
-      const tabs = popup.querySelectorAll('.transor-tab');
-      const panels = popup.querySelectorAll('.transor-panel');
-      const targetId = e.target.getAttribute('data-target');
-      
-      // 更新标签和面板的活动状态
-      tabs.forEach(tab => tab.classList.remove('active'));
-      e.target.classList.add('active');
-      
-      panels.forEach(panel => {
-        panel.classList.remove('active');
-        if (panel.id === targetId) {
-          panel.classList.add('active');
-        }
-      });
-    }
-  });
+  // 移除Tab切换功能，现在所有内容都直接显示
   
   // 在文档中创建一个全局引用，以便可以从其他地方访问
   window.transorSelectionPopup = popup;
@@ -1735,10 +1809,13 @@ function createSelectionTranslator() {
   return popup;
 }
 
-// 初始化滑词翻译功能
+// 初始化划词翻译功能
 function initSelectionTranslator() {
-  // 如果滑词翻译功能被禁用，则不初始化
-  if (!translationSettings.enableSelectionTranslator) return;
+  // 如果划词翻译功能被禁用，则不初始化
+  if (translationSettings.enableSelectionTranslation === false) {
+    console.log('划词翻译功能已禁用，不初始化');
+    return;
+  }
   
   // 创建滑词翻译器
   const popup = createSelectionTranslator();
@@ -1855,7 +1932,7 @@ function initSelectionTranslator() {
     popup.classList.add('transor-fade-in');
     popup.style.display = 'block';
     
-    // 隐藏功能按钮，只保留关闭按钮
+          // 隐藏功能按钮，只保留关闭按钮
     const playBtn = popup.querySelector('.transor-play-btn');
     const copyBtn = popup.querySelector('.transor-copy-btn');
     const favoriteBtn = popup.querySelector('.transor-favorite-btn');
@@ -1863,7 +1940,13 @@ function initSelectionTranslator() {
     
     if (playBtn) playBtn.style.display = 'none';
     if (copyBtn) copyBtn.style.display = 'none';
-    if (favoriteBtn) favoriteBtn.style.display = 'none';
+    if (favoriteBtn) {
+      favoriteBtn.style.display = 'none';
+      // 每次打开新单词时，重置收藏按钮状态
+      favoriteBtn.classList.remove('active');
+      favoriteBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
+      favoriteBtn.title = '收藏到词典';
+    }
     if (closeBtn) closeBtn.style.display = ''; // 关闭按钮始终显示
     
     // 定位翻译窗口 - 使用最后的鼠标位置
@@ -1957,18 +2040,25 @@ function initSelectionTranslator() {
 
       if (useDictionaryLayout) {
         const dict = dictResult.data;
-        contentHTML += `<div class="transor-selection-word no-translate">${escapeHtml(dict.word || text)}</div>`;
+        contentHTML += `<div class="transor-selection-word no-translate" style="display: flex; align-items: center;">
+          ${escapeHtml(dict.word || text)}
+          <div id="transor-play-button-placeholder" class="no-translate"></div>
+        </div>`;
+        
+        // 添加音标（不再包含播放按钮）
         if (dict.phonetic) {
-          contentHTML += `<div class="transor-selection-phonetic no-translate">/${escapeHtml(dict.phonetic)}/</div>`;
+          contentHTML += `<div class="transor-selection-phonetic no-translate" style="margin-bottom: 8px;">/${escapeHtml(dict.phonetic)}/</div>`;
         }
-        contentHTML += `
-          <div class="transor-tabs no-translate">
-            <div class="transor-tab active no-translate" data-target="transor-dict-panel">词典</div>
-            <div class="transor-tab no-translate" data-target="transor-trans-panel">翻译</div>
-          </div>
-          <div id="transor-dict-panel" class="transor-panel active no-translate">
-            <div class="transor-selection-word-details no-translate">
-        `;
+        
+        // 添加翻译结果和播放按钮
+        contentHTML += `<div class="transor-selection-translation-container no-translate" style="display: flex; align-items: center; margin-bottom: 15px;">
+          <div class="transor-selection-translation no-translate" style="font-weight: 500;">${escapeHtml(cleanTranslation)}</div>
+          <div id="transor-translation-play-button-placeholder" class="no-translate" style="margin-left: 5px;"></div>
+        </div>`;
+        
+        // 添加词义详情
+        contentHTML += `<div class="transor-selection-word-details no-translate">`;
+        
         if (dict.definitions && dict.definitions.length > 0) {
           dict.definitions.forEach(def => {
             if (def.pos && (def.meanings || def.meaning)) {
@@ -1988,27 +2078,22 @@ function initSelectionTranslator() {
               </div>`;
             }
           });
-        } else {
-          contentHTML += `
-            <div class="transor-selection-pos-block no-translate">
-              <div class="transor-selection-pos no-translate">${isEnglish ? 'n.' : '词义'}</div>
-              <div class="transor-selection-meanings no-translate">${escapeHtml(cleanTranslation)}</div>
-            </div>
-          `;
         }
-        contentHTML += `</div>`; // word-details
-        // 移除例句部分，不再显示
-        contentHTML += `</div>`; // dict-panel
-        contentHTML += `
-          <div id="transor-trans-panel" class="transor-panel no-translate">
-            <div class="transor-selection-translation no-translate">${escapeHtml(cleanTranslation)}</div>
-          </div>
-        `;
+        
+        contentHTML += `</div>`; // 结束词义详情
       } else {
-        // 使用简单翻译显示
+      
+  
+  // 使用简单翻译显示，添加播放按钮占位符
         contentHTML = `
-            <div class="transor-selection-original no-translate">${escapeHtml(text)}</div>
-            <div class="transor-selection-translation no-translate">${escapeHtml(cleanTranslation)}</div>
+            <div class="transor-selection-original no-translate" style="display: flex; align-items: center;">
+              <span>${escapeHtml(text)}</span>
+              <div id="transor-play-button-placeholder" class="no-translate" style="margin-left: 5px;"></div>
+            </div>
+            <div class="transor-selection-translation-container no-translate" style="display: flex; align-items: center;">
+              <div class="transor-selection-translation no-translate">${escapeHtml(cleanTranslation)}</div>
+              <div id="transor-translation-play-button-placeholder" class="no-translate" style="margin-left: 5px;"></div>
+            </div>
         `;
       }
       
@@ -2024,61 +2109,173 @@ function initSelectionTranslator() {
       // 显示功能按钮
       if (playBtn) playBtn.style.display = '';
       if (copyBtn) copyBtn.style.display = '';
-      if (favoriteBtn) favoriteBtn.style.display = '';
+      if (favoriteBtn) {
+        favoriteBtn.style.display = '';
+        // 默认设置为未收藏状态，等待检查结果
+        favoriteBtn.classList.remove('active');
+        favoriteBtn.title = '收藏到词典';
+      }
       
       // 设置功能按钮事件
       const favoriteButtonEl = popup.querySelector('.transor-favorite-btn');
       if (favoriteButtonEl) {
-        const oldClone = favoriteButtonEl.cloneNode(true);
-        favoriteButtonEl.parentNode.replaceChild(oldClone, favoriteButtonEl);
-        oldClone.addEventListener('click', function() {
-          this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></path></svg>';
-          this.title = '正在收藏...';
-          saveFavorite(text, cleanTranslation).then(success => {
-            if (success) {
-              this.classList.add('active');
-              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
-              this.title = '已收藏';
+                  // 检查单词是否已被收藏
+          checkIsFavorited(text).then(isFavorited => {
+            if (isFavorited) {
+              favoriteButtonEl.classList.add('active');
+              favoriteButtonEl.title = '点击取消收藏';
+              // 添加悬停事件以更新提示文本
+              favoriteButtonEl.addEventListener('mouseenter', function() {
+                this.title = '点击取消收藏';
+              });
             } else {
-              this.classList.remove('active');
-              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
-              this.title = '收藏到词典';
+              favoriteButtonEl.classList.remove('active');
+              favoriteButtonEl.title = '收藏到词典';
+              // 添加悬停事件以更新提示文本
+              favoriteButtonEl.addEventListener('mouseenter', function() {
+                this.title = '收藏到词典';
+              });
+            }
+          
+          const oldClone = favoriteButtonEl.cloneNode(true);
+          favoriteButtonEl.parentNode.replaceChild(oldClone, favoriteButtonEl);
+          oldClone.addEventListener('click', function() {
+            // 检查当前是否为已收藏状态
+            if (this.classList.contains('active')) {
+              // 如果已收藏，则执行取消收藏操作
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></path></svg>';
+              this.title = '正在取消收藏...';
+              removeFavorite(text).then(success => {
+                if (success) {
+                  this.classList.remove('active');
+                  this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
+                  this.title = '收藏到词典';
+                }
+              });
+            } else {
+              // 如果未收藏，则执行收藏操作
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></path></svg>';
+              this.title = '正在收藏...';
+              saveFavorite(text, cleanTranslation).then(success => {
+                if (success) {
+                  this.classList.add('active');
+                  this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
+                  this.title = '点击取消收藏';
+                } else {
+                  this.classList.remove('active');
+                  this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>';
+                  this.title = '收藏到词典';
+                }
+              });
             }
           });
         });
       }
       
-      // 添加播放按钮功能
-      const playButtonEl = popup.querySelector('.transor-play-btn');
-      if (playButtonEl) {
-        const oldPlayBtn = playButtonEl.cloneNode(true);
-        playButtonEl.parentNode.replaceChild(oldPlayBtn, playButtonEl);
-        oldPlayBtn.addEventListener('click', function() {
+      // 创建并添加播放按钮到占位符中
+      const playButtonPlaceholder = popup.querySelector('#transor-play-button-placeholder');
+      if (playButtonPlaceholder) {
+        // 创建新的播放按钮
+        const inlinePlayBtn = document.createElement('button');
+        inlinePlayBtn.className = 'transor-selection-action-btn transor-play-btn no-translate';
+        inlinePlayBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>';
+        inlinePlayBtn.title = '朗读原文';
+        inlinePlayBtn.style.display = ''; // 确保显示
+        
+        // 添加到占位符中
+        playButtonPlaceholder.appendChild(inlinePlayBtn);
+        
+        // 添加点击事件
+        inlinePlayBtn.addEventListener('click', function(e) {
+          e.preventDefault(); // 防止事件冒泡
+          e.stopPropagation();
+          
           const contentToRead = text;
           if (contentToRead) {
             const utterance = new SpeechSynthesisUtterance(contentToRead);
+            // 使用通用语言检测函数确定原文语言
+            let detectedLang = 'auto';
+            
+            // 优先使用明确的语言设置
             if (isEnglish) {
-              utterance.lang = 'en-US';
+              detectedLang = 'en-US';
             } else {
+              // 尝试检测内容的主要语言
               const sourceLang = translationSettings.sourceLanguage;
               if (sourceLang && sourceLang !== 'auto') {
-                utterance.lang = sourceLang;
+                detectedLang = sourceLang;
+              } else {
+                // 检测文本语言
+                detectedLang = detectTextLanguage(contentToRead, 'auto');
               }
             }
+            
+            // 设置语音合成的语言
+            utterance.lang = detectedLang;
             window.speechSynthesis.speak(utterance);
             this.classList.add('active');
-            this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>';
+            this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path></svg>';
             utterance.onend = () => {
               this.classList.remove('active');
-              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>';
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>';
             };
             utterance.onerror = () => {
               this.classList.remove('active');
-              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>';
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>';
               console.error('语音合成出错');
             };
           }
         });
+      }
+      
+      // 创建并添加译文播放按钮
+      const translationPlayButtonPlaceholder = popup.querySelector('#transor-translation-play-button-placeholder');
+      if (translationPlayButtonPlaceholder) {
+        // 创建新的播放按钮
+        const translationPlayBtn = document.createElement('button');
+        translationPlayBtn.className = 'transor-selection-action-btn transor-translation-play-btn no-translate';
+        translationPlayBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>';
+        translationPlayBtn.title = '朗读译文';
+        translationPlayBtn.style.display = ''; // 确保显示
+        
+        // 添加到占位符中
+        translationPlayButtonPlaceholder.appendChild(translationPlayBtn);
+        
+        // 添加点击事件
+        translationPlayBtn.addEventListener('click', function(e) {
+          e.preventDefault(); // 防止事件冒泡
+          e.stopPropagation();
+          
+                     const contentToRead = cleanTranslation;
+           if (contentToRead) {
+             const utterance = new SpeechSynthesisUtterance(contentToRead);
+             
+                           // 使用通用语言检测函数确定译文语言
+              let detectedLang = detectTextLanguage(contentToRead, translationSettings.targetLanguage || 'zh-CN');
+             
+             // 设置朗读语言
+             utterance.lang = detectedLang;
+            
+            window.speechSynthesis.speak(utterance);
+            this.classList.add('active');
+            this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path></svg>';
+            utterance.onend = () => {
+              this.classList.remove('active');
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>';
+            };
+            utterance.onerror = () => {
+              this.classList.remove('active');
+              this.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>';
+              console.error('译文语音合成出错');
+            };
+          }
+        });
+      }
+      
+      // 隐藏顶部工具栏中的播放按钮，因为我们已经在内容中添加了播放按钮
+      const headerPlayBtn = popup.querySelector('.transor-play-btn');
+      if (headerPlayBtn && headerPlayBtn.parentNode === popup.querySelector('.transor-selection-actions')) {
+        headerPlayBtn.style.display = 'none';
       }
       
       // 添加复制按钮功能
@@ -2265,6 +2462,107 @@ function initSelectionTranslator() {
       }, 200);
     }
   });
+  
+  // 检查文本是否已被收藏
+  async function checkIsFavorited(originalText) {
+    return new Promise((resolve) => {
+      if (window.TransorStorageManager) {
+        // 使用新的存储管理器
+        window.TransorStorageManager.loadFavorites()
+          .then(favorites => {
+            const exists = favorites.some(f => f.original === originalText);
+            resolve(exists);
+          })
+          .catch(error => {
+            console.error('检查收藏状态出错:', error);
+            // 降级到原有方式
+            checkIsFavoritedLegacy(originalText).then(resolve);
+          });
+      } else {
+        // 降级到原有方式
+        checkIsFavoritedLegacy(originalText).then(resolve);
+      }
+    });
+  }
+  
+  // 原有方式检查收藏状态
+  async function checkIsFavoritedLegacy(originalText) {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get('transorFavorites', function(result) {
+        const favorites = result.transorFavorites || [];
+        const exists = favorites.some(f => f.original === originalText);
+        resolve(exists);
+      });
+    });
+  }
+  
+  // 取消收藏功能
+  async function removeFavorite(originalText) {
+    return new Promise((resolve) => {
+      if (window.TransorStorageManager) {
+        // 使用新的存储管理器
+        window.TransorStorageManager.loadFavorites()
+          .then(favorites => {
+            // 找到匹配的收藏项
+            const updatedFavorites = favorites.filter(f => f.original !== originalText);
+            
+            // 如果没有找到匹配项，直接返回成功
+            if (updatedFavorites.length === favorites.length) {
+              resolve(true);
+              return;
+            }
+            
+            // 保存更新后的收藏列表
+            return window.TransorStorageManager.saveFavorites(updatedFavorites);
+          })
+          .then(result => {
+            if (result && result.success) {
+              console.log('✅ 成功取消收藏');
+              resolve(true);
+            } else {
+              console.error('取消收藏失败:', result?.error);
+              // 尝试降级到原有方式
+              removeFavoriteLegacy(originalText).then(resolve);
+            }
+          })
+          .catch(error => {
+            console.error('取消收藏出错:', error);
+            // 降级到原有方式
+            removeFavoriteLegacy(originalText).then(resolve);
+          });
+      } else {
+        // 降级到原有方式
+        removeFavoriteLegacy(originalText).then(resolve);
+      }
+    });
+  }
+  
+  // 原有方式取消收藏
+  async function removeFavoriteLegacy(originalText) {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get('transorFavorites', function(result) {
+        const favorites = result.transorFavorites || [];
+        const updatedFavorites = favorites.filter(f => f.original !== originalText);
+        
+        // 如果没有找到匹配项，直接返回成功
+        if (updatedFavorites.length === favorites.length) {
+          resolve(true);
+          return;
+        }
+        
+        // 保存更新后的收藏列表
+        chrome.storage.sync.set({ transorFavorites: updatedFavorites }, function() {
+          if (chrome.runtime.lastError) {
+            console.error('取消收藏失败:', chrome.runtime.lastError);
+            resolve(false);
+          } else {
+            console.log('成功取消收藏，剩余收藏数:', updatedFavorites.length);
+            resolve(true);
+          }
+        });
+      });
+    });
+  }
   
   // 使Promise化的saveFavorite函数
   async function saveFavorite(originalText, translatedText) {
@@ -2569,6 +2867,17 @@ function setupGlobalEventListeners() {
       console.log('内容脚本直接检测到快捷键 ⌥A');
       event.preventDefault(); // 阻止默认行为，避免可能的按键冲突
       toggleTranslation();
+    }
+    
+    // 检测Ctrl+Shift+D组合键打开调试面板
+    const isDebugKeyPressed = 
+      (event.ctrlKey && event.shiftKey && (event.key === 'd' || event.key === 'D')) ||
+      (event.ctrlKey && event.shiftKey && event.keyCode === 68);
+      
+    if (isDebugKeyPressed) {
+      console.log('内容脚本检测到调试面板快捷键 Ctrl+Shift+D');
+      event.preventDefault(); // 阻止默认行为
+      addDebugControls(); // 打开调试面板
     }
   });
 }
@@ -2981,13 +3290,30 @@ function initInputTranslation() {
             // 设置一个加载状态
             setInputContent(currentInputElement, content + ' (翻译中...)');
             
+            // 检测输入内容的语言
+            const detectedLang = detectTextLanguage(content);
+            console.log('检测到内容语言:', detectedLang);
+            
+            // 如果是英语，则不进行翻译
+            if (detectedLang === 'en-US' || isTextInLanguage(content, 'en')) {
+              console.log('检测到英语内容，不进行翻译');
+              setInputContent(currentInputElement, content);
+              isTranslating = false;
+              consecutiveSpaces = 0;
+              return;
+            }
+            
+            // 对非英语内容，翻译目标语言统一设为英语
+            const targetLang = 'en';
+            console.log('非英语内容，设置翻译目标语言为:', targetLang);
+            
             // 翻译文本
             chrome.runtime.sendMessage(
               {
                 action: 'translate',
                 text: content,
-                from: translationSettings.sourceLanguage,
-                to: translationSettings.targetLanguage
+                from: 'auto', // 使用自动检测源语言
+                to: targetLang // 目标语言统一为英语
               },
               (response) => {
                 if (response && response.success) {
@@ -3148,7 +3474,24 @@ function addDebugControls() {
     return container;
   }
   
-  // 只添加空格翻译功能开关
+  // 添加小圆点显示开关
+  const tipDotsToggle = createToggle(
+    '显示通用模式小圆点', 
+    translationSettings.showTipDots,
+    (state) => {
+      translationSettings.showTipDots = state;
+      chrome.storage.sync.set({ showTipDots: state }, () => {
+        console.log('小圆点显示已设置为:', state);
+      });
+      // 需要刷新页面才能生效
+      if (confirm('设置已保存，需要刷新页面才能生效。是否立即刷新？')) {
+        location.reload();
+      }
+    }
+  );
+  panel.appendChild(tipDotsToggle);
+  
+  // 添加空格翻译功能开关
   const spaceToggle = createToggle(
     '空格翻译功能', 
     translationSettings.enableInputSpaceTranslation,
@@ -3753,7 +4096,8 @@ async function translateElement(element) {
 
   console.log(textContents, "组合后的文本内容");
   
-  // 获取目标语言
+  // 获取源语言和目标语言设置
+  const sourceLang = translationSettings.sourceLanguage;
   const targetLang = translationSettings.targetLanguage;
   
   try {
@@ -3764,6 +4108,16 @@ async function translateElement(element) {
         console.log(`跳过翻译片段: 文本已经是目标语言 ${targetLang}`, text.substring(0, 30) + (text.length > 30 ? '...' : ''));
         // 对于已经是目标语言的文本，直接返回原文
         return Promise.resolve({ index, translation: text, skipped: true });
+      }
+      
+      // 新增：检查源语言设置
+      if (sourceLang && sourceLang !== 'auto') {
+        // 如果设置了特定的源语言（非自动检测），检查文本是否符合该语言
+        if (!isTextInLanguage(text, sourceLang)) {
+          console.log(`跳过翻译片段: 文本不是设定的源语言 ${sourceLang}`, text.substring(0, 30) + (text.length > 30 ? '...' : ''));
+          // 不符合源语言设置的文本，跳过翻译
+          return Promise.resolve({ index, translation: text, skipped: true });
+        }
       }
       
       return new Promise(resolve => {
@@ -3786,8 +4140,8 @@ async function translateElement(element) {
       // 对于组合文本，保持原始样式结构进行翻译
       if (nodes.length > 0 && translation) {
         if (skipped) {
-          console.log(`保留原文(目标语言) - 原文: [${text}]`);
-          // 对于已经是目标语言的文本，我们不进行样式修改，保留原样
+          console.log(`保留原文(跳过翻译) - 原文: [${text}]`);
+          // 对于跳过翻译的文本，我们不进行样式修改，保留原样
           nodes.forEach(node => {
             processedNodes.add(node); // 标记为已处理
           });
@@ -3881,11 +4235,13 @@ function applyTipStyleTranslation(commonParent, originalText, translatedText) {
     translationWrapper.appendChild(commonParent.firstChild);
   }
   
-  // 添加小圆点指示器
-  const indicator = document.createElement('span');
-  indicator.classList.add('transor-tip-indicator');
-  indicator.style.backgroundColor = fontColor;
-  translationWrapper.appendChild(indicator);
+  // 根据设置决定是否添加小圆点指示器
+  if (translationSettings.showTipDots) {
+    const indicator = document.createElement('span');
+    indicator.classList.add('transor-tip-indicator');
+    indicator.style.backgroundColor = fontColor;
+    translationWrapper.appendChild(indicator);
+  }
   
   // 添加到父元素
   commonParent.appendChild(translationWrapper);
@@ -4071,6 +4427,15 @@ function isTextInLanguage(text, languageCode) {
   if (!text || text.trim().length < 2) {
     return false;
   }
+  
+  // 特殊处理：如果是检测英文，需要排除包含大量非英文字符的情况
+  if (languageCode === 'en') {
+    // 检查是否包含CJK字符（中日韩文字）
+    const hasCJK = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7a3]/.test(text);
+    if (hasCJK) {
+      return false;  // 包含CJK字符，不是纯英文
+    }
+  }
 
   // 常用语言特征模式
   const languagePatterns = {
@@ -4086,9 +4451,9 @@ function isTextInLanguage(text, languageCode) {
       threshold: 0.6
     },
     'ja': {
-      // 日语特征 - 日文假名等
-      regex: /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/,
-      threshold: 0.5
+      // 日语特征 - 平假名、片假名
+      regex: /[\u3040-\u309f\u30a0-\u30ff]/,
+      threshold: 0.3  // 降低阈值，因为日语文本中可能混有汉字和英文
     },
     'ko': {
       // 韩语特征 - 韩文音节
@@ -4128,8 +4493,14 @@ function isTextInLanguage(text, languageCode) {
     return false;
   }
   
+  // 移除空格和标点符号，只检测实际的文字内容
+  const cleanText = text.replace(/[\s\d\p{P}]/gu, '');
+  if (cleanText.length === 0) {
+    return false;
+  }
+  
   // 计算特征字符的数量
-  const chars = text.split('');
+  const chars = cleanText.split('');
   let matchCount = 0;
   
   for (const char of chars) {
@@ -4141,8 +4512,507 @@ function isTextInLanguage(text, languageCode) {
   // 计算特征字符的比例
   const ratio = matchCount / chars.length;
   
-  console.log(`语言检测 [${languageCode}]: 文本长度=${chars.length}, 匹配字符=${matchCount}, 比例=${ratio.toFixed(2)}`);
+  // 特殊处理：对于日语，如果检测到假名，即使比例较低也认为是日语
+  if (languageCode === 'ja' && matchCount > 0) {
+    console.log(`语言检测 [${languageCode}]: 检测到假名，判定为日语`);
+    return true;
+  }
+  
+  console.log(`语言检测 [${languageCode}]: 文本="${text.substring(0, 20)}...", 清理后长度=${chars.length}, 匹配字符=${matchCount}, 比例=${ratio.toFixed(2)}`);
   
   // 判断是否达到阈值
   return ratio >= pattern.threshold;
+}
+
+// 通用的语言检测函数，用于确定文本的语言以正确播放数字
+function detectTextLanguage(text, defaultLang = 'auto') {
+  if (!text || typeof text !== 'string') return defaultLang;
+  
+  // 通过内容特征判断语言
+  if (/[\u4e00-\u9fa5]/.test(text)) {
+    // 包含中文字符
+    return 'zh-CN';
+  } else if (/[a-zA-Z]/.test(text) && !/[\u4e00-\u9fa5]/.test(text)) {
+    // 只包含英文字符，不包含中文
+    return 'en-US';
+  } else if (/[あいうえおかきくけこ]/.test(text)) {
+    // 包含日文字符
+    return 'ja-JP';
+  } else if (/[가-힣]/.test(text)) {
+    // 包含韩文字符
+    return 'ko-KR';
+  }
+  
+  // 无法确定语言时返回默认值
+  return defaultLang;
+}
+
+// 初始化悬浮球功能
+function initFloatingBall() {
+  console.log('开始初始化悬浮球功能');
+  
+  // 检查扩展上下文是否有效
+  if (!chrome || !chrome.runtime || !chrome.runtime.id) {
+    console.warn('扩展上下文已失效或Chrome API不可用，无法初始化悬浮球');
+    return;
+  }
+  
+  // 先检查设置，看是否应该显示悬浮球
+  chrome.storage.sync.get(['showFloatingBall'], (result) => {
+    // 默认显示悬浮球
+    if (result.showFloatingBall === false) {
+      console.log('悬浮球功能已禁用');
+      return;
+    }
+    
+    console.log('悬浮球功能已启用，开始创建悬浮球');
+    
+    // 创建悬浮球容器
+    const floatingBall = document.createElement('div');
+    floatingBall.id = 'transor-floating-ball';
+    floatingBall.className = 'transor-floating-ball';
+    
+    // 创建关闭按钮
+    const closeButton = document.createElement('div');
+    closeButton.className = 'transor-floating-ball-close no-translate';
+    closeButton.innerHTML = '×';
+    closeButton.style.cssText = `
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 18px;
+      height: 18px;
+      background-color: #ff5555;
+      color: white;
+      border-radius: 50%;
+      font-size: 14px;
+      line-height: 16px;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      z-index: 10001;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    `;
+    floatingBall.appendChild(closeButton);
+    
+    // 创建图标（使用logo）
+    const icon = document.createElement('img');
+    icon.className = 'transor-floating-ball-icon';
+    try {
+      icon.src = chrome.runtime.getURL('logos/logo48.png'); // 使用扩展logo作为图标
+    } catch (e) {
+      console.warn('获取logo路径失败:', e);
+      // 使用备用文本
+      icon.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="0.9em" font-size="90" font-family="sans-serif">译</text></svg>';
+    }
+    icon.alt = '翻译';
+    // 设置圆形样式和微妙阴影
+    icon.style.borderRadius = '50%';
+    icon.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+    // 禁止图片被单独拖拽
+    icon.draggable = false;
+    // 阻止图片拖拽默认行为
+    icon.addEventListener('dragstart', (e) => e.preventDefault());
+    floatingBall.appendChild(icon);
+    
+    // 添加到页面
+    document.body.appendChild(floatingBall);
+    
+    // 创建tooltip提示
+    const tooltip = document.createElement('div');
+    tooltip.className = 'transor-floating-tooltip no-translate';
+    tooltip.textContent = translationSettings.isEnabled ? '取消翻译' : '翻译页面';
+    tooltip.style.cssText = `
+      position: absolute;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10000;
+      margin-right: 10px;
+    `;
+    
+    // 添加右侧小箭头
+    tooltip.innerHTML = `
+      <span id="tooltip-text">${translationSettings.isEnabled ? '取消翻译' : '翻译页面'}</span>
+      <span style="
+        position: absolute;
+        right: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 0; 
+        height: 0; 
+        border-top: 6px solid transparent;
+        border-bottom: 6px solid transparent;
+        border-left: 6px solid rgba(0, 0, 0, 0.8);
+      "></span>
+    `;
+    document.body.appendChild(tooltip);
+    
+    // 鼠标移入显示tooltip和关闭按钮
+    floatingBall.addEventListener('mouseenter', () => {
+      const rect = floatingBall.getBoundingClientRect();
+      // 显示tooltip
+      tooltip.style.left = (rect.left - 10) + 'px';
+      tooltip.style.top = (rect.top + rect.height / 2) + 'px';
+      tooltip.style.transform = 'translateX(-100%) translateY(-50%)';
+      tooltip.style.opacity = '1';
+      const tooltipText = document.getElementById('tooltip-text');
+      if (tooltipText) {
+        tooltipText.textContent = translationSettings.isEnabled ? '取消翻译' : '翻译页面';
+      }
+      
+      // 显示关闭按钮
+      closeButton.style.opacity = '1';
+    });
+    
+    // 鼠标移出隐藏tooltip和关闭按钮
+    floatingBall.addEventListener('mouseleave', () => {
+      tooltip.style.opacity = '0';
+      closeButton.style.opacity = '0';
+    });
+    
+    // 关闭按钮点击事件
+    closeButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // 阻止事件冒泡，防止触发悬浮球点击事件
+      
+      // 隐藏悬浮球
+      floatingBall.style.display = 'none';
+      tooltip.style.display = 'none';
+      
+      // 更新设置
+      try {
+        if (chrome && chrome.storage && chrome.runtime && chrome.runtime.id) {
+          chrome.storage.sync.set({ 'showFloatingBall': false });
+          console.log('已关闭悬浮球，并保存设置');
+        }
+      } catch (e) {
+        console.warn('保存悬浮球设置失败:', e);
+      }
+    });
+  
+  // 添加样式
+  const style = document.createElement('style');
+  style.textContent = `
+    .transor-floating-ball {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 50px;
+      height: 50px;
+      background-color: transparent;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+      z-index: 9999;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    
+    .transor-floating-ball:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .transor-floating-ball-icon {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      -webkit-user-drag: none;
+      user-select: none;
+      pointer-events: none; /* 让鼠标事件穿透图标，由父元素处理 */
+    }
+    
+    .transor-floating-ball.dragging {
+      transition: none;
+      opacity: 0.8;
+    }
+    
+    /* 悬浮球菜单 */
+    .transor-floating-menu {
+      position: fixed;
+      bottom: 90px;
+      right: 30px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      padding: 8px;
+      z-index: 9998;
+      display: none;
+      min-width: 160px;
+      border: 1px solid #f0f0f0;
+    }
+    
+    .transor-floating-menu.show {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .transor-menu-item {
+      padding: 10px 15px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      font-size: 14px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 2px 0;
+    }
+    
+    .transor-menu-item:hover {
+      background-color: #f8f8f8;
+      transform: translateX(2px);
+    }
+    
+    .transor-menu-item.active {
+      color: ${translationSettings.fontColor || '#ff5588'};
+      font-weight: 500;
+    }
+    
+    .transor-menu-divider {
+      height: 1px;
+      background-color: #f0f0f0;
+      margin: 4px 0;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // 创建菜单
+  const menu = document.createElement('div');
+  menu.className = 'transor-floating-menu';
+  menu.innerHTML = `
+    <div class="transor-menu-item" id="transor-toggle-translation">
+      <span style="display: inline-flex; width: 16px; justify-content: center;">
+        ${translationSettings.isEnabled ? '🔴' : '🟢'}
+      </span>
+      <span>${translationSettings.isEnabled ? '关闭翻译' : '开启翻译'}</span>
+    </div>
+    <div class="transor-menu-divider"></div>
+    <div class="transor-menu-item" id="transor-open-settings">
+      <span style="display: inline-flex; width: 16px; justify-content: center;">⚙️</span>
+      <span>设置</span>
+    </div>
+  `;
+  document.body.appendChild(menu);
+  
+  // 拖拽功能
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let ballStartX = 0;
+  let ballStartY = 0;
+  
+  // 添加双击事件 - 打开设置页面
+  floatingBall.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      if (chrome && chrome.runtime && chrome.runtime.id) {
+        chrome.runtime.sendMessage({ action: 'openOptionsPage' });
+      } else {
+        console.warn('扩展上下文已失效，无法打开设置页面');
+      }
+    } catch (e) {
+      console.warn('打开设置页面失败:', e);
+    }
+  });
+  
+  floatingBall.addEventListener('mousedown', (e) => {
+    // 阻止默认行为，防止图片或文本被拖拽
+    e.preventDefault();
+    
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = floatingBall.getBoundingClientRect();
+    ballStartX = rect.left;
+    ballStartY = rect.top;
+    floatingBall.classList.add('dragging');
+    
+    // 隐藏菜单和tooltip
+    menu.classList.remove('show');
+    tooltip.style.opacity = '0';
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    const deltaX = e.clientX - dragStartX;
+    const deltaY = e.clientY - dragStartY;
+    
+    const newX = ballStartX + deltaX;
+    const newY = ballStartY + deltaY;
+    
+    // 限制在视口内
+    const maxX = window.innerWidth - floatingBall.offsetWidth;
+    const maxY = window.innerHeight - floatingBall.offsetHeight;
+    
+    floatingBall.style.left = Math.max(0, Math.min(newX, maxX)) + 'px';
+    floatingBall.style.top = Math.max(0, Math.min(newY, maxY)) + 'px';
+    floatingBall.style.right = 'auto';
+    floatingBall.style.bottom = 'auto';
+  });
+  
+  document.addEventListener('mouseup', (e) => {
+    if (!isDragging) return;
+    
+    const deltaX = Math.abs(e.clientX - dragStartX);
+    const deltaY = Math.abs(e.clientY - dragStartY);
+    
+    // 如果移动距离很小，视为点击
+    if (deltaX < 5 && deltaY < 5) {
+      // 添加点击视觉反馈
+      floatingBall.style.transform = 'scale(0.9)';
+      setTimeout(() => {
+        floatingBall.style.transform = '';
+      }, 200);
+      
+      // 根据当前状态决定是翻译还是取消翻译
+      if (translationSettings.isEnabled) {
+        // 如果已启用翻译，则取消翻译
+        translationSettings.isEnabled = false;
+        try {
+          if (chrome && chrome.storage && chrome.runtime && chrome.runtime.id) {
+            chrome.storage.sync.set({ isEnabled: false });
+          }
+        } catch (e) {
+          console.warn('保存翻译设置失败:', e);
+        }
+        // 清除所有翻译
+        removeAllTranslations();
+        // 更新tooltip文本
+        const tooltipText = document.getElementById('tooltip-text');
+        if (tooltipText) {
+          tooltipText.textContent = '翻译页面';
+        }
+      } else {
+        // 如果未启用翻译，则开始翻译
+        translationSettings.isEnabled = true;
+        try {
+          if (chrome && chrome.storage && chrome.runtime && chrome.runtime.id) {
+            chrome.storage.sync.set({ isEnabled: true });
+          }
+        } catch (e) {
+          console.warn('保存翻译设置失败:', e);
+        }
+        // 翻译页面
+        translateVisibleContent();
+        // 更新tooltip文本
+        const tooltipText = document.getElementById('tooltip-text');
+        if (tooltipText) {
+          tooltipText.textContent = '取消翻译';
+        }
+      }
+    }
+    
+    isDragging = false;
+    floatingBall.classList.remove('dragging');
+  });
+  
+  // 菜单项点击事件
+  document.getElementById('transor-toggle-translation').addEventListener('click', () => {
+    toggleTranslation();
+    const item = document.getElementById('transor-toggle-translation');
+    const iconSpan = item.querySelector('span:first-child');
+    const textSpan = item.querySelector('span:last-child');
+    iconSpan.textContent = translationSettings.isEnabled ? '🔴' : '🟢';
+    textSpan.textContent = translationSettings.isEnabled ? '关闭翻译' : '开启翻译';
+    menu.classList.remove('show');
+  });
+  
+  // "翻译整页"和"清除翻译"选项已移除
+  
+  document.getElementById('transor-open-settings').addEventListener('click', () => {
+    try {
+      if (chrome && chrome.runtime && chrome.runtime.id) {
+        chrome.runtime.sendMessage({ action: 'openOptionsPage' });
+      } else {
+        console.warn('扩展上下文已失效，无法打开设置页面');
+      }
+    } catch (e) {
+      console.warn('打开设置页面失败:', e);
+    }
+    menu.classList.remove('show');
+  });
+  
+  // 不再需要点击其他地方关闭菜单，因为菜单不会显示
+  
+    // 监听设置变化，更新悬浮球颜色
+    try {
+      if (chrome && chrome.storage && chrome.runtime && chrome.runtime.id) {
+        const storageChangeListener = (changes) => {
+          try {
+            // 不再需要更新边框颜色
+            // if (changes.fontColor) {
+            //   floatingBall.style.borderColor = changes.fontColor.newValue;
+            // }
+            
+            // 如果翻译状态改变，更新tooltip
+            if (changes.isEnabled) {
+              translationSettings.isEnabled = changes.isEnabled.newValue;
+              const tooltipText = document.getElementById('tooltip-text');
+              if (tooltipText) {
+                tooltipText.textContent = translationSettings.isEnabled ? '取消翻译' : '翻译页面';
+              }
+            }
+            
+            if (changes.showFloatingBall && changes.showFloatingBall.newValue === false) {
+              // 如果设置改为不显示悬浮球，移除它
+              const existingBall = document.getElementById('transor-floating-ball');
+              const existingMenu = document.querySelector('.transor-floating-menu');
+              const existingTooltip = document.querySelector('.transor-floating-tooltip');
+              const existingCloseButton = document.querySelector('.transor-floating-ball-close');
+              if (existingBall) existingBall.remove();
+              if (existingMenu) existingMenu.remove();
+              if (existingTooltip) existingTooltip.remove();
+              if (existingCloseButton) existingCloseButton.remove();
+              
+              // 移除监听器
+              try {
+                chrome.storage.onChanged.removeListener(storageChangeListener);
+              } catch (e) {
+                console.warn('移除监听器失败:', e);
+              }
+            }
+          } catch (e) {
+            console.warn('处理设置变化出错:', e);
+          }
+        };
+        
+        chrome.storage.onChanged.addListener(storageChangeListener);
+      }
+    } catch (e) {
+      console.warn('设置监听器失败:', e);
+    }
+    
+    console.log('悬浮球功能初始化完成');
+  });
 }

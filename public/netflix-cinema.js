@@ -625,7 +625,7 @@ function addNetflixSubtitleStyles() {
     
     .netflix-subtitle-translation {
       font-size: 20px;
-      color: #ff6b6b;
+      color: #ff5588;
       font-weight: 400;
       text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
     }
@@ -680,7 +680,7 @@ function addNetflixSubtitleStyles() {
       width: 20px;
       height: 20px;
       border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top: 2px solid #ff6b6b;
+      border-top: 2px solid #ff5588;
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin-bottom: 8px;
@@ -1105,11 +1105,11 @@ function createSubtitleOverlay() {
   
   // 创建新的覆盖层
   window.subtitlesOverlay = document.createElement('div');
-  window.subtitlesOverlay.className = 'netflix-subtitle-overlay';
+  window.subtitlesOverlay.className = 'netflix-subtitle-overlay no-translate';
   window.subtitlesOverlay.innerHTML = `
-    <div class="subtitle-loading">
-      <div class="subtitle-loading-spinner"></div>
-      <div class="subtitle-loading-text">正在加载字幕...</div>
+    <div class="subtitle-loading no-translate">
+      <div class="subtitle-loading-spinner no-translate"></div>
+      <div class="subtitle-loading-text no-translate">正在加载字幕...</div>
     </div>
   `;
   
@@ -2681,9 +2681,9 @@ async function extractCurrentSubtitlesFromPage() {
 //   if (window.subtitlesOverlay) {
 //     const percentage = Math.round((current / total) * 100);
 //     window.subtitlesOverlay.innerHTML = `
-//       <div class="subtitle-loading">
-//         <div class="subtitle-loading-spinner"></div>
-//         <div class="subtitle-loading-text">正在翻译字幕... ${percentage}% (${current}/${total})</div>
+//       <div class="subtitle-loading no-translate">
+//         <div class="subtitle-loading-spinner no-translate"></div>
+//         <div class="subtitle-loading-text no-translate">正在翻译字幕... ${percentage}% (${current}/${total})</div>
 //       </div>
 //     `;
 //     // 确保字幕背景框可见
@@ -2873,8 +2873,8 @@ function displaySubtitle(index) {
     // 确保字幕覆盖层有正确的结构
     if (!window.subtitlesOverlay.querySelector('.netflix-subtitle-original')) {
       window.subtitlesOverlay.innerHTML = `
-        <div class="netflix-subtitle-text netflix-subtitle-original"></div>
-        <div class="netflix-subtitle-text netflix-subtitle-translation"></div>
+        <div class="netflix-subtitle-text netflix-subtitle-original no-translate"></div>
+        <div class="netflix-subtitle-text netflix-subtitle-translation no-translate"></div>
       `;
     }
     
@@ -2917,8 +2917,8 @@ function displaySubtitle(index) {
     if (originalText) {
       originalElement.innerHTML = originalText
         .split(' ')
-        .map(word => `<span class="subtitle-token">${word}</span>`)
-        .join('<span class="subtitle-token space"> </span>');
+        .map(word => `<span class="subtitle-token no-translate">${word}</span>`)
+        .join('<span class="subtitle-token space no-translate"> </span>');
     } else {
       originalElement.textContent = '';
     }
@@ -2965,10 +2965,10 @@ function showSubtitleError(errorMessage) {
   console.log('显示字幕错误:', errorMessage);
   
   window.subtitlesOverlay.innerHTML = `
-    <div class="netflix-subtitle-text" style="color: #ff6b6b; text-align: center;">
+    <div class="netflix-subtitle-text no-translate" style="color: #ff5588; text-align: center;">
       ⚠️ ${errorMessage || '字幕加载失败'}
     </div>
-    <div class="netflix-subtitle-text" style="color: #ccc; font-size: 14px; text-align: center; margin-top: 8px;">
+    <div class="netflix-subtitle-text no-translate" style="color: #ccc; font-size: 14px; text-align: center; margin-top: 8px;">
       请刷新页面重试
     </div>
   `;

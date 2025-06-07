@@ -4,138 +4,123 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Transor 设置</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <style>
     :root {
-      --bg-color: #1e1e2e;
-      --bg-secondary: #292a3e;
-      --text-color: #cdd6f4;
-      --accent-color: #ff5588;
-      --accent-light: #ff80a0;
-      --accent-dark: #e63d72;
-      --border-color: #45475a;
-      --success-color: #a6e3a1;
-      --warning-color: #f9e2af;
-      --danger-color: #f38ba8;
-      --nav-width: 260px;
-      --header-height: 60px;
-    }
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+      --bs-primary: #ff5588;
+      --bs-primary-rgb: 255, 85, 136;
+      --bs-primary-hover: #ff80a0;
+      --bs-primary-active: #e63d72;
+      --bs-danger: #f38ba8;
+      --bs-dark: #1e1e2e;
+      --bs-dark-rgb: 30, 30, 46;
+      --bs-secondary: #292a3e;
+      --bs-secondary-rgb: 41, 42, 62;
+      --bs-light: #cdd6f4;
+      --bs-light-rgb: 205, 214, 244;
+      --bs-border-color: #45475a;
+      --bs-success: #a6e3a1;
+      --bs-warning: #f9e2af;
     }
     
     body {
       font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
+      background-color: var(--bs-dark);
+      color: var(--bs-light);
       line-height: 1.6;
       min-height: 100vh;
     }
     
-    /* 页面布局 */
-    .container {
-      display: flex;
-      height: 100vh;
+    .btn-primary {
+      background-color: var(--bs-primary);
+      border-color: var(--bs-primary);
     }
     
-    /* 侧边导航 */
+    .btn-primary:hover {
+      background-color: var(--bs-primary-hover);
+      border-color: var(--bs-primary-hover);
+    }
+    
+    .btn-danger {
+      background-color: var(--bs-danger);
+      border-color: var(--bs-danger);
+    }
+    
+    .form-control, .form-select {
+      background-color: var(--bs-dark);
+      border-color: var(--bs-border-color);
+      color: var(--bs-light);
+    }
+    
+    .form-control:focus, .form-select:focus {
+      background-color: var(--bs-dark);
+      border-color: var(--bs-primary);
+      color: var(--bs-light);
+      box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+    }
+    
+    .card {
+      background-color: var(--bs-secondary);
+      border-color: var(--bs-border-color);
+    }
+    
     .sidebar {
-      width: var(--nav-width);
-      background-color: var(--bg-secondary);
-      border-right: 1px solid var(--border-color);
-      padding: 20px 0;
+      width: 280px;
+      background-color: var(--bs-secondary);
+      border-right: 1px solid var(--bs-border-color);
       height: 100vh;
-      overflow-y: auto;
       position: fixed;
       left: 0;
       top: 0;
     }
     
-    .logo {
-      padding: 0 20px 20px;
-      display: flex;
-      align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--border-color);
-    }
-    
-    .logo img {
-      width: 40px;
-      height: 40px;
-      margin-right: 10px;
-    }
-    
-    .logo h1 {
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--accent-color);
-    }
-    
-    .nav-item {
-      padding: 12px 20px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-      display: flex;
-      align-items: center;
-      margin-bottom: 5px;
-      border-radius: 0 25px 25px 0;
-      margin-right: 10px;
-    }
-    
-    .nav-item:hover {
-      background-color: rgba(255, 85, 136, 0.1);
-    }
-    
-    .nav-item.active {
-      background-color: rgba(255, 85, 136, 0.2);
-      border-left: 3px solid var(--accent-color);
-    }
-    
-    .nav-item i {
-      margin-right: 10px;
-      font-size: 18px;
-      width: 24px;
-      text-align: center;
-    }
-    
-    /* 图标样式 */
-    .icon {
-      width: 24px;
-      height: 24px;
-      margin-right: 10px;
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-    }
-    
-    /* 主要内容区域 */
     .main-content {
-      flex: 1;
-      margin-left: var(--nav-width);
+      margin-left: 280px;
       padding: 30px;
       height: 100vh;
       overflow-y: auto;
     }
     
-    .header {
-      margin-bottom: 30px;
+    .nav-link {
+      color: var(--bs-light);
+      border-radius: 0 25px 25px 0;
+      margin-right: 10px;
+      padding: 12px 20px;
     }
     
-    .header h2 {
-      font-size: 24px;
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: var(--accent-color);
+    .nav-link:hover {
+      background-color: rgba(var(--bs-primary-rgb), 0.1);
+      color: var(--bs-light);
     }
     
-    .header p {
-      color: var(--text-color);
-      opacity: 0.8;
+    .nav-link.active {
+      background-color: rgba(var(--bs-primary-rgb), 0.2);
+      border-left: 3px solid var(--bs-primary);
+      color: var(--bs-primary);
     }
     
-    /* 内容部分 */
+    .form-switch .form-check-input:checked {
+      background-color: var(--bs-primary);
+      border-color: var(--bs-primary);
+    }
+    
+    .api-key-wrapper {
+      position: relative;
+    }
+    
+    .api-key-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: var(--bs-primary);
+      background: none;
+      border: none;
+    }
+    
     .content-section {
       display: none;
       animation: fadeIn 0.3s ease;
@@ -150,638 +135,473 @@
       to { opacity: 1; transform: translateY(0); }
     }
     
-    .card {
-      background-color: var(--bg-secondary);
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-      border: 1px solid var(--border-color);
-    }
-    
-    .card-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-    }
-    
-    .card-title i {
-      margin-right: 8px;
-      color: var(--accent-color);
-    }
-    
-    /* 表单元素 */
-    .form-group {
-      margin-bottom: 20px;
-    }
-    
-    .form-group:last-child {
-      margin-bottom: 0;
-    }
-    
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-    
-    input[type="text"], 
-    input[type="password"],
-    select {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      font-size: 14px;
-      transition: border-color 0.2s;
-    }
-    
-    input[type="text"]:focus, 
-    input[type="password"]:focus,
-    select:focus {
-      outline: none;
-      border-color: var(--accent-color);
-    }
-    
-    .toggle-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 15px;
-    }
-    
-    .toggle-container:last-child {
-      margin-bottom: 0;
-    }
-    
-    .toggle-label {
-      font-weight: 500;
-    }
-    
-    .toggle-description {
-      font-size: 12px;
-      opacity: 0.7;
-      margin-top: 3px;
-    }
-    
-    .toggle {
-      position: relative;
-      width: 44px;
-      height: 22px;
-    }
-    
-    .toggle input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: var(--border-color);
-      transition: .4s;
-      border-radius: 34px;
-    }
-    
-    .toggle-slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 2px;
-      bottom: 2px;
-      background-color: var(--text-color);
-      transition: .4s;
-      border-radius: 50%;
-    }
-    
-    input:checked + .toggle-slider {
-      background-color: var(--accent-color);
-    }
-    
-    input:checked + .toggle-slider:before {
-      transform: translateX(22px);
-    }
-    
-    /* 按钮样式 */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 16px;
-      border-radius: 6px;
-      border: none;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .btn-primary {
-      background-color: var(--accent-color);
-      color: var(--bg-color);
-    }
-    
-    .btn-primary:hover {
-      background-color: var(--accent-light);
-    }
-    
-    .btn-danger {
-      background-color: var(--danger-color);
-      color: var(--bg-color);
-    }
-    
-    .btn-danger:hover {
-      background-color: #f4a4b9;
-    }
-    
-    .btn i {
-      margin-right: 6px;
-    }
-    
-    .buttons {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-
-    /* API Key 容器 */
-    .api-key-wrapper {
-      position: relative;
-    }
-    
-    .api-key-toggle {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      cursor: pointer;
-      color: var(--accent-color);
-      background: none;
-      border: none;
-    }
-
-    .api-service-title {
-      display: flex;
-      align-items: center;
-      margin-bottom: 5px;
-    }
-
-    .api-service-title img {
-      width: 20px;
-      height: 20px;
-      margin-right: 8px;
-    }
-
-    .api-services {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-    }
-
-    /* 响应式调整 */
     @media (max-width: 768px) {
-      .container {
-        flex-direction: column;
-      }
-      
       .sidebar {
         width: 100%;
         height: auto;
         position: relative;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
       }
       
       .main-content {
         margin-left: 0;
       }
-      
-      .api-services {
-        grid-template-columns: 1fr;
-      }
     }
   </style>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
-<div class="container">
-  <!-- 侧边导航栏 -->
-  <div class="sidebar">
-    <div class="logo">
-      <img src="logos/logo128.png" alt="Transor Logo">
-      <h1>Transor</h1>
-    </div>
-    
-    <div class="nav-item active" data-section="general">
-      <div class="icon"><i class="fas fa-cog"></i></div>
-      <span data-i18n="generalSettings">常规设置</span>
-    </div>
-    
-    <!-- <div class="nav-item" data-section="translation">
-      <div class="icon"><i class="fas fa-language"></i></div>
-      <span data-i18n="translationServices">翻译服务</span>
-    </div>
-    
-    <div class="nav-item" data-section="features">
-      <div class="icon"><i class="fas fa-th-large"></i></div>
-      <span data-i18n="featureManagement">功能管理</span>
-    </div> -->
-    
-    <div class="nav-item" data-section="about">
-      <div class="icon"><i class="fas fa-info-circle"></i></div>
-      <span data-i18n="about">关于</span>
-    </div>
-  </div>
-  
-  <!-- 主内容区域 -->
-  <div class="main-content">
-    <!-- 常规设置页面 -->
-    <div id="general-section" class="content-section active">
-      <div class="header">
-        <h2 data-i18n="generalSettings">常规设置</h2>
-        <p data-i18n="generalSettingsDescription">配置 Transor 的基本设置和翻译首选项</p>
-      </div>
-      
-      <div class="card">
-        <div class="card-title">
-          <i class="fas fa-globe"></i> <span data-i18n="languageSettings">语言设置</span>
-        </div>
-        <div class="form-group">
-          <label for="ui-language" data-i18n="uiLanguage">界面语言</label>
-          <select id="ui-language">
-            <option value="zh-CN">简体中文</option>
-            <option value="en">English</option>
-            <option value="ja">日本語</option>
-            <option value="ko">한국어</option>
-          </select>
+<div class="container-fluid p-0">
+  <div class="row g-0">
+    <!-- 侧边导航栏 -->
+    <div class="col-auto">
+      <div class="sidebar">
+        <div class="d-flex align-items-center p-3 mb-3 border-bottom border-secondary">
+          <img src="logos/logo128.png" alt="Transor Logo" width="40" height="40" class="me-2">
+          <h1 class="h5 mb-0 text-primary">Transor</h1>
         </div>
         
-        <div class="form-group">
-          <label for="target-language" data-i18n="targetLanguage">目标翻译语言</label>
-          <select id="target-language">
-            <option value="zh-CN">简体中文</option>
-            <option value="en">英语</option>
-            <option value="ja">日语</option>
-            <option value="ko">韩语</option>
-            <option value="fr">法语</option>
-            <option value="de">德语</option>
-            <option value="es">西班牙语</option>
-            <option value="ru">俄语</option>
-          </select>
+        <div class="nav flex-column">
+          <a class="nav-link active" href="#" data-section="general">
+            <i class="fas fa-cog me-2"></i>
+            <span data-i18n="generalSettings">常规设置</span>
+          </a>
+          
+          <!-- <a class="nav-link" href="#" data-section="translation">
+            <i class="fas fa-language me-2"></i>
+            <span data-i18n="translationServices">翻译服务</span>
+          </a>
+          
+          <a class="nav-link" href="#" data-section="features">
+            <i class="fas fa-th-large me-2"></i>
+            <span data-i18n="featureManagement">功能管理</span>
+          </a> -->
+          
+          <a class="nav-link" href="#" data-section="about">
+            <i class="fas fa-info-circle me-2"></i>
+            <span data-i18n="about">关于</span>
+          </a>
         </div>
       </div>
-      
-      <div class="card">
-        <div class="card-title">
-          <i class="fas fa-sliders-h"></i> <span data-i18n="translationOptions">翻译选项</span>
-        </div>
-        
-        <div class="form-group">
-          <label for="translation-engine" data-i18n="defaultEngine">默认翻译引擎</label>
-          <select id="translation-engine">
-            <option value="microsoftapi">Microsoft API</option>
-            <option value="microsoft" selected>Microsoft Edge</option>
-            <option value="google">Google</option>
-            <option value="openai">OpenAI (Pro)</option>
-            <option value="deepseek">DeepSeek (Pro)</option>
-          </select>
-        </div>
-        
-        <div id="api-key-container" class="form-group">
-          <label id="api-key-label" for="api-key-input">API Key</label>
-          <div class="api-key-wrapper">
-            <input type="password" id="api-key-input" placeholder="输入您的 API Key">
-            <button type="button" class="api-key-toggle" id="toggle-api-key">
-              <i class="fas fa-eye"></i>
+    </div>
+    
+    <!-- 主内容区域 -->
+    <div class="col">
+      <div class="main-content">
+        <!-- 常规设置页面 -->
+        <div id="general-section" class="content-section active">
+          <div class="mb-4">
+            <h2 class="text-primary mb-2" data-i18n="generalSettings">常规设置</h2>
+            <p class="text-light-emphasis" data-i18n="generalSettingsDescription">配置 Transor 的基本设置和翻译首选项</p>
+          </div>
+          
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <i class="fas fa-globe text-primary me-2"></i>
+                <span data-i18n="languageSettings">语言设置</span>
+              </h5>
+              
+              <div class="mb-3">
+                <label for="ui-language" class="form-label" data-i18n="uiLanguage">界面语言</label>
+                <select id="ui-language" class="form-select">
+                  <option value="zh-CN">简体中文</option>
+                  <option value="en">English</option>
+                  <option value="ja">日本語</option>
+                  <option value="ko">한국어</option>
+                </select>
+              </div>
+              
+              <div class="mb-3">
+                <label for="target-language" class="form-label" data-i18n="targetLanguage">目标翻译语言</label>
+                <select id="target-language" class="form-select">
+                  <option value="zh-CN">简体中文</option>
+                  <option value="en">英语</option>
+                  <option value="ja">日语</option>
+                  <option value="ko">韩语</option>
+                  <option value="fr">法语</option>
+                  <option value="de">德语</option>
+                  <option value="es">西班牙语</option>
+                  <option value="ru">俄语</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <i class="fas fa-sliders-h text-primary me-2"></i>
+                <span data-i18n="translationOptions">翻译选项</span>
+              </h5>
+              
+              <div class="mb-3">
+                <label for="translation-engine" class="form-label" data-i18n="defaultEngine">默认翻译引擎</label>
+                <select id="translation-engine" class="form-select">
+                  <option value="microsoftapi">Microsoft API</option>
+                  <option value="microsoft" selected>Microsoft Edge</option>
+                  <option value="google">Google</option>
+                  <option value="openai">OpenAI (Pro)</option>
+                  <option value="deepseek">DeepSeek (Pro)</option>
+                </select>
+              </div>
+              
+              <div id="api-key-container" class="mb-3">
+                <label id="api-key-label" for="api-key-input" class="form-label">API Key</label>
+                <div class="api-key-wrapper">
+                  <input type="password" id="api-key-input" class="form-control" placeholder="输入您的 API Key">
+                  <button type="button" class="api-key-toggle" id="toggle-api-key">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- OpenAI 配置模块 -->
+              <div id="openai-config" class="ai-config bg-dark p-3 rounded border border-secondary mb-3" style="display: none;">
+                <div class="mb-3">
+                  <label for="openai-api-endpoint" class="form-label" data-i18n="customApiEndpoint">自定义 API 接口地址：</label>
+                  <input type="text" id="openai-api-endpoint" class="form-control" placeholder="https://api.openai.com/v1/chat/completions" value="https://api.openai.com/v1/chat/completions">
+                </div>
+                
+                <div class="mb-3">
+                  <label for="openai-model" class="form-label" data-i18n="model">模型:</label>
+                  <select id="openai-model" class="form-select">
+                    <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                    <option value="gpt-4o-mini">gpt-4o-mini</option>
+                    <option value="gpt-4o">gpt-4o</option>
+                    <option value="gpt-4.1">gpt-4.1</option>
+                    <option value="gpt-4.1-nano">gpt-4.1-nano</option>
+                    <option value="gpt-4.5-preview">gpt-4.5-preview</option>
+                    <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                    <option value="gpt-4">gpt-4</option>
+                    <option value="gpt-4-turbo">gpt-4-turbo</option>
+                    <option value="more-models" data-i18n="moreModels">设置更多模型</option>
+                  </select>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="openai-custom-model-enabled">
+                  <label class="form-check-label" for="openai-custom-model-enabled" data-i18n="inputCustomModel">输入自定义模型名称</label>
+                </div>
+                
+                <div class="mb-3" id="openai-custom-model-group" style="display: none;">
+                  <input type="text" id="openai-custom-model" class="form-control" placeholder="输入自定义模型名称">
+                </div>
+                
+                <div class="mb-3">
+                  <label for="openai-max-requests" class="form-label" data-i18n="maxRequestsPerSecond">每秒最大请求数:</label>
+                  <input type="number" id="openai-max-requests" class="form-control" value="10" min="1" max="100">
+                  <p class="form-text text-light-emphasis" data-i18n="requestLimitWarning">请求数超过该限制时会进入排队状态，直到下一秒钟开始。由于OpenAI目前服务的各种限制，请点击<span class="text-danger">这里</span>查看最新建议的数值</p>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="openai-ai-context">
+                  <label class="form-check-label" for="openai-ai-context" data-i18n="enableAiContext">启用 AI 智能上下文</label>
+                  <div class="form-text text-light-emphasis" data-i18n="aiContextDesc">启用后，系统将先理解全文内容与专业术语，让翻译更专业准确。支持文章网页（博客、新闻）、电子书、PDF和双语等。AI专家同伴支持智能上下文。目前为实验功能，仅Pro会员可用。</div>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="openai-expert-strategy" class="form-label" data-i18n="aiExpertStrategy">你可以指定 AI 专家来提供翻译策略:</label>
+                  <select id="openai-expert-strategy" class="form-select">
+                    <option value="universal" data-i18n="universal">通用</option>
+                    <option value="smart-choice" data-i18n="smartChoice">智能选择</option>
+                    <option value="translation-master" data-i18n="translationMaster">意译大师</option>
+                    <option value="paragraph-expert" data-i18n="paragraphExpert">段落总结专家</option>
+                    <option value="english-simplifier" data-i18n="englishSimplifier">英文简化大师</option>
+                    <option value="twitter-enhancer" data-i18n="twitterEnhancer">Twitter 翻译增强器</option>
+                    <option value="tech-translator" data-i18n="techTranslator">科技类翻译大师</option>
+                    <option value="reddit-enhancer" data-i18n="redditEnhancer">Reddit 翻译增强器</option>
+                    <option value="academic-translator" data-i18n="academicTranslator">学术论文翻译师</option>
+                    <option value="news-translator" data-i18n="newsTranslator">新闻媒体译者</option>
+                    <option value="music-expert" data-i18n="musicExpert">音乐专家</option>
+                    <option value="medical-translator" data-i18n="medicalTranslator">医学翻译大师</option>
+                    <option value="legal-translator" data-i18n="legalTranslator">法律行业译者</option>
+                    <option value="github-enhancer" data-i18n="githubEnhancer">GitHub 翻译增强器</option>
+                    <option value="gaming-translator" data-i18n="gamingTranslator">游戏译者</option>
+                    <option value="ecommerce-translator" data-i18n="ecommerceTranslator">电商翻译大师</option>
+                    <option value="finance-translator" data-i18n="financeTranslator">金融翻译顾问</option>
+                    <option value="novel-translator" data-i18n="novelTranslator">小说译者</option>
+                    <option value="ao3-translator" data-i18n="ao3Translator">AO3 译者</option>
+                    <option value="ebook-translator" data-i18n="ebookTranslator">电子书译者</option>
+                    <option value="designer" data-i18n="designer">设计师</option>
+                    <option value="cn-en-polisher" data-i18n="cnEnPolisher">中英夹杂</option>
+                    <option value="web3-translator" data-i18n="web3Translator">Web3 翻译大师</option>
+                    <option value="literal-expert" data-i18n="literalExpert">直译专家</option>
+                    <option value="context-analyzer" data-i18n="contextAnalyzer">语境分析师</option>
+                    <option value="cultural-adapter" data-i18n="culturalAdapter">文化适配师</option>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- DeepSeek 配置模块 -->
+              <div id="deepseek-config" class="ai-config bg-dark p-3 rounded border border-secondary mb-3" style="display: none;">
+                <div class="mb-3">
+                  <label for="deepseek-api-endpoint" class="form-label" data-i18n="customApiEndpoint">自定义 API 接口地址：</label>
+                  <input type="text" id="deepseek-api-endpoint" class="form-control" placeholder="https://api.deepseek.com/chat/completions" value="https://api.deepseek.com/chat/completions">
+                </div>
+                
+                <div class="mb-3">
+                  <label for="deepseek-model" class="form-label" data-i18n="model">模型:</label>
+                  <select id="deepseek-model" class="form-select">
+                    <option value="deepseek-chat">deepseek-chat</option>
+                    <option value="deepseek-reasoner">deepseek-reasoner</option>
+                  </select>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="deepseek-custom-model-enabled">
+                  <label class="form-check-label" for="deepseek-custom-model-enabled" data-i18n="inputCustomModel">输入自定义模型名称</label>
+                </div>
+                
+                <div class="mb-3" id="deepseek-custom-model-group" style="display: none;">
+                  <input type="text" id="deepseek-custom-model" class="form-control" placeholder="输入自定义模型名称">
+                </div>
+                
+                <div class="mb-3">
+                  <label for="deepseek-max-requests" class="form-label" data-i18n="maxRequestsPerSecond">每秒最大请求数:</label>
+                  <input type="number" id="deepseek-max-requests" class="form-control" value="10" min="1" max="100">
+                  <p class="form-text text-light-emphasis" data-i18n="requestLimitWarning">请求数超过该限制时会进入排队状态，直到下一秒钟开始。由于DeepSeek目前服务的各种限制，请点击<span class="text-danger">这里</span>查看最新建议的数值</p>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="deepseek-ai-context">
+                  <label class="form-check-label" for="deepseek-ai-context" data-i18n="enableAiContext">启用 AI 智能上下文</label>
+                  <div class="form-text text-light-emphasis" data-i18n="aiContextDesc">启用后，系统将先理解全文内容与专业术语，让翻译更专业准确。支持文章网页（博客、新闻）、电子书、PDF和双语等。AI专家同伴支持智能上下文。目前为实验功能，仅Pro会员可用。</div>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="deepseek-expert-strategy" class="form-label" data-i18n="aiExpertStrategy">你可以指定 AI 专家来提供翻译策略:</label>
+                  <select id="deepseek-expert-strategy" class="form-select">
+                    <option value="universal" data-i18n="universal">通用</option>
+                    <option value="smart-choice" data-i18n="smartChoice">智能选择</option>
+                    <option value="translation-master" data-i18n="translationMaster">意译大师</option>
+                    <option value="paragraph-expert" data-i18n="paragraphExpert">段落总结专家</option>
+                    <option value="english-simplifier" data-i18n="englishSimplifier">英文简化大师</option>
+                    <option value="twitter-enhancer" data-i18n="twitterEnhancer">Twitter 翻译增强器</option>
+                    <option value="tech-translator" data-i18n="techTranslator">科技类翻译大师</option>
+                    <option value="reddit-enhancer" data-i18n="redditEnhancer">Reddit 翻译增强器</option>
+                    <option value="academic-translator" data-i18n="academicTranslator">学术论文翻译师</option>
+                    <option value="news-translator" data-i18n="newsTranslator">新闻媒体译者</option>
+                    <option value="music-expert" data-i18n="musicExpert">音乐专家</option>
+                    <option value="medical-translator" data-i18n="medicalTranslator">医学翻译大师</option>
+                    <option value="legal-translator" data-i18n="legalTranslator">法律行业译者</option>
+                    <option value="github-enhancer" data-i18n="githubEnhancer">GitHub 翻译增强器</option>
+                    <option value="gaming-translator" data-i18n="gamingTranslator">游戏译者</option>
+                    <option value="ecommerce-translator" data-i18n="ecommerceTranslator">电商翻译大师</option>
+                    <option value="finance-translator" data-i18n="financeTranslator">金融翻译顾问</option>
+                    <option value="novel-translator" data-i18n="novelTranslator">小说译者</option>
+                    <option value="ao3-translator" data-i18n="ao3Translator">AO3 译者</option>
+                    <option value="ebook-translator" data-i18n="ebookTranslator">电子书译者</option>
+                    <option value="designer" data-i18n="designer">设计师</option>
+                    <option value="cn-en-polisher" data-i18n="cnEnPolisher">中英夹杂</option>
+                    <option value="web3-translator" data-i18n="web3Translator">Web3 翻译大师</option>
+                    <option value="literal-expert" data-i18n="literalExpert">直译专家</option>
+                    <option value="context-analyzer" data-i18n="contextAnalyzer">语境分析师</option>
+                    <option value="cultural-adapter" data-i18n="culturalAdapter">文化适配师</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 显示样式模块 -->
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <i class="fas fa-paint-brush text-primary me-2"></i>
+                <span data-i18n="displayStyle">显示样式</span>
+              </h5>
+              
+              <div class="mb-3">
+                <label for="translation-style" class="form-label" data-i18n="translationStyle">翻译样式</label>
+                <select id="translation-style" class="form-select">
+                  <option value="universal_style" selected data-i18n="universal_style">通用(智能选择显示样式)</option>
+                  <option value="inline" data-i18n="inline">双语(原文后方显示译文)</option>
+                  <option value="bilingual" data-i18n="bilingual_below">双语(原文下方显示译文)</option>
+                  <option value="replace" data-i18n="replace">替换(仅显示译文)</option>
+                </select>
+              </div>
+              
+              <div class="mb-3">
+                <label for="font-color" class="form-label" data-i18n="fontColor">字体颜色</label>
+                <div class="d-flex align-items-center gap-2">
+                  <input type="color" id="font-color-picker" value="#ff5588" class="form-control form-control-color">
+                  <input type="text" id="font-color" value="#ff5588" placeholder="#ff5588" class="form-control">
+                </div>
+                <p class="form-text text-light-emphasis" data-i18n="fontColorDesc">设置译文的字体颜色，默认为粉色(#ff5588)</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 功能开关模块 -->
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <i class="fas fa-toggle-on text-primary me-2"></i>
+                <span data-i18n="functionSwitches">功能开关</span>
+              </h5>
+              
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="show-floating-ball" checked>
+                  <label class="form-check-label" for="show-floating-ball" data-i18n="showFloatingBall">显示悬浮球</label>
+                  <div class="form-text text-light-emphasis" data-i18n="showFloatingBallDesc">在页面右下角显示悬浮球，提供快速访问翻译功能</div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="enable-input-space-translation" checked>
+                  <label class="form-check-label" for="enable-input-space-translation" data-i18n="enableInputSpaceTranslation">输入框空格翻译</label>
+                  <div class="form-text text-light-emphasis" data-i18n="enableInputSpaceTranslationDesc">在输入框中按两次空格触发翻译</div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="show-tip-dots">
+                  <label class="form-check-label" for="show-tip-dots" data-i18n="showTipDots">显示提示小圆点</label>
+                  <div class="form-text text-light-emphasis" data-i18n="showTipDotsDesc">在使用提示样式时显示小圆点指示器</div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="enable-selection-translation" checked>
+                  <label class="form-check-label" for="enable-selection-translation" data-i18n="enableSelectionTranslation">划词翻译</label>
+                  <div class="form-text text-light-emphasis" data-i18n="enableSelectionTranslationDesc">启用选中文本自动翻译功能</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="d-flex gap-2 mb-4">
+            <button id="save-settings" class="btn btn-primary">
+              <i class="fas fa-save me-1"></i> <span data-i18n="saveSettings">保存设置</span>
+            </button>
+            <button id="restore-defaults" class="btn btn-danger">
+              <i class="fas fa-undo me-1"></i> <span data-i18n="restoreDefaults">恢复默认</span>
             </button>
           </div>
         </div>
         
-        <!-- OpenAI 配置模块 -->
-        <div id="openai-config" class="ai-config" style="display: none; margin-top: 15px; padding: 15px; background-color: var(--bg-color); border-radius: 6px; border: 1px solid var(--border-color);">
-          <div class="form-group">
-            <label for="openai-api-endpoint" data-i18n="customApiEndpoint">自定义 API 接口地址：</label>
-            <input type="text" id="openai-api-endpoint" placeholder="https://api.openai.com/v1/chat/completions" value="https://api.openai.com/v1/chat/completions">
+        <!-- 翻译服务页面 -->
+        <div id="translation-section" class="content-section">
+          <div class="mb-4">
+            <h2 class="text-primary mb-2" data-i18n="translationServices">翻译服务</h2>
+            <p class="text-light-emphasis" data-i18n="translationServicesDescription">管理和配置不同的翻译服务</p>
           </div>
           
-          <div class="form-group">
-            <label for="openai-model" data-i18n="model">模型:</label>
-            <select id="openai-model">
-              <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-              <option value="gpt-4o-mini">gpt-4o-mini</option>
-              <option value="gpt-4o">gpt-4o</option>
-              <option value="gpt-4.1">gpt-4.1</option>
-              <option value="gpt-4.1-nano">gpt-4.1-nano</option>
-              <option value="gpt-4.5-preview">gpt-4.5-preview</option>
-              <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-              <option value="gpt-4">gpt-4</option>
-              <option value="gpt-4-turbo">gpt-4-turbo</option>
-              <option value="more-models" data-i18n="moreModels">设置更多模型</option>
-            </select>
-          </div>
-          
-          <div class="toggle-container">
-            <div>
-              <div class="toggle-label" data-i18n="inputCustomModel">输入自定义模型名称</div>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <i class="fas fa-cogs text-primary me-2"></i>
+                <span data-i18n="defaultEngine">翻译引擎设置</span>
+              </h5>
+              
+              <div class="mb-3">
+                <label for="translation-engine-2" class="form-label" data-i18n="currentEngine">当前使用的翻译引擎</label>
+                <select id="translation-engine-2" class="form-select">
+                  <option value="microsoftapi">Microsoft API</option>
+                  <option value="microsoft" selected>Microsoft Edge</option>
+                  <option value="google">Google</option>
+                  <option value="openai">OpenAI (Pro)</option>
+                  <option value="deepseek">DeepSeek (Pro)</option>
+                </select>
+              </div>
             </div>
-            <label class="toggle">
-              <input type="checkbox" id="openai-custom-model-enabled">
-              <span class="toggle-slider"></span>
-            </label>
           </div>
           
-          <div class="form-group" id="openai-custom-model-group" style="display: none;">
-            <input type="text" id="openai-custom-model" placeholder="输入自定义模型名称">
-          </div>
-          
-          <div class="form-group">
-            <label for="openai-max-requests" data-i18n="maxRequestsPerSecond">每秒最大请求数:</label>
-            <input type="number" id="openai-max-requests" value="10" min="1" max="100">
-            <p style="font-size: 11px; color: var(--text-color); opacity: 0.7; margin-top: 5px;" data-i18n="requestLimitWarning">请求数超过该限制时会进入排队状态，直到下一秒钟开始。由于OpenAI目前服务的各种限制，请点击<span style="color: var(--danger-color);">这里</span>查看最新建议的数值</p>
-          </div>
-          
-          <div class="toggle-container">
-            <div>
-              <div class="toggle-label" data-i18n="enableAiContext">启用 AI 智能上下文</div>
-              <div class="toggle-description" data-i18n="aiContextDesc">启用后，系统将先理解全文内容与专业术语，让翻译更专业准确。支持文章网页（博客、新闻）、电子书、PDF和双语等。AI专家同伴支持智能上下文。目前为实验功能，仅Pro会员可用。</div>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <i class="fas fa-key text-primary me-2"></i>
+                <span data-i18n="apiKeys">API 密钥</span>
+              </h5>
+              
+              <p class="mb-4 text-light-emphasis" data-i18n="apiKeysDescription">为各翻译服务配置 API 密钥</p>
+              
+              <div class="row g-4" id="api-services-container">
+                <!-- 服务列表将通过JavaScript动态生成 -->
+              </div>
             </div>
-            <label class="toggle">
-              <input type="checkbox" id="openai-ai-context">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          
-          <div class="form-group">
-            <label for="openai-expert-strategy" data-i18n="aiExpertStrategy">你可以指定 AI 专家来提供翻译策略:</label>
-            <select id="openai-expert-strategy">
-              <option value="universal" data-i18n="universal">通用</option>
-              <option value="smart-choice" data-i18n="smartChoice">智能选择</option>
-              <option value="translation-master" data-i18n="translationMaster">意译大师</option>
-              <option value="paragraph-expert" data-i18n="paragraphExpert">段落总结专家</option>
-              <option value="english-simplifier" data-i18n="englishSimplifier">英文简化大师</option>
-              <option value="twitter-enhancer" data-i18n="twitterEnhancer">Twitter 翻译增强器</option>
-              <option value="tech-translator" data-i18n="techTranslator">科技类翻译大师</option>
-              <option value="reddit-enhancer" data-i18n="redditEnhancer">Reddit 翻译增强器</option>
-              <option value="academic-translator" data-i18n="academicTranslator">学术论文翻译师</option>
-              <option value="news-translator" data-i18n="newsTranslator">新闻媒体译者</option>
-              <option value="music-expert" data-i18n="musicExpert">音乐专家</option>
-              <option value="medical-translator" data-i18n="medicalTranslator">医学翻译大师</option>
-              <option value="legal-translator" data-i18n="legalTranslator">法律行业译者</option>
-              <option value="github-enhancer" data-i18n="githubEnhancer">GitHub 翻译增强器</option>
-              <option value="gaming-translator" data-i18n="gamingTranslator">游戏译者</option>
-              <option value="ecommerce-translator" data-i18n="ecommerceTranslator">电商翻译大师</option>
-              <option value="finance-translator" data-i18n="financeTranslator">金融翻译顾问</option>
-              <option value="novel-translator" data-i18n="novelTranslator">小说译者</option>
-              <option value="ao3-translator" data-i18n="ao3Translator">AO3 译者</option>
-              <option value="ebook-translator" data-i18n="ebookTranslator">电子书译者</option>
-              <option value="designer" data-i18n="designer">设计师</option>
-              <option value="cn-en-polisher" data-i18n="cnEnPolisher">中英夹杂</option>
-              <option value="web3-translator" data-i18n="web3Translator">Web3 翻译大师</option>
-              <option value="literal-expert" data-i18n="literalExpert">直译专家</option>
-              <option value="context-analyzer" data-i18n="contextAnalyzer">语境分析师</option>
-              <option value="cultural-adapter" data-i18n="culturalAdapter">文化适配师</option>
-            </select>
           </div>
         </div>
         
-        <!-- DeepSeek 配置模块 -->
-        <div id="deepseek-config" class="ai-config" style="display: none; margin-top: 15px; padding: 15px; background-color: var(--bg-color); border-radius: 6px; border: 1px solid var(--border-color);">
-          <div class="form-group">
-            <label for="deepseek-api-endpoint" data-i18n="customApiEndpoint">自定义 API 接口地址：</label>
-            <input type="text" id="deepseek-api-endpoint" placeholder="https://api.deepseek.com/chat/completions" value="https://api.deepseek.com/chat/completions">
+        <!-- 功能管理页面 -->
+        <div id="features-section" class="content-section">
+          <div class="mb-4">
+            <h2 class="text-primary mb-2" data-i18n="featureManagement">功能管理</h2>
+            <p class="text-light-emphasis" data-i18n="featureManagementDescription">启用或禁用 Transor 的各项功能</p>
           </div>
           
-          <div class="form-group">
-            <label for="deepseek-model" data-i18n="model">模型:</label>
-            <select id="deepseek-model">
-              <option value="deepseek-chat">deepseek-chat</option>
-              <option value="deepseek-reasoner">deepseek-reasoner</option>
-            </select>
-          </div>
-          
-          <div class="toggle-container">
-            <div>
-              <div class="toggle-label" data-i18n="inputCustomModel">输入自定义模型名称</div>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <i class="fas fa-toggle-on text-primary me-2"></i>
+                <span data-i18n="functionSwitches">功能开关</span>
+              </h5>
+              
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="enable-translation" checked>
+                  <label class="form-check-label" for="enable-translation" data-i18n="enableWebTranslation">启用网页翻译</label>
+                  <div class="form-text text-light-emphasis" data-i18n="enableWebTranslationDesc">允许 Transor 翻译网页内容</div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="enable-highlight" checked>
+                  <label class="form-check-label" for="enable-highlight" data-i18n="highlightFavorites">高亮收藏夹</label>
+                  <div class="form-text text-light-emphasis" data-i18n="highlightFavoritesDesc">在网页上高亮显示收藏的单词和短语</div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="enable-youtube-cinema" checked>
+                  <label class="form-check-label" for="enable-youtube-cinema" data-i18n="youtubeCinemaMode">YouTube 影院模式</label>
+                  <div class="form-text text-light-emphasis" data-i18n="youtubeCinemaModeDesc">在 YouTube 上启用字幕翻译功能</div>
+                </div>
+              </div>
             </div>
-            <label class="toggle">
-              <input type="checkbox" id="deepseek-custom-model-enabled">
-              <span class="toggle-slider"></span>
-            </label>
+          </div>
+        </div>
+        
+        <!-- 关于页面 -->
+        <div id="about-section" class="content-section">
+          <div class="mb-4">
+            <h2 class="text-primary mb-2" data-i18n="about">关于 Transor</h2>
+            <p class="text-light-emphasis" data-i18n="aboutDescription">了解更多关于 Transor 的信息</p>
           </div>
           
-          <div class="form-group" id="deepseek-custom-model-group" style="display: none;">
-            <input type="text" id="deepseek-custom-model" placeholder="输入自定义模型名称">
-          </div>
-          
-          <div class="form-group">
-            <label for="deepseek-max-requests" data-i18n="maxRequestsPerSecond">每秒最大请求数:</label>
-            <input type="number" id="deepseek-max-requests" value="10" min="1" max="100">
-            <p style="font-size: 11px; color: var(--text-color); opacity: 0.7; margin-top: 5px;" data-i18n="requestLimitWarning">请求数超过该限制时会进入排队状态，直到下一秒钟开始。由于DeepSeek目前服务的各种限制，请点击<span style="color: var(--danger-color);">这里</span>查看最新建议的数值</p>
-          </div>
-          
-          <div class="toggle-container">
-            <div>
-              <div class="toggle-label" data-i18n="enableAiContext">启用 AI 智能上下文</div>
-              <div class="toggle-description" data-i18n="aiContextDesc">启用后，系统将先理解全文内容与专业术语，让翻译更专业准确。支持文章网页（博客、新闻）、电子书、PDF和双语等。AI专家同伴支持智能上下文。目前为实验功能，仅Pro会员可用。</div>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <i class="fas fa-info-circle text-primary me-2"></i>
+                <span data-i18n="appInfo">应用信息</span>
+              </h5>
+              
+              <p class="mb-3" data-i18n="appDescription"><strong>Transor</strong> 是一款功能强大的浏览器翻译扩展，为用户提供网页翻译、收藏夹高亮、YouTube 字幕翻译等功能。</p>
+              <p><span data-i18n="version">版本</span>：<span id="version" class="fw-bold">1.0.0</span></p>
             </div>
-            <label class="toggle">
-              <input type="checkbox" id="deepseek-ai-context">
-              <span class="toggle-slider"></span>
-            </label>
           </div>
           
-          <div class="form-group">
-            <label for="deepseek-expert-strategy" data-i18n="aiExpertStrategy">你可以指定 AI 专家来提供翻译策略:</label>
-            <select id="deepseek-expert-strategy">
-              <option value="universal" data-i18n="universal">通用</option>
-              <option value="smart-choice" data-i18n="smartChoice">智能选择</option>
-              <option value="translation-master" data-i18n="translationMaster">意译大师</option>
-              <option value="paragraph-expert" data-i18n="paragraphExpert">段落总结专家</option>
-              <option value="english-simplifier" data-i18n="englishSimplifier">英文简化大师</option>
-              <option value="twitter-enhancer" data-i18n="twitterEnhancer">Twitter 翻译增强器</option>
-              <option value="tech-translator" data-i18n="techTranslator">科技类翻译大师</option>
-              <option value="reddit-enhancer" data-i18n="redditEnhancer">Reddit 翻译增强器</option>
-              <option value="academic-translator" data-i18n="academicTranslator">学术论文翻译师</option>
-              <option value="news-translator" data-i18n="newsTranslator">新闻媒体译者</option>
-              <option value="music-expert" data-i18n="musicExpert">音乐专家</option>
-              <option value="medical-translator" data-i18n="medicalTranslator">医学翻译大师</option>
-              <option value="legal-translator" data-i18n="legalTranslator">法律行业译者</option>
-              <option value="github-enhancer" data-i18n="githubEnhancer">GitHub 翻译增强器</option>
-              <option value="gaming-translator" data-i18n="gamingTranslator">游戏译者</option>
-              <option value="ecommerce-translator" data-i18n="ecommerceTranslator">电商翻译大师</option>
-              <option value="finance-translator" data-i18n="financeTranslator">金融翻译顾问</option>
-              <option value="novel-translator" data-i18n="novelTranslator">小说译者</option>
-              <option value="ao3-translator" data-i18n="ao3Translator">AO3 译者</option>
-              <option value="ebook-translator" data-i18n="ebookTranslator">电子书译者</option>
-              <option value="designer" data-i18n="designer">设计师</option>
-              <option value="cn-en-polisher" data-i18n="cnEnPolisher">中英夹杂</option>
-              <option value="web3-translator" data-i18n="web3Translator">Web3 翻译大师</option>
-              <option value="literal-expert" data-i18n="literalExpert">直译专家</option>
-              <option value="context-analyzer" data-i18n="contextAnalyzer">语境分析师</option>
-              <option value="cultural-adapter" data-i18n="culturalAdapter">文化适配师</option>
-            </select>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <i class="fas fa-heart text-primary me-2"></i>
+                <span data-i18n="supportUs">支持我们</span>
+              </h5>
+              
+              <p class="mb-2" data-i18n="supportDescription">如果您喜欢 Transor，请考虑给我们一个好评或分享给您的朋友。</p>
+              <p class="mb-4" data-i18n="supportMotivation">您的支持是我们不断改进的动力！</p>
+              
+              <a href="https://github.com/your-username/transor" target="_blank" class="btn btn-primary">
+                <i class="fab fa-github me-1"></i> GitHub
+              </a>
+            </div>
           </div>
-        </div>
-      </div>
-      
-      <!-- 新增显示样式模块 -->
-      <div class="card">
-        <div class="card-title">
-          <i class="fas fa-paint-brush"></i> <span data-i18n="displayStyle">显示样式</span>
-        </div>
-        
-        <div class="form-group">
-          <label for="translation-style" data-i18n="translationStyle">翻译样式</label>
-          <select id="translation-style">
-            <option value="universal_style" selected data-i18n="universal_style">通用(智能选择显示样式)</option>
-            <option value="inline" data-i18n="inline">双语(原文后方显示译文)</option>
-            <option value="bilingual" data-i18n="bilingual_below">双语(原文下方显示译文)</option>
-            <option value="replace" data-i18n="replace">替换(仅显示译文)</option>
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label for="font-color" data-i18n="fontColor">字体颜色</label>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <input type="color" id="font-color-picker" value="#ff5588" style="width: 40px; height: 40px; border: none; cursor: pointer; border-radius: 4px;">
-            <input type="text" id="font-color" value="#ff5588" placeholder="#ff5588" style="flex: 1;">
-          </div>
-          <p style="font-size: 12px; color: var(--text-color); opacity: 0.7; margin-top: 5px;" data-i18n="fontColorDesc">设置译文的字体颜色，默认为粉色(#ff5588)</p>
-        </div>
-      </div>
-      
-      <div class="buttons">
-        <button id="save-settings" class="btn btn-primary">
-          <i class="fas fa-save"></i> <span data-i18n="saveSettings">保存设置</span>
-        </button>
-        <button id="restore-defaults" class="btn btn-danger">
-          <i class="fas fa-undo"></i> <span data-i18n="restoreDefaults">恢复默认</span>
-        </button>
-      </div>
-    </div>
-    
-    <!-- 翻译服务页面 -->
-    <div id="translation-section" class="content-section">
-      <div class="header">
-        <h2 data-i18n="translationServices">翻译服务</h2>
-        <p data-i18n="translationServicesDescription">管理和配置不同的翻译服务</p>
-      </div>
-      
-      <div class="card">
-        <div class="card-title">
-          <i class="fas fa-cogs"></i> <span data-i18n="defaultEngine">翻译引擎设置</span>
-        </div>
-        
-        <div class="form-group">
-          <label for="translation-engine-2" data-i18n="currentEngine">当前使用的翻译引擎</label>
-          <select id="translation-engine-2">
-            <option value="microsoftapi">Microsoft API</option>
-            <option value="microsoft" selected>Microsoft Edge</option>
-            <option value="google">Google</option>
-            <option value="openai">OpenAI (Pro)</option>
-            <option value="deepseek">DeepSeek (Pro)</option>
-          </select>
-        </div>
-      </div>
-      
-      <div class="card">
-        <div class="card-title">
-          <i class="fas fa-key"></i> <span data-i18n="apiKeys">API 密钥</span>
-        </div>
-        
-        <p style="margin-bottom: 20px;" data-i18n="apiKeysDescription">为各翻译服务配置 API 密钥</p>
-        
-        <div class="api-services" id="api-services-container">
-          <!-- 服务列表将通过JavaScript动态生成 -->
-        </div>
-      </div>
-    </div>
-    
-    <!-- 功能管理页面 -->
-    <div id="features-section" class="content-section">
-      <div class="header">
-        <h2 data-i18n="featureManagement">功能管理</h2>
-        <p data-i18n="featureManagementDescription">启用或禁用 Transor 的各项功能</p>
-      </div>
-      
-      <div class="card">
-        <div class="card-title">
-          <i class="fas fa-toggle-on"></i> <span data-i18n="functionSwitches">功能开关</span>
-        </div>
-        
-        <div class="toggle-container">
-          <div>
-            <div class="toggle-label" data-i18n="enableWebTranslation">启用网页翻译</div>
-            <div class="toggle-description" data-i18n="enableWebTranslationDesc">允许 Transor 翻译网页内容</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="enable-translation" checked>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        
-        <div class="toggle-container">
-          <div>
-            <div class="toggle-label" data-i18n="highlightFavorites">高亮收藏夹</div>
-            <div class="toggle-description" data-i18n="highlightFavoritesDesc">在网页上高亮显示收藏的单词和短语</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="enable-highlight" checked>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        
-        <div class="toggle-container">
-          <div>
-            <div class="toggle-label" data-i18n="youtubeCinemaMode">YouTube 影院模式</div>
-            <div class="toggle-description" data-i18n="youtubeCinemaModeDesc">在 YouTube 上启用字幕翻译功能</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="enable-youtube-cinema" checked>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 关于页面 -->
-    <div id="about-section" class="content-section">
-      <div class="header">
-        <h2 data-i18n="about">关于 Transor</h2>
-        <p data-i18n="aboutDescription">了解更多关于 Transor 的信息</p>
-      </div>
-      
-      <div class="card">
-        <div class="card-title">
-          <i class="fas fa-info-circle"></i> <span data-i18n="appInfo">应用信息</span>
-        </div>
-        
-        <p data-i18n="appDescription"><strong>Transor</strong> 是一款功能强大的浏览器翻译扩展，为用户提供网页翻译、收藏夹高亮、YouTube 字幕翻译等功能。</p>
-        <p style="margin-top: 10px;"><span data-i18n="version">版本</span>：<span id="version">1.0.0</span></p>
-      </div>
-      
-      <div class="card">
-        <div class="card-title">
-          <i class="fas fa-heart"></i> <span data-i18n="supportUs">支持我们</span>
-        </div>
-        
-        <p data-i18n="supportDescription">如果您喜欢 Transor，请考虑给我们一个好评或分享给您的朋友。</p>
-        <p style="margin-top: 10px;" data-i18n="supportMotivation">您的支持是我们不断改进的动力！</p>
-        
-        <div class="buttons">
-          <a href="https://github.com/your-username/transor" target="_blank" class="btn btn-primary">
-            <i class="fab fa-github"></i> GitHub
-          </a>
         </div>
       </div>
     </div>
@@ -792,5 +612,7 @@
 <script src="config.js"></script>
 <script src="options-ui.js"></script>
 <script src="options.js"></script>
+<!-- Bootstrap JS Bundle with Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 

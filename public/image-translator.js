@@ -309,7 +309,7 @@ function createTranslatorStyles() {
     
     .translator-header {
       padding: 15px 20px;
-      background-color: #3498db;
+      background-color: #ff5588;
       border-bottom: 1px solid rgba(0, 0, 0, 0.1);
       display: flex;
       justify-content: space-between;
@@ -364,7 +364,7 @@ function createTranslatorStyles() {
     }
     
     .image-preview-container:hover {
-      border-color: #3498db;
+      border-color: #ff5588;
     }
     
     .text-sections-container {
@@ -431,8 +431,8 @@ function createTranslatorStyles() {
     }
     
     .translator-action-btn:hover {
-      background-color: #3498db;
-      border-color: #3498db;
+      background-color: #ff5588;
+      border-color: #ff5588;
       color: white;
     }
     

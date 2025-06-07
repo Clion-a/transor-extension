@@ -69,6 +69,12 @@ function saveSettings(config = {}) {
   
   // 获取显示样式设置
   const fontColor = document.getElementById('font-color').value;
+  
+  // 获取功能开关设置
+  const showFloatingBall = document.getElementById('show-floating-ball').checked;
+  const enableInputSpaceTranslation = document.getElementById('enable-input-space-translation').checked;
+  const showTipDots = document.getElementById('show-tip-dots').checked;
+  const enableSelectionTranslation = document.getElementById('enable-selection-translation').checked;
 
   // 获取OpenAI配置
   const openaiModel = document.getElementById('openai-model').value;
@@ -116,6 +122,10 @@ function saveSettings(config = {}) {
       translationEngine: translationEngine,
       translationStyle: translationStyle,
       fontColor: fontColor,
+      showFloatingBall: showFloatingBall,
+      enableInputSpaceTranslation: enableInputSpaceTranslation,
+      showTipDots: showTipDots,
+      enableSelectionTranslation: enableSelectionTranslation,
       openaiConfig: {
         model: openaiModel,
         customModelEnabled: openaiCustomModelEnabled,
@@ -629,6 +639,25 @@ window.addEventListener('DOMContentLoaded', () => {
     enableTranslationChk.checked = settings.isEnabled !== false;
     enableHighlightChk.checked = settings.highlightFavoritesEnabled !== false;
     enableYouTubeCinemaChk.checked = settings.youtubeCinemaEnabled !== false;
+    
+    // 加载功能开关设置
+    const showFloatingBallChk = document.getElementById('show-floating-ball');
+    const enableInputSpaceTranslationChk = document.getElementById('enable-input-space-translation');
+    const showTipDotsChk = document.getElementById('show-tip-dots');
+    const enableSelectionTranslationChk = document.getElementById('enable-selection-translation');
+    
+    if (showFloatingBallChk) {
+      showFloatingBallChk.checked = settings.showFloatingBall !== false;
+    }
+    if (enableInputSpaceTranslationChk) {
+      enableInputSpaceTranslationChk.checked = settings.enableInputSpaceTranslation !== false;
+    }
+    if (showTipDotsChk) {
+      showTipDotsChk.checked = settings.showTipDots === true;
+    }
+    if (enableSelectionTranslationChk) {
+      enableSelectionTranslationChk.checked = settings.enableSelectionTranslation !== false;
+    }
 
     // API key
     if (settings.apiKeys) {
@@ -843,6 +872,36 @@ window.addEventListener('DOMContentLoaded', () => {
   enableYouTubeCinemaChk.addEventListener('change', () => {
     saveSettings({ youtubeCinemaEnabled: enableYouTubeCinemaChk.checked });
   });
+  
+  // 新增功能开关的事件监听器
+  const showFloatingBallChk = document.getElementById('show-floating-ball');
+  const enableInputSpaceTranslationChk = document.getElementById('enable-input-space-translation');
+  const showTipDotsChk = document.getElementById('show-tip-dots');
+  const enableSelectionTranslationChk = document.getElementById('enable-selection-translation');
+  
+  if (showFloatingBallChk) {
+    showFloatingBallChk.addEventListener('change', () => {
+      saveSettings({ showFloatingBall: showFloatingBallChk.checked });
+    });
+  }
+  
+  if (enableInputSpaceTranslationChk) {
+    enableInputSpaceTranslationChk.addEventListener('change', () => {
+      saveSettings({ enableInputSpaceTranslation: enableInputSpaceTranslationChk.checked });
+    });
+  }
+  
+  if (showTipDotsChk) {
+    showTipDotsChk.addEventListener('change', () => {
+      saveSettings({ showTipDots: showTipDotsChk.checked });
+    });
+  }
+  
+  if (enableSelectionTranslationChk) {
+    enableSelectionTranslationChk.addEventListener('change', () => {
+      saveSettings({ enableSelectionTranslation: enableSelectionTranslationChk.checked });
+    });
+  }
 
   // 事件监听保存 - API密钥
   apiKeyInput.addEventListener('change', () => {
