@@ -253,7 +253,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 |--------|------------------------|
 | -1    | 目前所有错误code都是-1   |
 
-## 用户配置接口 【 已调整】
+## 用户配置接口 【已调整】
 
 ### 1. 获取用户Chrome配置 【已确定】
 
@@ -301,9 +301,9 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 }
 ```
 
-### 2. 更新用户配置
+### 2. 更新用户配置【已确定】
 
-**接口描述**: 更新用户的翻译配置 【已确定】
+**接口描述**: 更新用户的翻译配置 
 
 **请求URL**: `/priapi1/update_chrome_settings`
 
@@ -492,7 +492,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 }
 ```
 
-### 2. 收藏单词
+### 2. 收藏单词 【已确定】
 
 **接口描述**: 收藏单词
 
@@ -515,7 +515,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 | 参数名      | 类型    | 描述                         |
 |-------------|---------|------------------------------|
 | code     | Boolean | 1 or -1                 |
-| data.collect_id | String or Int  | 收藏之后的id               |
+| data.id | String or Int  | 收藏之后的id               |
 | info     | String  | 成功 失败                    |
 
 **响应示例**:
@@ -529,7 +529,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 }
 ```
 
-### 2. 删除收藏单词
+### 2. 删除收藏单词 【 已确定】
 
 **接口描述**: 删除收藏收藏单词
 
@@ -565,7 +565,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 }
 ```
 
-### 2. 获取我收藏的单词
+### 2. 获取我收藏的单词 【已确定】
 
 **接口描述**: 订阅指定套餐
 
@@ -630,4 +630,141 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 }
 ```
 
+### 2. 收藏句子 【已确定】
+
+**接口描述**: 收藏单词
+
+**请求URL**: `/priapi1/collect_my_sentence`
+
+**请求方法**: POST
+
+**请求头**:
+- Authorization: Bearer {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| source_text   | String | 是   | 源词                    |
+| source_lang | String | 是 |源语言 zh-CN,zh-TW, en |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| code     | Boolean | 1 or -1                 |
+| data.id | String or Int  | 收藏之后的id               |
+| info     | String  | 成功 失败                    |
+
+**响应示例**:
+```json
+{
+	"code": 1,
+	"data": {
+		"id": "43"
+	},
+	"info": "Collection success"
+}
+```
+
+### 2. 删除收藏句子【已确定】
+
+**接口描述**: 删除收藏收藏单词
+
+**请求URL**: `/priapi1/del_my_sentence`
+
+**请求方法**: POST
+
+**请求头**:
+- Authorization: Bearer {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| id   | Int | 是   | 收藏的id                    |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| code     | Boolean | 1 成功 or -1失败                 |
+| data.id | String or Int  | 收藏之后的id               |
+| info     | String  | 成功 失败                    |
+
+**响应示例**:
+```json
+{
+	"code": -1,
+	"data": {
+		"id": 34
+	},
+	"info": "删除失败"
+}
+```
+
+### 2. 获取我收藏的句子【已确定】
+
+**接口描述**: 订阅指定套餐
+
+**请求URL**: `/priapi1/get_my_sentence`
+
+**请求方法**: GET
+
+**请求头**:
+- Authorization:  {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| page_size   | Int | 否   | 每页多少，默认100，不穿就是取所有                    |
+| page   | Int | 否   | 当前多少页， 默认1                    |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| code     | Boolean | 请求是否成功                 |
+| data.id | Int  | 收藏ID                 |
+| data.user_id | Int  | 用户ID                  |
+| data.source_text | String  | 收藏的文字                |
+| data.source_md5 | String  | 排重MD5，这个是md5(user_id-word)来计算的                  |
+| data.source_lang | String  | 源语言 zh-CN, zh-TW, en                  |
+| data.trans_times | Int  | 查询次数，每次查询之后，都会增加一次          |
+| data.ctime | Int  | 创建时间  Timestamp，需要根据前端时间进行转换               |
+| data.uptime | Int  | 更新时间，Timestamp                 |
+| data.status | Int  | 现在都是1，如果删除，就直接删除数据了                  |
+| info     | String  |                        |
+
+**响应示例**:
+```json
+{
+	"code": 1,
+	"data": [{
+		"id": "23",
+		"user_id": "8",
+		"source_text": "nice",
+		"source_md5": "461946c73121692b36e8fa2824d8cabd",
+		"source_lang": "en",
+		"target_lang": "",
+		"trans_times": "8",
+		"ctime": 1749289339,
+		"uptime": 1749290010,
+		"status": "0"
+	}, {
+		"id": "24",
+		"user_id": "8",
+		"source_text": "mark",
+		"source_md5": "f0692dc2b5b2ebe529078f86c7b92482",
+		"source_lang": "en",
+		"target_lang": "zh-CN",
+		"trans_times": "5",
+		"ctime": 1749290013,
+		"uptime": 1749290148,
+		"status": "1"
+	}],
+	"info": ""
+}
+```
 
