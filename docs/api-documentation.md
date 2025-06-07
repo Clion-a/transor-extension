@@ -3,10 +3,16 @@
 ## 基本信息
 
 - 基础URL: `https://api.transor.com/`
-- 请求格式: JSON
+- 请求格式: GET or POST
 - 响应格式: JSON
-- 认证方式: Bearer Token
+- 认证方式: Token
 - Language: Header
+**通用数据返回格式**
+| 参数名     | 类型   | 必填 | 描述     |
+|------------|--------|------|----------|
+| code      | Int | 是   | 1表示成功，-1表示失败 |
+| data   | String | 是   | 一般是数组或者字符串 |
+| info   | String | 是   | 错误信息，有时候成功的时候没有数据返回 |
 
 ## 认证相关接口
 
@@ -43,6 +49,7 @@ http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsa
 | 参数名      | 类型   | 描述                     |
 |-------------|--------|--------------------------|
 | code     | Boolean|  请求是否成功  1成功，-1失败            |
+| data.token       | String | 访问令牌,这个是全局的，所有的都用这个token                 |
 | data.SESSID       | String | 访问令牌,这个先沿用以前的字段 SESSID                 |
 | expires_in   | Number | 令牌有效期(秒)，现在这个是个假数据           |
 
@@ -50,10 +57,11 @@ http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsa
 ```json
 {
   "code": 1,
-  
+  "info": "Login Successfully.",
   "data": {
-    "SESSID": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expiresIn": 86400,
+    "SESSID": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+     "expires_in": 86400,
   }
 }
 ```
