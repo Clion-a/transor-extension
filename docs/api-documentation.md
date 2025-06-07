@@ -652,7 +652,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 | data.id | Int  | 收藏ID                 |
 | data.user_id | Int  | 用户ID                  |
 | data.source_text | String  | 收藏的文字                |
-| data.source_md5 | String  | 排重MD5                  |
+| data.source_md5 | String  | 排重MD5，这个是md5(user_id-word)来计算的                  |
 | data.source_lang | String  | 源语言 zh-CN, zh-TW, en                  |
 | data.trans_times | Int  | 查询次数，每次查询之后，都会增加一次          |
 | data.ctime | Int  | 创建时间  Timestamp，需要根据前端时间进行转换               |
