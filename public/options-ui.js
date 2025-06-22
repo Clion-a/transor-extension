@@ -29,6 +29,49 @@ function handleImageError(img) {
   }
 }
 
+/**
+ * 打开浏览器的快捷键设置页面
+ */
+function openShortcutSettings() {
+  // 检查是否在Chrome扩展环境中
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    // 打开Chrome扩展管理页面的快捷键设置
+    chrome.tabs.create({
+      url: 'chrome://extensions/shortcuts'
+    });
+  } else {
+    // 如果不在扩展环境中，提供备用方案
+    const userAgent = navigator.userAgent.toLowerCase();
+    let url = '';
+    
+    if (userAgent.includes('chrome')) {
+      url = 'chrome://extensions/shortcuts';
+    } else if (userAgent.includes('firefox')) {
+      url = 'about:addons';
+    } else if (userAgent.includes('edge')) {
+      url = 'edge://extensions/shortcuts';
+    } else {
+      // 通用备用方案
+      url = 'chrome://extensions/shortcuts';
+    }
+    
+    // 尝试在新标签页中打开
+    try {
+      window.open(url, '_blank');
+    } catch (error) {
+      // 如果无法打开，显示提示信息
+      const currentLang = localStorage.getItem('transor-ui-language') || 'zh-CN';
+      const messages = {
+        'zh-CN': '请手动在地址栏输入：chrome://extensions/shortcuts',
+        'en': 'Please manually enter in the address bar: chrome://extensions/shortcuts',
+        'ja': 'アドレスバーに手動で入力してください：chrome://extensions/shortcuts',
+        'ko': '주소 표시줄에 수동으로 입력하세요: chrome://extensions/shortcuts'
+      };
+      alert(messages[currentLang] || messages['zh-CN']);
+    }
+  }
+}
+
 // 等待DOM加载完成
 document.addEventListener('DOMContentLoaded', function() {
   // 设置主题色为 #ff5588
@@ -79,6 +122,15 @@ document.addEventListener('DOMContentLoaded', function() {
   if (deepseekIcon) {
     deepseekIcon.addEventListener('error', function() {
       handleImageError(this);
+    });
+  }
+
+  // 处理快捷键设置链接点击事件
+  const shortcutSettingsLink = document.getElementById('shortcut-settings-link');
+  if (shortcutSettingsLink) {
+    shortcutSettingsLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      openShortcutSettings();
     });
   }
 }); 

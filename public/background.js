@@ -180,6 +180,93 @@ const UI = {
               }
             }
           });
+        } else if (command === "translate_input_content") {
+          console.log('触发翻译输入框内容快捷键');
+          
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs.length > 0) {
+              try {
+                chrome.tabs.sendMessage(tabs[0].id, { 
+                  action: 'shortcutTriggered', 
+                  shortcut: 'altI'
+                }, () => {
+                  if (chrome.runtime.lastError) {
+                    console.log('发送翻译输入框内容消息时出错:', chrome.runtime.lastError.message);
+                  }
+                });
+              } catch (error) {
+                console.error('发送翻译输入框内容快捷键消息失败:', error);
+              }
+            }
+          });
+        } else if (command === "switch_display_type") {
+          console.log('触发切换显示类型快捷键');
+          
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs.length > 0) {
+              try {
+                chrome.tabs.sendMessage(tabs[0].id, { 
+                  action: 'shortcutTriggered', 
+                  shortcut: 'altT'
+                }, () => {
+                  if (chrome.runtime.lastError) {
+                    console.log('发送切换显示类型消息时出错:', chrome.runtime.lastError.message);
+                  }
+                });
+              } catch (error) {
+                console.error('发送切换显示类型快捷键消息失败:', error);
+              }
+            }
+          });
+        } else if (command === "switch_font_color") {
+          console.log('触发切换字体颜色快捷键');
+          
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs.length > 0) {
+              try {
+                chrome.tabs.sendMessage(tabs[0].id, { 
+                  action: 'shortcutTriggered', 
+                  shortcut: 'altC'
+                }, () => {
+                  if (chrome.runtime.lastError) {
+                    console.log('发送切换字体颜色消息时出错:', chrome.runtime.lastError.message);
+                  }
+                });
+              } catch (error) {
+                console.error('发送切换字体颜色快捷键消息失败:', error);
+              }
+            }
+          });
+        } else if (command === "temp_use_google" || command === "temp_use_microsoft" || 
+                   command === "temp_use_openai" || command === "temp_use_deepseek") {
+          console.log('触发临时使用翻译服务快捷键:', command);
+          
+          // 提取服务名称
+          const serviceMap = {
+            'temp_use_google': 'google',
+            'temp_use_microsoft': 'microsoft',
+            'temp_use_openai': 'openai',
+            'temp_use_deepseek': 'deepseek'
+          };
+          
+          const service = serviceMap[command];
+          
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs.length > 0) {
+              try {
+                chrome.tabs.sendMessage(tabs[0].id, { 
+                  action: 'tempUseTranslationService', 
+                  service: service
+                }, () => {
+                  if (chrome.runtime.lastError) {
+                    console.log(`发送临时使用${service}翻译消息时出错:`, chrome.runtime.lastError.message);
+                  }
+                });
+              } catch (error) {
+                console.error(`发送临时使用${service}翻译快捷键消息失败:`, error);
+              }
+            }
+          });
         }
       });
       
@@ -661,6 +748,51 @@ function handleMessage(message, sender, sendResponse) {
         console.log('[YouTube字幕捕获] 已清除字幕URL缓存');
         sendResponse({ success: true });
         return true;
+      },
+
+      // 网页快照功能
+      takeScreenshot: () => {
+        console.log('开始截取网页快照...');
+        chrome.tabs.captureVisibleTab(null, {
+          format: 'png',
+          quality: 100
+        }, (dataUrl) => {
+          if (chrome.runtime.lastError) {
+            console.error('截图失败:', chrome.runtime.lastError);
+            sendResponse({ success: false, error: chrome.runtime.lastError.message });
+          } else if (!dataUrl) {
+            console.error('截图数据为空');
+            sendResponse({ success: false, error: '截图数据为空' });
+          } else {
+            console.log('截图成功，数据大小:', Math.round(dataUrl.length / 1024), 'KB');
+            
+            // 创建截图显示页面
+            const timestamp = new Date().toLocaleString('zh-CN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            });
+
+            // 在新标签页中打开截图页面，使用URL参数传递数据
+            const screenshotPageUrl = chrome.runtime.getURL('screenshot.html') + 
+              '?data=' + encodeURIComponent(dataUrl) + 
+              '&timestamp=' + encodeURIComponent(timestamp);
+            
+            chrome.tabs.create({ url: screenshotPageUrl }, () => {
+              if (chrome.runtime.lastError) {
+                console.error('创建标签页失败:', chrome.runtime.lastError);
+                sendResponse({ success: false, error: '无法打开截图页面' });
+              } else {
+                console.log('截图页面已在新标签页中打开');
+                sendResponse({ success: true });
+              }
+            });
+          }
+        });
+        return true; // 保持消息通道开放
       },
     };
     
@@ -1337,8 +1469,8 @@ async function translateWithDeepSeek(texts, sourceLanguage, targetLanguage) {
     
     // 处理短文本：合并成更大的批次
     if (smallTexts.length > 0) {
-      // 使用更加独特复杂的分隔符，确保不会出现在正常文本中
-      const DELIMITER = "\n##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n";
+      // 使用短小且独特的分隔符，减少token消耗
+      const DELIMITER = "\n🔸🔹🔸\n";
       
       // 最大批次大小
       const maxBatchSize = 15; // 调整为更合理的批次大小，避免过大
@@ -1385,7 +1517,7 @@ async function translateWithDeepSeek(texts, sourceLanguage, targetLanguage) {
       const cleanDelimiters = (text) => {
         if (!text) return '';
         // 移除我们的专用分隔符
-        let cleaned = text.replace(/\n?##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n?/g, '');
+        let cleaned = text.replace(/\n?🔸🔹🔸\n?/g, '');
         // 移除可能残留的<====TRANSOR_SPLIT====>分隔符
         cleaned = cleaned.replace(/<====TRANSOR_SPLIT====>\s*/g, '');
         return cleaned.trim();
@@ -1401,20 +1533,19 @@ async function translateWithDeepSeek(texts, sourceLanguage, targetLanguage) {
           const combinedText = batch.join(DELIMITER);
           
           // 构建提示
-          let userPrompt = `请将以下${sourceLanguage === 'auto' ? '文本' : sourceLanguage + '文本'}翻译成${targetLanguage}，注意：1. 分隔符处理：
-- 严格保留所有"##===@@TRANSOR__INTERNAL__DELIMITER@@===##"分隔符
-- 分隔符不翻译、不修改、不增减
-- 仅翻译分隔符之间的内容
-   输出格式要求：
+          let userPrompt = `请将以下${sourceLanguage === 'auto' ? '文本' : sourceLanguage + '文本'}翻译成${targetLanguage}。
+重要：严格保留所有🔸🔹🔸分隔符，仅翻译分隔符之间的内容。
+输出格式要求：
 - 保持原文段落结构
 - 技术术语首次出现时可添加括号注释（如"分叉(Fork)")
 - 统一术语表（后续相同术语保持译法一致）
+- 只需输出翻译内容
 `;
 
           // 根据专家策略添加额外指导
           switch(deepseekConfig.expertStrategy) {
             case 'universal':
-              userPrompt += `\n\n作为一个通用翻译助手，你可以处理各种类型的文本。你的翻译既准确又符合${targetLanguage}的表达习惯。`;
+              userPrompt += `\n\n作为一个通用翻译助手，请保留分隔符🔸🔹🔸，你可以处理各种类型的文本。你的翻译既准确又符合${targetLanguage}的表达习惯。`;
               break;
             case 'smart-choice':
               userPrompt += `\n\n作为一个智能翻译助手，请根据文本内容自动选择最合适的翻译策略。分析文本类型和语境，灵活运用不同的翻译技巧。`;
@@ -1645,7 +1776,7 @@ async function translateWithDeepSeek(texts, sourceLanguage, targetLanguage) {
       if (batchResults[i]) {
         // 清理各种可能的分隔符格式
         batchResults[i] = batchResults[i]
-          .replace(/\n?##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n?/g, '')
+          .replace(/\n?🔸🔹🔸\n?/g, '')
           .replace(/<====TRANSOR_SPLIT====>\s*/g, '')
           .replace(/TRANSOR[_\s]*SPLIT/gi, '')
           .trim();
@@ -2197,7 +2328,7 @@ async function translateWithOpenAI(texts, sourceLanguage, targetLanguage) {
     // 处理短文本：合并成更大的批次
     if (smallTexts.length > 0) {
       // 使用更加独特复杂的分隔符，确保不会出现在正常文本中
-      const DELIMITER = "\n##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n";
+      const DELIMITER = "\n🔸🔹🔸\n";
       
       // 最大批次大小
       const maxBatchSize = 15; // 调整为更合理的批次大小，避免过大
@@ -2244,7 +2375,7 @@ async function translateWithOpenAI(texts, sourceLanguage, targetLanguage) {
       const cleanDelimiters = (text) => {
         if (!text) return '';
         // 移除我们的专用分隔符
-        let cleaned = text.replace(/\n?##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n?/g, '');
+        let cleaned = text.replace(/\n?🔸🔹🔸\n?/g, '');
         // 移除可能残留的<====TRANSOR_SPLIT====>分隔符
         cleaned = cleaned.replace(/<====TRANSOR_SPLIT====>\s*/g, '');
         return cleaned.trim();
@@ -2349,7 +2480,7 @@ async function translateWithOpenAI(texts, sourceLanguage, targetLanguage) {
           
           // 构建用户提示，根据是否启用AI上下文调整
           let userPrompt = `请将以下${sourceLanguage === 'auto' ? '文本' : sourceLanguage + '文本'}翻译成${targetLanguage}。
-请注意：文本之间用分隔符"##===@@TRANSOR__INTERNAL__DELIMITER@@===##"隔开，这不是文本内容的一部分，请在翻译时保留这些分隔符，但不要翻译分隔符本身。
+请注意：文本之间用分隔符🔸🔹🔸隔开，这不是文本内容的一部分，请在翻译时保留这些分隔符，但不要翻译分隔符本身。
 这样我可以根据分隔符将翻译结果分割回多段。`;
 
           // 如果启用了AI上下文，添加相关指导
@@ -2506,7 +2637,7 @@ async function translateWithOpenAI(texts, sourceLanguage, targetLanguage) {
       if (batchResults[i]) {
         // 清理各种可能的分隔符格式
         batchResults[i] = batchResults[i]
-          .replace(/\n?##===@@TRANSOR__INTERNAL__DELIMITER@@===##\n?/g, '')
+          .replace(/\n?🔸🔹🔸\n?/g, '')
           .replace(/<====TRANSOR_SPLIT====>\s*/g, '')
           .replace(/TRANSOR[_\s]*SPLIT/gi, '')
           .trim();
@@ -3386,6 +3517,8 @@ const NetflixSubtitleHandler = {
     }
   }
 };
+
+
 
 // 初始化扩展
 init();

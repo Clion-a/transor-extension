@@ -369,4 +369,67 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('open-settings').addEventListener('click', function() {
     chrome.runtime.openOptionsPage();
   });
-}); 
+
+  // 快照按钮点击事件
+  const screenshotBtn = document.getElementById('take-screenshot');
+  if (screenshotBtn) {
+    screenshotBtn.addEventListener('click', function() {
+      // 添加点击动画
+      screenshotBtn.classList.add('capturing');
+      
+      // 发送截图请求到background脚本
+      chrome.runtime.sendMessage({ action: 'takeScreenshot' }, (response) => {
+        // 移除动画类
+        screenshotBtn.classList.remove('capturing');
+        
+        if (chrome.runtime.lastError) {
+          console.error('发送截图消息失败:', chrome.runtime.lastError);
+          showToast('截图失败：' + chrome.runtime.lastError.message);
+        } else if (response && response.success) {
+          console.log('截图成功');
+          showToast('截图已在新标签页中打开');
+          // 关闭弹窗
+          setTimeout(() => {
+            window.close();
+          }, 500);
+        } else {
+          console.error('截图失败:', response?.error);
+          showToast('截图失败：' + (response?.error || '未知错误'));
+        }
+      });
+    });
+  }
+});
+
+// 显示提示消息
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 10000;
+    animation: slideIn 0.3s ease;
+  `;
+  toast.textContent = message;
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  `;
+  document.head.appendChild(style);
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.remove();
+    style.remove();
+  }, 3000);
+} 

@@ -11,7 +11,8 @@
     "contextMenus",
     "identity",
     "webRequest",
-    "webNavigation"
+    "webNavigation",
+    "commands"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -84,7 +85,7 @@
       ]
     },
     {
-      "resources": ["inject.js"],
+      "resources": ["inject.js", "screenshot.html", "screenshot.js"],
       "matches": ["<all_urls>"]
     },
     {
@@ -117,6 +118,34 @@
         "mac": "Alt+A"
       },
       "description": "开启/关闭翻译功能",
+      "global": true
+    },
+    "translate_input_content": {
+      "description": "翻译当前输入框内容",
+      "global": true
+    },
+    "switch_display_type": {
+      "description": "切换显示类型",
+      "global": true
+    },
+    "switch_font_color": {
+      "description": "切换译文字体颜色",
+      "global": true
+    },
+    "temp_use_google": {
+      "description": "临时使用 Google 翻译当前页面",
+      "global": true
+    },
+    "temp_use_microsoft": {
+      "description": "临时使用微软翻译当前页面",
+      "global": true
+    },
+    "temp_use_openai": {
+      "description": "临时使用 OpenAI 翻译当前页面",
+      "global": true
+    },
+    "temp_use_deepseek": {
+      "description": "临时使用 DeepSeek 翻译当前页面",
       "global": true
     }
   },

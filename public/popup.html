@@ -194,8 +194,7 @@
     #app {
       background-color: rgba(255, 255, 255, 0.8);
       border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(232, 121, 160, 0.1);
-      border: 1px solid rgba(255, 204, 217, 0.3);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
     /* 心形图标样式 */
@@ -387,6 +386,96 @@
       color: #333;
     }
 
+    /* 快照按钮样式 */
+    .screenshot-btn {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 10px;
+      background: white;
+      color: #333;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 400;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      height: auto;
+      text-align: left;
+      position: relative;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    
+    .screenshot-btn .icon-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      width: 42px;
+      height: 42px;
+      background-color: #f0f9ff;
+      border-radius: 10px;
+      margin: 0;
+    }
+    
+    .screenshot-btn .text-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    
+    .screenshot-btn .camera-icon {
+      width: 22px;
+      height: 22px;
+      fill: #0284c7;
+      transition: transform 0.3s ease;
+    }
+    
+    .screenshot-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .screenshot-btn:hover .camera-icon {
+      transform: scale(1.1);
+    }
+    
+    .screenshot-btn:active,
+    .screenshot-btn.active {
+      transform: scale(0.98);
+    }
+    
+    .screenshot-btn .btn-text {
+      color: #999;
+      font-size: 12px;
+    }
+    
+    .screenshot-btn .count {
+      color: #333;
+    }
+
+    /* 快照按钮点击动画 */
+    @keyframes cameraFlash {
+      0% {
+        background-color: #f0f9ff;
+      }
+      50% {
+        background-color: #dbeafe;
+      }
+      100% {
+        background-color: #f0f9ff;
+      }
+    }
+    
+    .screenshot-btn.capturing .icon-container {
+      animation: cameraFlash 0.3s ease;
+    }
+
     /* 添加动画效果 */
     @keyframes pulse {
       0% {
@@ -464,6 +553,17 @@
       </div>
     </button>
     <div id="app"></div>
+    <button id="take-screenshot" class="screenshot-btn">
+      <div class="icon-container">
+        <svg class="camera-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+          <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6C173.9 32 155.6 45.2 149.1 64.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/>
+        </svg>
+      </div>
+      <div class="text-container">
+        <span class="count" data-i18n="screenshot_title">网页快照</span>
+        <span class="btn-text" data-i18n="screenshot_description">截取当前页面</span>
+      </div>
+    </button>
     <button id="open-settings" class="settings-btn">
       <div class="icon-container">
         <svg class="gear-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">

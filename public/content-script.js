@@ -20,8 +20,64 @@ let translationSettings = {
   showTipDots: false // 控制是否显示小圆点，默认不显示
 };
 
-// 翻译缓存
-const translationCache = {};
+// 翻译缓存 - 优化版本
+const translationCache = {
+  data: new Map(), // 使用Map提高性能
+  maxSize: 1000,   // 最大缓存条目数
+  
+  // 生成缓存键
+  generateKey(text, targetLang, engine) {
+    return `${targetLang}:${engine}:${text}`;
+  },
+  
+  // 获取缓存
+  get(text, targetLang, engine) {
+    const key = this.generateKey(text, targetLang, engine);
+    const cached = this.data.get(key);
+    if (cached) {
+      // 更新访问时间
+      cached.lastAccess = Date.now();
+      return cached.translation;
+    }
+    return undefined;
+  },
+  
+  // 设置缓存
+  set(text, translation, targetLang, engine) {
+    const key = this.generateKey(text, targetLang, engine);
+    
+    // 如果缓存已满，清理最旧的条目
+    if (this.data.size >= this.maxSize) {
+      this.cleanup();
+    }
+    
+    this.data.set(key, {
+      translation,
+      timestamp: Date.now(),
+      lastAccess: Date.now()
+    });
+  },
+  
+  // 清理旧缓存
+  cleanup() {
+    const entries = Array.from(this.data.entries());
+    // 按最后访问时间排序，删除最旧的20%
+    entries.sort((a, b) => a[1].lastAccess - b[1].lastAccess);
+    const toDelete = Math.floor(entries.length * 0.2);
+    
+    for (let i = 0; i < toDelete; i++) {
+      this.data.delete(entries[i][0]);
+    }
+    
+    console.log(`[翻译缓存] 清理了 ${toDelete} 条旧缓存，当前缓存数: ${this.data.size}`);
+  },
+  
+  // 检查是否存在
+  has(text, targetLang, engine) {
+    const key = this.generateKey(text, targetLang, engine);
+    return this.data.has(key);
+  }
+};
 
 // 存储已处理的节点，避免重复处理
 let processedNodes = new WeakSet();
@@ -30,13 +86,128 @@ let processedNodes = new WeakSet();
 let visibilityObserver = null;
 
 
-// 翻译队列系统
+// 翻译队列系统 - 优化版本
 const translationQueue = {
   pendingTexts: new Map(), // 待翻译的文本映射: 文本 -> 回调数组
   isProcessing: false,     // 是否正在处理队列
-  batchSize: 100,           // 批处理大小
-  debounceTime: 300,       // 防抖时间(毫秒)
+  batchSize: 15,           // 优化：减小批处理大小，提高响应速度
+  maxBatchSize: 25,        // 最大批次大小
+  minBatchSize: 5,         // 最小批次大小
+  debounceTime: 200,       // 优化：减少防抖时间，提高响应性
   debounceTimer: null,     // 防抖定时器
+  maxTokensPerBatch: 2000, // 新增：每批次最大token数限制
+  maxConcurrentBatches: 3, // 新增：最大并发批次数
+  activeBatches: 0,        // 当前活跃批次数
+  pendingRequests: new Set(), // 正在处理的文本，避免重复请求
+  
+  // 性能统计
+  stats: {
+    totalRequests: 0,
+    cacheHits: 0,
+    duplicateRequests: 0,
+    averageResponseTime: 0,
+    totalResponseTime: 0,
+    
+    // 记录缓存命中
+    recordCacheHit() {
+      this.cacheHits++;
+    },
+    
+    // 记录重复请求
+    recordDuplicateRequest() {
+      this.duplicateRequests++;
+    },
+    
+    // 记录请求
+    recordRequest(responseTime) {
+      this.totalRequests++;
+      this.totalResponseTime += responseTime;
+      this.averageResponseTime = this.totalResponseTime / this.totalRequests;
+    },
+    
+    // 获取统计信息
+    getStats() {
+      const cacheHitRate = this.totalRequests > 0 ? (this.cacheHits / (this.totalRequests + this.cacheHits) * 100).toFixed(2) : 0;
+      return {
+        totalRequests: this.totalRequests,
+        cacheHits: this.cacheHits,
+        cacheHitRate: `${cacheHitRate}%`,
+        duplicateRequests: this.duplicateRequests,
+        averageResponseTime: `${this.averageResponseTime.toFixed(0)}ms`
+      };
+    },
+    
+    // 重置统计
+    reset() {
+      this.totalRequests = 0;
+      this.cacheHits = 0;
+      this.duplicateRequests = 0;
+      this.averageResponseTime = 0;
+      this.totalResponseTime = 0;
+    }
+  },
+  
+  // 估算文本的token数量（粗略估算）
+  estimateTokens(text) {
+    // 英文：约4个字符=1个token，中文：约1.5个字符=1个token
+    const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const otherChars = text.length - chineseChars;
+    return Math.ceil(chineseChars / 1.5 + otherChars / 4);
+  },
+  
+  // 智能分组：根据文本长度和token数量优化分组
+  createSmartBatches(texts) {
+    const batches = [];
+    let currentBatch = [];
+    let currentTokens = 0;
+    
+    // 按文本长度排序，短文本优先处理
+    const sortedTexts = [...texts].sort((a, b) => a.length - b.length);
+    
+    for (const text of sortedTexts) {
+      const tokens = this.estimateTokens(text);
+      
+      // 检查是否需要开始新批次
+      if (currentBatch.length >= this.batchSize || 
+          currentTokens + tokens > this.maxTokensPerBatch ||
+          (currentBatch.length > 0 && tokens > 500)) { // 长文本单独处理
+        
+        if (currentBatch.length > 0) {
+          batches.push(currentBatch);
+          currentBatch = [];
+          currentTokens = 0;
+        }
+      }
+      
+      currentBatch.push(text);
+      currentTokens += tokens;
+    }
+    
+    // 添加最后一个批次
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+    
+    return batches;
+  },
+  
+  // 动态调整批次大小
+  adjustBatchSize(responseTime, success) {
+    if (success) {
+      if (responseTime < 2000 && this.batchSize < this.maxBatchSize) {
+        // 响应快，增加批次大小
+        this.batchSize = Math.min(this.batchSize + 2, this.maxBatchSize);
+      } else if (responseTime > 5000 && this.batchSize > this.minBatchSize) {
+        // 响应慢，减少批次大小
+        this.batchSize = Math.max(this.batchSize - 3, this.minBatchSize);
+      }
+    } else {
+      // 失败时减少批次大小
+      this.batchSize = Math.max(this.batchSize - 2, this.minBatchSize);
+    }
+    
+    console.log(`[翻译队列] 动态调整批次大小: ${this.batchSize}`);
+  },
 
   // 添加文本到翻译队列
   add(text, callback) {
@@ -48,31 +219,57 @@ const translationQueue = {
     }
     
     // 检查缓存
-    const cacheKey = `${translationSettings.targetLanguage}:${translationSettings.translationEngine}:${text}`;
-    if (translationCache[cacheKey] !== undefined) {
+    const cachedTranslation = translationCache.get(text, translationSettings.targetLanguage, translationSettings.translationEngine);
+    if (cachedTranslation !== undefined) {
       // 缓存命中，直接回调
       console.log('[翻译队列] 缓存命中，直接返回结果');
-      callback(translationCache[cacheKey]);
+      this.stats.recordCacheHit();
+      callback(cachedTranslation);
       return;
     }
     
-    // 添加到队列
-    if (!this.pendingTexts.has(text)) {
-      this.pendingTexts.set(text, []);
+    // 检查是否正在处理相同文本
+    const requestKey = `${translationSettings.targetLanguage}:${translationSettings.translationEngine}:${text}`;
+    if (this.pendingRequests.has(requestKey)) {
+      console.log('[翻译队列] 文本正在处理中，添加到回调队列');
+      this.stats.recordDuplicateRequest();
+      // 如果正在处理，只添加回调，不重复请求
+      if (!this.pendingTexts.has(text)) {
+        this.pendingTexts.set(text, []);
+      }
+      this.pendingTexts.get(text).push(callback);
+      return;
     }
-    this.pendingTexts.get(text).push(callback);
+    
+         // 添加到队列
+     if (!this.pendingTexts.has(text)) {
+       this.pendingTexts.set(text, []);
+     }
+     this.pendingTexts.get(text).push(callback);
+     
+     // 标记为正在处理
+     this.pendingRequests.add(requestKey);
     
     console.log('[翻译队列] 当前队列大小:', this.pendingTexts.size);
     
-    // 设置防抖处理，避免频繁请求
-    console.log('[翻译队列] 设置处理延迟:', this.debounceTime, 'ms');
-    clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => {
+    // 优化：如果队列较大或有长文本，立即处理
+    const hasLongText = Array.from(this.pendingTexts.keys()).some(t => t.length > 200);
+    const shouldProcessImmediately = this.pendingTexts.size >= this.batchSize || hasLongText;
+    
+    if (shouldProcessImmediately && !this.isProcessing) {
+      console.log('[翻译队列] 队列达到阈值或包含长文本，立即处理');
+      clearTimeout(this.debounceTimer);
       this.process();
-    }, this.debounceTime);
+    } else {
+      // 设置防抖处理
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = setTimeout(() => {
+        this.process();
+      }, this.debounceTime);
+    }
   },
   
-  // 处理翻译队列
+  // 处理翻译队列 - 优化版本
   async process() {
     console.log('[翻译队列] 开始处理队列');
     
@@ -89,146 +286,22 @@ const translationQueue = {
       const textsToTranslate = Array.from(this.pendingTexts.keys());
       console.log(`[翻译队列] 处理翻译队列: ${textsToTranslate.length} 条唯一文本`);
       
-      // 过滤掉看起来像代码的文本和不符合源语言的文本
-      const filteredTexts = [];
-      const codeTexts = [];
-      const nonSourceLangTexts = [];
-      
-      // 获取源语言设置
-      const sourceLanguage = translationSettings.sourceLanguage;
-      
-      textsToTranslate.forEach(text => {
-        if (looksLikeCode(text)) {
-          console.log('[翻译队列] 跳过代码翻译:', text.substring(0, 30) + '...');
-          codeTexts.push(text);
-        } else if (sourceLanguage && sourceLanguage !== 'auto' && !isTextInLanguage(text, sourceLanguage)) {
-          // 如果设置了特定源语言，且文本不符合该语言，跳过翻译
-          console.log('[翻译队列] 跳过非源语言文本:', text.substring(0, 30) + '...', '期望语言:', sourceLanguage);
-          nonSourceLangTexts.push(text);
-        } else {
-          filteredTexts.push(text);
-        }
-      });
+      // 过滤文本
+      const { filteredTexts, codeTexts, nonSourceLangTexts } = this.filterTexts(textsToTranslate);
       
       console.log(`[翻译队列] 过滤后待翻译文本: ${filteredTexts.length} 条 (跳过代码: ${codeTexts.length} 条, 跳过非源语言: ${nonSourceLangTexts.length} 条)`);
       
-      // 分批处理翻译请求
-      for (let i = 0; i < filteredTexts.length; i += this.batchSize) {
-        const batch = filteredTexts.slice(i, i + this.batchSize);
+      if (filteredTexts.length > 0) {
+        // 使用智能分组创建批次
+        const batches = this.createSmartBatches(filteredTexts);
+        console.log(`[翻译队列] 创建了 ${batches.length} 个智能批次`);
         
-        console.log(`[翻译队列] 处理批次 ${i/this.batchSize + 1}, 批次大小: ${batch.length}`);
-        // 发送批量翻译请求
-        try {
-          console.log('[翻译队列] 发送翻译请求到后台脚本:', {
-            engine: translationSettings.translationEngine || 'google',
-            sourceLanguage,
-            targetLanguage: translationSettings.targetLanguage,
-            textsLength: batch.length
-          });
-          
-          const translations = await new Promise((resolve) => {
-            chrome.runtime.sendMessage({
-              action: 'translateTexts',
-              texts: batch,
-              sourceLanguage: sourceLanguage,
-              targetLanguage: translationSettings.targetLanguage,
-              engine: translationSettings.translationEngine || 'google'
-            }, response => {
-              console.log('[翻译队列] 收到后台响应:', response ? '成功' : '失败');
-              
-              if (response && response.success && response.translations) {
-                console.log('[翻译队列] 成功获取翻译结果，数量:', response.translations.length);
-                resolve(response.translations);
-              } else {
-                console.warn('[翻译队列] 批量翻译失败:', response?.error);
-                resolve(batch); // 失败时返回原文
-              }
-            });
-          });
-          
-          console.log('[翻译队列] 翻译响应完成，开始处理结果');
-          
-          // 更新缓存并执行回调
-          batch.forEach((text, index) => {
-            const translation = translations[index] || text;
-            const cacheKey = `${translationSettings.targetLanguage}:${translationSettings.translationEngine}:${text}`;
-            
-            // 输出日志以便调试
-            console.log(`[翻译队列] 翻译结果 - 原文: [${text.length > 30 ? text.substring(0, 30) + '...' : text}], 译文: [${translation.length > 30 ? translation.substring(0, 30) + '...' : translation}]`);
-            
-            // 更新缓存
-            translationCache[cacheKey] = translation;
-            
-            // 执行所有关联的回调
-            const callbacks = this.pendingTexts.get(text) || [];
-            console.log(`[翻译队列] 执行回调，数量: ${callbacks.length}`);
-            callbacks.forEach(callback => {
-              try {
-                callback(translation);
-              } catch (callbackError) {
-                console.error('[翻译队列] 执行回调时出错:', callbackError);
-              }
-            });
-            
-            // 从队列中移除已处理文本
-            this.pendingTexts.delete(text);
-          });
-          
-          // 控制请求速率
-          if (i + this.batchSize < filteredTexts.length) {
-            console.log('[翻译队列] 等待下一批处理');
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
-        } catch (error) {
-          console.error('[翻译队列] 批次翻译出错:', error);
-          
-          // 出错时用原文作为翻译结果
-          batch.forEach(text => {
-            console.log('[翻译队列] 翻译出错，使用原文:', text.substring(0, 30) + '...');
-            const callbacks = this.pendingTexts.get(text) || [];
-            callbacks.forEach(callback => {
-              try {
-                callback(text);
-              } catch (callbackError) {
-                console.error('[翻译队列] 执行错误回调时出错:', callbackError);
-              }
-            });
-            this.pendingTexts.delete(text);
-          });
-        }
+        // 并行处理批次（限制并发数）
+        await this.processBatchesConcurrently(batches);
       }
       
-      // 处理代码文本
-      if (codeTexts.length > 0) {
-        console.log(`[翻译队列] 处理 ${codeTexts.length} 条代码文本`);
-        codeTexts.forEach(text => {
-          const callbacks = this.pendingTexts.get(text) || [];
-          callbacks.forEach(callback => {
-            try {
-              callback(text);
-            } catch (callbackError) {
-              console.error('[翻译队列] 执行代码文本回调时出错:', callbackError);
-            }
-          }); // 代码返回原文作为结果
-          this.pendingTexts.delete(text);
-        });
-      }
-      
-      // 处理非源语言文本
-      if (nonSourceLangTexts.length > 0) {
-        console.log(`[翻译队列] 处理 ${nonSourceLangTexts.length} 条非源语言文本`);
-        nonSourceLangTexts.forEach(text => {
-          const callbacks = this.pendingTexts.get(text) || [];
-          callbacks.forEach(callback => {
-            try {
-              callback(text); // 非源语言文本返回原文
-            } catch (callbackError) {
-              console.error('[翻译队列] 执行非源语言文本回调时出错:', callbackError);
-            }
-          });
-          this.pendingTexts.delete(text);
-        });
-      }
+      // 处理跳过的文本
+      this.processSkippedTexts(codeTexts, nonSourceLangTexts);
       
       console.log('[翻译队列] 队列处理完成');
     } catch (error) {
@@ -243,6 +316,200 @@ const translationQueue = {
         setTimeout(() => this.process(), 100);
       }
     }
+  },
+  
+  // 过滤文本
+  filterTexts(textsToTranslate) {
+    const filteredTexts = [];
+    const codeTexts = [];
+    const nonSourceLangTexts = [];
+    const sourceLanguage = translationSettings.sourceLanguage;
+    
+    textsToTranslate.forEach(text => {
+      if (looksLikeCode(text)) {
+        console.log('[翻译队列] 跳过代码翻译:', text.substring(0, 30) + '...');
+        codeTexts.push(text);
+      } else if (sourceLanguage && sourceLanguage !== 'auto' && !isTextInLanguage(text, sourceLanguage)) {
+        console.log('[翻译队列] 跳过非源语言文本:', text.substring(0, 30) + '...', '期望语言:', sourceLanguage);
+        nonSourceLangTexts.push(text);
+      } else {
+        filteredTexts.push(text);
+      }
+    });
+    
+    return { filteredTexts, codeTexts, nonSourceLangTexts };
+  },
+  
+  // 并发处理批次
+  async processBatchesConcurrently(batches) {
+    const batchPromises = [];
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      
+      // 控制并发数
+      while (this.activeBatches >= this.maxConcurrentBatches) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      this.activeBatches++;
+      
+      const batchPromise = this.processSingleBatch(batch, i + 1)
+        .finally(() => {
+          this.activeBatches--;
+        });
+      
+      batchPromises.push(batchPromise);
+      
+      // 为避免同时发送太多请求，添加小延迟
+      if (i < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
+    
+    // 等待所有批次完成
+    await Promise.all(batchPromises);
+  },
+  
+  // 处理单个批次
+  async processSingleBatch(batch, batchIndex) {
+    const startTime = Date.now();
+    console.log(`[翻译队列] 处理批次 ${batchIndex}, 批次大小: ${batch.length}`);
+    
+    try {
+      console.log('[翻译队列] 发送翻译请求到后台脚本:', {
+        engine: translationSettings.translationEngine || 'google',
+        sourceLanguage: translationSettings.sourceLanguage,
+        targetLanguage: translationSettings.targetLanguage,
+        textsLength: batch.length,
+        estimatedTokens: batch.reduce((sum, text) => sum + this.estimateTokens(text), 0)
+      });
+      
+      const translations = await new Promise((resolve) => {
+        // 检查扩展上下文是否有效
+        if (!chrome.runtime || !chrome.runtime.sendMessage) {
+          console.warn('扩展上下文无效，返回原文');
+          resolve(batch);
+          return;
+        }
+        
+        chrome.runtime.sendMessage({
+          action: 'translateTexts',
+          texts: batch,
+          sourceLanguage: translationSettings.sourceLanguage,
+          targetLanguage: translationSettings.targetLanguage,
+          engine: translationSettings.translationEngine || 'google'
+        }, response => {
+          // 检查是否有运行时错误
+          if (chrome.runtime.lastError) {
+            console.warn(`[翻译队列] 批次 ${batchIndex} 发送消息失败:`, chrome.runtime.lastError.message);
+            resolve(batch);
+            return;
+          }
+          
+          console.log(`[翻译队列] 批次 ${batchIndex} 收到后台响应:`, response ? '成功' : '失败');
+          
+          if (response && response.success && response.translations) {
+            console.log(`[翻译队列] 批次 ${batchIndex} 成功获取翻译结果，数量:`, response.translations.length);
+            resolve(response.translations);
+          } else {
+            console.warn(`[翻译队列] 批次 ${batchIndex} 翻译失败:`, response?.error);
+            resolve(batch); // 失败时返回原文
+          }
+        });
+      });
+      
+      const responseTime = Date.now() - startTime;
+      console.log(`[翻译队列] 批次 ${batchIndex} 响应时间: ${responseTime}ms`);
+      
+             // 动态调整批次大小
+       this.adjustBatchSize(responseTime, Array.isArray(translations) && translations.length === batch.length);
+       
+       // 记录请求统计
+       this.stats.recordRequest(responseTime);
+       
+       // 更新缓存并执行回调
+       this.processBatchResults(batch, translations);
+      
+    } catch (error) {
+      console.error(`[翻译队列] 批次 ${batchIndex} 翻译出错:`, error);
+      
+      // 出错时用原文作为翻译结果
+      this.processBatchResults(batch, batch);
+      
+      // 调整批次大小
+      this.adjustBatchSize(10000, false);
+    }
+  },
+  
+     // 处理批次结果
+   processBatchResults(batch, translations) {
+     batch.forEach((text, index) => {
+       const translation = translations[index] || text;
+       
+       // 更新缓存
+       translationCache.set(text, translation, translationSettings.targetLanguage, translationSettings.translationEngine);
+       
+       // 执行所有关联的回调
+       const callbacks = this.pendingTexts.get(text) || [];
+       callbacks.forEach(callback => {
+         try {
+           callback(translation);
+         } catch (callbackError) {
+           console.error('[翻译队列] 执行回调时出错:', callbackError);
+         }
+       });
+       
+       // 从队列中移除已处理文本
+       this.pendingTexts.delete(text);
+       
+       // 从正在处理集合中移除
+       const requestKey = `${translationSettings.targetLanguage}:${translationSettings.translationEngine}:${text}`;
+       this.pendingRequests.delete(requestKey);
+     });
+   },
+  
+  // 处理跳过的文本
+  processSkippedTexts(codeTexts, nonSourceLangTexts) {
+    // 处理代码文本
+    if (codeTexts.length > 0) {
+      console.log(`[翻译队列] 处理 ${codeTexts.length} 条代码文本`);
+      codeTexts.forEach(text => {
+        const callbacks = this.pendingTexts.get(text) || [];
+        callbacks.forEach(callback => {
+          try {
+            callback(text);
+          } catch (callbackError) {
+            console.error('[翻译队列] 执行代码文本回调时出错:', callbackError);
+          }
+                 });
+         this.pendingTexts.delete(text);
+         
+         // 从正在处理集合中移除
+         const requestKey = `${translationSettings.targetLanguage}:${translationSettings.translationEngine}:${text}`;
+         this.pendingRequests.delete(requestKey);
+       });
+     }
+     
+     // 处理非源语言文本
+     if (nonSourceLangTexts.length > 0) {
+       console.log(`[翻译队列] 处理 ${nonSourceLangTexts.length} 条非源语言文本`);
+       nonSourceLangTexts.forEach(text => {
+         const callbacks = this.pendingTexts.get(text) || [];
+         callbacks.forEach(callback => {
+           try {
+             callback(text);
+           } catch (callbackError) {
+             console.error('[翻译队列] 执行非源语言文本回调时出错:', callbackError);
+           }
+         });
+         this.pendingTexts.delete(text);
+         
+         // 从正在处理集合中移除
+         const requestKey = `${translationSettings.targetLanguage}:${translationSettings.translationEngine}:${text}`;
+         this.pendingRequests.delete(requestKey);
+       });
+     }
   }
 };
 
@@ -297,6 +564,25 @@ function diagnoseFunctionality() {
 // 初始化
 async function init() {
   console.log('Transor 内容脚本已加载');
+  
+  // 测试缓存系统
+  try {
+    console.log('测试缓存系统...');
+    translationCache.set('test', 'test translation', 'zh-CN', 'google');
+    const testResult = translationCache.get('test', 'zh-CN', 'google');
+    console.log('缓存测试结果:', testResult === 'test translation' ? '✅ 通过' : '❌ 失败');
+    
+    // 测试翻译队列系统
+    console.log('测试翻译队列系统...');
+    console.log('翻译队列方法检查:');
+    console.log('- add方法:', typeof translationQueue.add === 'function' ? '✅' : '❌');
+    console.log('- process方法:', typeof translationQueue.process === 'function' ? '✅' : '❌');
+    console.log('- estimateTokens方法:', typeof translationQueue.estimateTokens === 'function' ? '✅' : '❌');
+    console.log('- createSmartBatches方法:', typeof translationQueue.createSmartBatches === 'function' ? '✅' : '❌');
+    
+  } catch (cacheError) {
+    console.error('系统测试失败:', cacheError);
+  }
   
   try {
     // 初始化全局tip系统
@@ -1229,9 +1515,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('关键翻译设置已变更，清除缓存并重新翻译');
       
       // 清除翻译缓存
-      Object.keys(translationCache).forEach(key => {
-        delete translationCache[key];
-      });
+      translationCache.data.clear();
       
       // 如果翻译样式改变，需要先清除所有现有翻译
       if (oldSettings.translationStyle !== translationSettings.translationStyle) {
@@ -1845,7 +2129,7 @@ function initSelectionTranslator() {
     const rawSelectedText = selection.toString().trim();
     
     // 如果没有选中文本或选中的是翻译器内容，则不处理
-    if (!rawSelectedText || e.target.closest('.transor-selection-translator')) {
+    if (!rawSelectedText || (e.target && e.target.closest && e.target.closest('.transor-selection-translator'))) {
       return;
     }
     
@@ -1861,6 +2145,32 @@ function initSelectionTranslator() {
       const isNewWordForPopup = textToProcess !== currentPopupWord;
       
       try {
+        // 检查选中文本的语言是否匹配设置的源语言和目标语言
+        const sourceLanguage = translationSettings.sourceLanguage;
+        const targetLanguage = translationSettings.targetLanguage;
+        console.log(`滑词翻译检查: 设置的源语言=${sourceLanguage}, 目标语言=${targetLanguage}, 选中文本="${textToProcess.substring(0, 30)}..."`);
+        
+        // 检查选中文本是否已经是目标语言
+        if (targetLanguage && isTextInLanguage(textToProcess, targetLanguage)) {
+          console.log(`跳过滑词翻译: 选中文本已经是目标语言 ${targetLanguage}`, textToProcess.substring(0, 30) + '...');
+          return; // 不显示弹窗，直接返回
+        }
+        
+        if (sourceLanguage && sourceLanguage !== 'auto') {
+          // 如果设置了特定的源语言，检查选中文本是否是该语言
+          const isMatchingLanguage = isTextInLanguage(textToProcess, sourceLanguage);
+          console.log(`语言匹配检查: 选中文本是否为${sourceLanguage}? ${isMatchingLanguage}`);
+          
+          if (!isMatchingLanguage) {
+            console.log(`跳过滑词翻译: 选中文本不是设置的源语言 ${sourceLanguage}`, textToProcess.substring(0, 30) + '...');
+            return; // 不显示弹窗，直接返回
+          }
+          
+          console.log(`语言匹配成功，继续滑词翻译流程`);
+        } else {
+          console.log(`源语言设置为自动检测或未设置，继续滑词翻译流程`);
+        }
+        
         // 检查文本长度，如果太长，可能是段落，先确认是否需要翻译
         if (textToProcess.length > 300) {
           // 使用动画显示翻译窗口
@@ -1976,7 +2286,6 @@ function initSelectionTranslator() {
       
       // 检查是否是单个单词 - 只对纯英文单词使用词典
       const isJustOneWord = /^[a-zA-Z]+$/.test(text.trim());
-      const isEnglish = /^[a-zA-Z\s\-',.!?]+$/.test(text.trim());
 
       try {
         const currentTime = Date.now();
@@ -2196,18 +2505,16 @@ function initSelectionTranslator() {
             // 使用通用语言检测函数确定原文语言
             let detectedLang = 'auto';
             
-            // 优先使用明确的语言设置
-            if (isEnglish) {
-              detectedLang = 'en-US';
+            // 优先使用设置的源语言
+            const sourceLang = translationSettings.sourceLanguage;
+            if (sourceLang && sourceLang !== 'auto') {
+              // 如果设置了特定的源语言，直接使用
+              detectedLang = sourceLang;
+              console.log(`使用设置的源语言进行语音播放: ${detectedLang}`);
             } else {
-              // 尝试检测内容的主要语言
-              const sourceLang = translationSettings.sourceLanguage;
-              if (sourceLang && sourceLang !== 'auto') {
-                detectedLang = sourceLang;
-              } else {
-                // 检测文本语言
-                detectedLang = detectTextLanguage(contentToRead, 'auto');
-              }
+              // 如果是自动检测，则通过文本内容检测语言
+              detectedLang = detectTextLanguage(contentToRead, 'auto');
+              console.log(`自动检测原文语言进行语音播放: ${detectedLang}`);
             }
             
             // 设置语音合成的语言
@@ -2250,8 +2557,19 @@ function initSelectionTranslator() {
            if (contentToRead) {
              const utterance = new SpeechSynthesisUtterance(contentToRead);
              
-                           // 使用通用语言检测函数确定译文语言
-              let detectedLang = detectTextLanguage(contentToRead, translationSettings.targetLanguage || 'zh-CN');
+             // 优先使用设置的目标语言
+             const targetLang = translationSettings.targetLanguage;
+             let detectedLang = 'auto';
+             
+             if (targetLang && targetLang !== 'auto') {
+               // 如果设置了特定的目标语言，直接使用
+               detectedLang = targetLang;
+               console.log(`使用设置的目标语言进行译文语音播放: ${detectedLang}`);
+             } else {
+               // 如果是自动检测，则通过译文内容检测语言
+               detectedLang = detectTextLanguage(contentToRead, 'zh-CN');
+               console.log(`自动检测译文语言进行语音播放: ${detectedLang}`);
+             }
              
              // 设置朗读语言
              utterance.lang = detectedLang;
@@ -2579,17 +2897,24 @@ function initSelectionTranslator() {
     console.log('准备保存收藏:', favorite);
     
     // 通过消息传递，让后台脚本调用API收藏单词
-    chrome.runtime.sendMessage({
-      action: 'collectWord',
-      source_text: originalText,
-      source_lang: translationSettings.sourceLanguage
-    }, response => {
-      if (response && response.success) {
-        console.log('单词收藏成功:', response);
-      } else {
-        console.warn('单词收藏失败:', response?.error);
-      }
-    });
+    if (chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({
+        action: 'collectWord',
+        source_text: originalText,
+        source_lang: translationSettings.sourceLanguage
+      }, response => {
+        if (chrome.runtime.lastError) {
+          console.warn('发送收藏单词消息失败:', chrome.runtime.lastError.message);
+          return;
+        }
+        
+        if (response && response.success) {
+          console.log('单词收藏成功:', response);
+        } else {
+          console.warn('单词收藏失败:', response?.error);
+        }
+      });
+    }
     
     // 使用新的存储管理器保存收藏
     if (window.TransorStorageManager) {
@@ -2726,6 +3051,12 @@ function initSelectionTranslator() {
       const timestamp = forceRefresh ? new Date().getTime() : null; 
       console.log('[Transor FetchDict] Word:', word, 'ForceRefresh:', forceRefresh, 'Timestamp:', timestamp);
       
+      if (!chrome.runtime || !chrome.runtime.sendMessage) {
+        console.warn('扩展上下文无效，无法获取词典数据');
+        resolve(null);
+        return;
+      }
+      
       chrome.runtime.sendMessage({
         action: 'fetchDictionary',
         word: word,
@@ -2733,6 +3064,12 @@ function initSelectionTranslator() {
         targetLang: translationSettings.targetLanguage,
         timestamp: timestamp // Pass the potentially null timestamp
       }, response => {
+        if (chrome.runtime.lastError) {
+          console.warn('发送词典查询消息失败:', chrome.runtime.lastError.message);
+          resolve(null);
+          return;
+        }
+        
         console.log('[Transor FetchDict] Response Rcvd - Success:', response?.success, 'For Word:', response?.queriedWord, 'API Word:', response?.data?.word, 'ReqID:', response?.requestId);
         resolve(response || null);
       });
@@ -2792,6 +3129,38 @@ function setupMessageListeners() {
       return true;
     }
     
+    // 处理翻译输入框内容快捷键
+    if (message.action === 'shortcutTriggered' && message.shortcut === 'altI') {
+      console.log('收到翻译输入框内容快捷键触发消息');
+      translateCurrentInputContent();
+      sendResponse({ success: true });
+      return true;
+    }
+    
+    // 处理切换显示类型快捷键
+    if (message.action === 'shortcutTriggered' && message.shortcut === 'altT') {
+      console.log('收到切换显示类型快捷键触发消息');
+      switchDisplayType();
+      sendResponse({ success: true });
+      return true;
+    }
+    
+    // 处理切换字体颜色快捷键
+    if (message.action === 'shortcutTriggered' && message.shortcut === 'altC') {
+      console.log('收到切换字体颜色快捷键触发消息');
+      switchFontColor();
+      sendResponse({ success: true });
+      return true;
+    }
+    
+    // 处理临时使用翻译服务
+    if (message.action === 'tempUseTranslationService' && message.service) {
+      console.log('收到临时使用翻译服务消息:', message.service);
+      tempUseTranslationService(message.service);
+      sendResponse({ success: true });
+      return true;
+    }
+    
     // 处理直接翻译请求
     if (message.action === 'translate') {
       console.log('收到直接翻译请求');
@@ -2831,13 +3200,526 @@ function toggleTranslation() {
   updateStatusIndicator();
 }
 
+// 切换显示类型
+function switchDisplayType() {
+  console.log('开始切换显示类型');
+  
+  // 定义显示类型的循环顺序
+  const displayTypes = ['universal_style', 'replace', 'inline', 'bilingual'];
+  const displayTypeNames = {
+    'universal_style': '通用(智能选择显示样式)',
+    'replace': '替换(直接替换原文)',
+    'inline': '双语(原文后方显示译文)',
+    'bilingual': '双语(原文下方显示译文)'
+  };
+  
+  // 获取当前的显示类型设置
+  chrome.storage.sync.get(['translationStyle'], (result) => {
+    const currentStyle = result.translationStyle || 'universal_style';
+    console.log('当前显示类型:', currentStyle);
+    
+    // 找到当前类型在数组中的索引
+    const currentIndex = displayTypes.indexOf(currentStyle);
+    
+    // 计算下一个类型的索引（循环）
+    const nextIndex = (currentIndex + 1) % displayTypes.length;
+    const nextStyle = displayTypes[nextIndex];
+    
+    console.log('切换到显示类型:', nextStyle, displayTypeNames[nextStyle]);
+    
+    // 保存新的显示类型
+    chrome.storage.sync.set({ translationStyle: nextStyle }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('保存显示类型失败:', chrome.runtime.lastError.message);
+        return;
+      }
+      
+      console.log('显示类型已保存:', nextStyle);
+      
+      // 更新全局设置
+      if (typeof translationSettings !== 'undefined') {
+        translationSettings.translationStyle = nextStyle;
+      }
+      
+      // 显示切换提示
+      showDisplayTypeNotification(displayTypeNames[nextStyle]);
+      
+      // 如果当前页面有翻译内容，重新应用新的显示样式
+      if (translationSettings && translationSettings.isEnabled) {
+        console.log('重新应用翻译以使用新的显示样式');
+        // 移除现有翻译
+        removeAllTranslations();
+        // 重新翻译以应用新样式
+        setTimeout(() => {
+          translateVisibleContent();
+        }, 100);
+      }
+    });
+  });
+}
+
+// 显示显示类型切换通知
+function showDisplayTypeNotification(typeName) {
+  // 创建通知元素
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    max-width: 300px;
+    border-left: 4px solid #ff5588;
+  `;
+  
+  notification.innerHTML = `
+    <div style="font-weight: 600; margin-bottom: 4px;">显示类型已切换</div>
+    <div style="opacity: 0.8;">${typeName}</div>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // 显示动画
+  setTimeout(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateX(0)';
+  }, 10);
+  
+  // 自动隐藏
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateX(100%)';
+    
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 2000);
+}
+
+// 切换字体颜色
+function switchFontColor() {
+  console.log('开始切换字体颜色');
+  
+  // 定义预设的字体颜色循环顺序
+  const fontColors = ['#ff5588', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#795548'];
+  const colorNames = {
+    '#ff5588': '粉色 (默认)',
+    '#4CAF50': '绿色',
+    '#2196F3': '蓝色', 
+    '#FF9800': '橙色',
+    '#9C27B0': '紫色',
+    '#F44336': '红色',
+    '#00BCD4': '青色',
+    '#795548': '棕色'
+  };
+  
+  // 获取当前的字体颜色设置
+  chrome.storage.sync.get(['fontColor'], (result) => {
+    const currentColor = result.fontColor || '#ff5588';
+    console.log('当前字体颜色:', currentColor);
+    
+    // 找到当前颜色在数组中的索引
+    const currentIndex = fontColors.indexOf(currentColor);
+    
+    // 计算下一个颜色的索引（循环）
+    const nextIndex = (currentIndex + 1) % fontColors.length;
+    const nextColor = fontColors[nextIndex];
+    
+    console.log('切换到字体颜色:', nextColor, colorNames[nextColor]);
+    
+    // 保存新的字体颜色
+    chrome.storage.sync.set({ fontColor: nextColor }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('保存字体颜色失败:', chrome.runtime.lastError.message);
+        return;
+      }
+      
+      console.log('字体颜色已保存:', nextColor);
+      
+      // 更新全局设置
+      if (typeof translationSettings !== 'undefined') {
+        translationSettings.fontColor = nextColor;
+      }
+      
+      // 显示切换提示
+      showFontColorNotification(colorNames[nextColor], nextColor);
+      
+      // 如果当前页面有翻译内容，立即更新字体颜色
+      updateTranslationFontColor(nextColor);
+    });
+  });
+}
+
+// 显示字体颜色切换通知
+function showFontColorNotification(colorName, colorValue) {
+  // 创建通知元素
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    max-width: 300px;
+    border-left: 4px solid ${colorValue};
+  `;
+  
+  notification.innerHTML = `
+    <div style="font-weight: 600; margin-bottom: 4px;">字体颜色已切换</div>
+    <div style="opacity: 0.8; display: flex; align-items: center; gap: 8px;">
+      <span style="width: 16px; height: 16px; background: ${colorValue}; border-radius: 3px; display: inline-block;"></span>
+      ${colorName}
+    </div>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // 显示动画
+  setTimeout(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateX(0)';
+  }, 10);
+  
+  // 自动隐藏
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateX(100%)';
+    
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 2000);
+}
+
+// 临时使用指定的翻译服务
+function tempUseTranslationService(service) {
+  console.log('临时使用翻译服务:', service);
+  
+  // 保存当前的翻译引擎设置（用于后续恢复）
+  chrome.storage.sync.get(['translationEngine'], (result) => {
+    const originalEngine = result.translationEngine || 'microsoft';
+    console.log('原始翻译引擎:', originalEngine);
+    
+    // 如果当前已经是指定的翻译服务，直接执行翻译
+    if (originalEngine === service) {
+      console.log('当前已经是', service, '翻译服务，直接执行翻译');
+      if (translationSettings.isEnabled) {
+        translateVisibleContent();
+      } else {
+        // 如果翻译未启用，先启用再翻译
+        translationSettings.isEnabled = true;
+        translateVisibleContent();
+      }
+      return;
+    }
+    
+    // 临时设置翻译引擎（不保存到存储）
+    const previousEngine = translationSettings.translationEngine;
+    translationSettings.translationEngine = service;
+    console.log('临时切换翻译引擎从', previousEngine, '到', service);
+    
+    // 显示提示通知
+    showTempServiceNotification(service);
+    
+    // 如果当前页面有翻译，先移除
+    if (document.querySelector('.transor-translation')) {
+      console.log('移除现有翻译内容');
+      removeAllTranslations();
+      
+      // 延迟后使用新的翻译服务重新翻译
+      setTimeout(() => {
+        translateVisibleContent();
+      }, 100);
+    } else {
+      // 如果没有翻译，直接开始翻译
+      translationSettings.isEnabled = true;
+      translateVisibleContent();
+    }
+    
+    // 标记这是临时翻译服务
+    translationSettings.isTempService = true;
+    translationSettings.originalEngine = originalEngine;
+  });
+}
+
+// 显示临时使用翻译服务的通知
+function showTempServiceNotification(service) {
+  const serviceNames = {
+    'google': 'Google 翻译',
+    'microsoft': '微软翻译',
+    'openai': 'OpenAI 翻译',
+    'deepseek': 'DeepSeek 翻译'
+  };
+  
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    max-width: 300px;
+    border-left: 4px solid #ff5588;
+  `;
+  
+  notification.innerHTML = `
+    <div style="font-weight: 600; margin-bottom: 4px;">临时使用翻译服务</div>
+    <div style="opacity: 0.8;">${serviceNames[service] || service}</div>
+    <div style="font-size: 12px; opacity: 0.6; margin-top: 4px;">仅本页有效，不改变默认设置</div>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // 显示动画
+  setTimeout(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateX(0)';
+  }, 10);
+  
+  // 自动隐藏
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateX(100%)';
+    
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+}
+
+// 更新页面上所有翻译文本的字体颜色
+function updateTranslationFontColor(newColor) {
+  console.log('更新页面翻译文本颜色为:', newColor);
+  
+  let updatedCount = 0;
+  
+  // 更新双语模式下的译文（不影响原文）
+  const bilingualTexts = document.querySelectorAll('.transor-bilingual-text');
+  bilingualTexts.forEach(element => {
+    element.style.color = newColor;
+    updatedCount++;
+  });
+  
+  // 更新内联模式下的译文（不影响原文）
+  const inlineTexts = document.querySelectorAll('.transor-inline-text');
+  inlineTexts.forEach(element => {
+    element.style.color = newColor;
+    updatedCount++;
+  });
+  
+  // 更新替换模式下的译文（整个元素就是译文）
+  const replaceTexts = document.querySelectorAll('.transor-replace');
+  replaceTexts.forEach(element => {
+    element.style.color = newColor;
+    updatedCount++;
+  });
+  
+  // 更新提示模式下的小圆点指示器，但不修改tip元素本身的颜色
+  const tipIndicators = document.querySelectorAll('.transor-tip-indicator');
+  tipIndicators.forEach(element => {
+    element.style.backgroundColor = newColor;
+    updatedCount++;
+  });
+  
+  // 更新CSS变量（如果使用了CSS变量）
+  document.documentElement.style.setProperty('--transor-translation-color', newColor);
+  
+  // 更新全局设置中的字体颜色
+  translationSettings.fontColor = newColor;
+  
+  // 重新注入样式以更新CSS中的颜色变量
+  injectStyles();
+  
+  // 更新tip系统的样式
+  if (window.transorTipSystem) {
+    setupGlobalTipSystem();
+  }
+  
+  console.log(`已更新 ${updatedCount} 个译文元素的颜色，原文颜色保持不变`);
+}
+
+// 翻译当前输入框内容
+// 翻译当前输入框内容 - 使用与三次空格相同的逻辑
+function translateCurrentInputContent() {
+  console.log('快捷键触发：开始翻译当前输入框内容');
+  
+  // 获取当前聚焦的元素
+  const activeElement = document.activeElement;
+  
+  // 检查是否是有效的输入元素（使用与三次空格相同的验证逻辑）
+  const isValidInput = (element) => {
+    if (!element) return false;
+    return (
+      (element.tagName === 'INPUT' && (element.type === 'text' || element.type === 'search')) || 
+      element.tagName === 'TEXTAREA' || 
+      element.getAttribute('contenteditable') === 'true'
+    );
+  };
+  
+  if (!isValidInput(activeElement)) {
+    console.log('当前没有聚焦的可编辑元素');
+    return;
+  }
+  
+  // 获取输入元素的内容（使用与三次空格相同的逻辑）
+  const getInputContent = (element) => {
+    if (!element) return '';
+    
+    try {
+      if (element.getAttribute('contenteditable') === 'true') {
+        return element.innerText || element.textContent || '';
+      }
+      
+      // 对于常规输入框和文本区域
+      if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+        return element.value || '';
+      }
+      
+      // 最后尝试读取内容
+      return element.value || element.innerText || element.textContent || '';
+    } catch (error) {
+      console.error('获取输入内容时出错:', error);
+      return '';
+    }
+  };
+  
+  // 设置输入元素的内容（使用与三次空格相同的逻辑）
+  const setInputContent = (element, content) => {
+    if (!element) return;
+    try {
+      if (element.getAttribute('contenteditable') === 'true') {
+        element.innerText = content;
+      } else {
+        element.value = content;
+      }
+      
+      // 触发input事件，确保其他可能的监听器能感知变化
+      const inputEvent = new Event('input', { bubbles: true });
+      element.dispatchEvent(inputEvent);
+    } catch (error) {
+      console.error('设置输入内容时出错:', error);
+    }
+  };
+  
+  // 获取并处理内容
+  let content = getInputContent(activeElement).trim();
+  
+  if (!content || content.length === 0) {
+    console.log('输入框内容为空');
+    return;
+  }
+  
+  console.log('将翻译内容:', content);
+  
+  // 保存原始内容
+  const originalContent = content;
+  
+  // 设置加载状态
+  setInputContent(activeElement, content + ' (翻译中...)');
+  
+  // 检测输入内容的语言（使用与三次空格相同的逻辑）
+  const detectedLang = detectTextLanguage(content);
+  console.log('检测到内容语言:', detectedLang);
+  
+  // 如果是英语，则不进行翻译
+  if (detectedLang === 'en-US' || isTextInLanguage(content, 'en')) {
+    console.log('检测到英语内容，不进行翻译');
+    setInputContent(activeElement, content);
+    return;
+  }
+  
+  // 对非英语内容，翻译目标语言统一设为英语
+  const targetLang = 'en';
+  console.log('非英语内容，设置翻译目标语言为:', targetLang);
+  
+  // 检查扩展上下文
+  if (!chrome.runtime || !chrome.runtime.sendMessage) {
+    console.warn('扩展上下文无效，无法翻译');
+    setInputContent(activeElement, originalContent);
+    return;
+  }
+  
+  // 翻译文本（使用与三次空格相同的API调用）
+  chrome.runtime.sendMessage(
+    {
+      action: 'translate',
+      text: content,
+      from: 'auto', // 使用自动检测源语言
+      to: targetLang // 目标语言统一为英语
+    },
+    (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn('发送翻译消息失败:', chrome.runtime.lastError.message);
+        setInputContent(activeElement, originalContent);
+        return;
+      }
+      
+      if (response && response.success) {
+        console.log('翻译成功:', response.translation);
+        // 替换输入框内容为翻译结果
+        setInputContent(activeElement, response.translation);
+      } else {
+        console.error('翻译失败:', response?.error || '未知错误');
+        // 恢复原始内容
+        setInputContent(activeElement, originalContent);
+      }
+    }
+  );
+}
+
+
+
 // 更新状态指示器
 function updateStatusIndicator() {
   try {
+    // 检查扩展上下文是否有效
+    if (!chrome.runtime || !chrome.runtime.sendMessage) {
+      console.warn('扩展上下文无效，跳过状态更新');
+      return;
+    }
+    
     // 发送消息给popup或其他UI组件更新状态
     chrome.runtime.sendMessage({ 
       action: 'updateStatus', 
       isEnabled: translationSettings.isEnabled 
+    }, () => {
+      // 检查是否有运行时错误
+      if (chrome.runtime.lastError) {
+        console.warn('发送状态更新消息失败:', chrome.runtime.lastError.message);
+      }
     });
   } catch (error) {
     console.error('更新状态指示器失败:', error);
@@ -2882,15 +3764,15 @@ function setupGlobalEventListeners() {
   });
 }
 
-// 在文件开头添加这个全局函数
-// 添加tip功能的全局处理函数 - 使用最简单直接的方法
-function setupGlobalTipSystem() {
-  // 如果已存在，不重复创建
-  if (window.transorTipSystem) {
-    return window.transorTipSystem;
+// 更新tip系统样式的辅助函数
+function updateTipSystemStyles() {
+  // 删除旧的tip样式
+  const oldTipStyle = document.getElementById('transor-tip-styles');
+  if (oldTipStyle) {
+    oldTipStyle.remove();
   }
   
-  // 创建tooltip样式
+  // 创建新的tip样式
   const style = document.createElement('style');
   style.id = 'transor-tip-styles';
   
@@ -2936,6 +3818,19 @@ function setupGlobalTipSystem() {
   `;
   
   document.head.appendChild(style);
+}
+
+// 在文件开头添加这个全局函数
+// 添加tip功能的全局处理函数 - 使用最简单直接的方法
+function setupGlobalTipSystem() {
+  // 如果已存在tip系统，只更新样式
+  if (window.transorTipSystem) {
+    updateTipSystemStyles();
+    return window.transorTipSystem;
+  }
+  
+  // 创建tooltip样式
+  updateTipSystemStyles();
   
   // 保留现有tipSystem对象的代码
   window.transorTipSystem = {
@@ -3308,6 +4203,14 @@ function initInputTranslation() {
             console.log('非英语内容，设置翻译目标语言为:', targetLang);
             
             // 翻译文本
+            if (!chrome.runtime || !chrome.runtime.sendMessage) {
+              console.warn('扩展上下文无效，无法翻译');
+              setInputContent(currentInputElement, content);
+              isTranslating = false;
+              consecutiveSpaces = 0;
+              return;
+            }
+            
             chrome.runtime.sendMessage(
               {
                 action: 'translate',
@@ -3316,6 +4219,13 @@ function initInputTranslation() {
                 to: targetLang // 目标语言统一为英语
               },
               (response) => {
+                if (chrome.runtime.lastError) {
+                  console.warn('发送翻译消息失败:', chrome.runtime.lastError.message);
+                  setInputContent(currentInputElement, originalContent);
+                  isTranslating = false;
+                  return;
+                }
+                
                 if (response && response.success) {
                   console.log('翻译成功:', response.translation);
                   // 替换输入框内容为翻译结果
@@ -3618,6 +4528,31 @@ function addDebugControls() {
     });
   });
   panel.appendChild(settingsButton);
+  
+  // 添加按钮：显示性能统计
+  const statsButton = document.createElement('button');
+  statsButton.textContent = '性能统计';
+  statsButton.style.cssText = `
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+  `;
+  statsButton.addEventListener('click', () => {
+    const stats = translationQueue.stats.getStats();
+    console.log('翻译队列性能统计:', stats);
+    const message = `翻译队列性能统计:
+• 总请求数: ${stats.totalRequests}
+• 缓存命中: ${stats.cacheHits} (${stats.cacheHitRate})
+• 重复请求: ${stats.duplicateRequests}
+• 平均响应时间: ${stats.averageResponseTime}
+• 当前批次大小: ${translationQueue.batchSize}
+• 缓存条目数: ${translationCache.data.size}`;
+    alert(message);
+  });
+  panel.appendChild(statsButton);
   
   // 添加到页面
   document.body.appendChild(panel);
@@ -4429,7 +5364,7 @@ function isTextInLanguage(text, languageCode) {
   }
   
   // 特殊处理：如果是检测英文，需要排除包含大量非英文字符的情况
-  if (languageCode === 'en') {
+  if (languageCode === 'en' || languageCode === 'en-US') {
     // 检查是否包含CJK字符（中日韩文字）
     const hasCJK = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7a3]/.test(text);
     if (hasCJK) {
@@ -4445,17 +5380,40 @@ function isTextInLanguage(text, languageCode) {
       // 检测文本中汉字的比例，如果超过50%则认为是中文
       threshold: 0.5
     },
+    'zh': {
+      // 中文特征 - 汉字范围
+      regex: /[\u4e00-\u9fff]/,
+      threshold: 0.5
+    },
     'en': {
       // 英文特征 - 拉丁字母和英文标点
       regex: /[a-zA-Z]/,
       threshold: 0.6
     },
+    'en-US': {
+      // 英文特征 - 拉丁字母和英文标点
+      regex: /[a-zA-Z]/,
+      threshold: 0.6
+    },
     'ja': {
-      // 日语特征 - 平假名、片假名
-      regex: /[\u3040-\u309f\u30a0-\u30ff]/,
-      threshold: 0.3  // 降低阈值，因为日语文本中可能混有汉字和英文
+      // 日语特征 - 平假名、片假名、汉字
+      regex: /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]/,
+      threshold: 0.2,  // 降低阈值，因为日语文本中可能混有英文
+      // 特殊检测：如果包含假名，即使比例低也认为是日语
+      specialCheck: /[\u3040-\u309f\u30a0-\u30ff]/
+    },
+    'ja-JP': {
+      // 日语特征 - 平假名、片假名、汉字
+      regex: /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]/,
+      threshold: 0.2,
+      specialCheck: /[\u3040-\u309f\u30a0-\u30ff]/
     },
     'ko': {
+      // 韩语特征 - 韩文音节
+      regex: /[\uac00-\ud7a3]/,
+      threshold: 0.5
+    },
+    'ko-KR': {
       // 韩语特征 - 韩文音节
       regex: /[\uac00-\ud7a3]/,
       threshold: 0.5
@@ -4482,21 +5440,31 @@ function isTextInLanguage(text, languageCode) {
     }
   };
 
-  // 处理语言代码简化，例如 'zh-CN' -> 'zh'
-  const simplifiedCode = languageCode.split('-')[0];
-  
   // 获取语言检测模式
-  const pattern = languagePatterns[languageCode] || languagePatterns[simplifiedCode];
+  const pattern = languagePatterns[languageCode];
   
   if (!pattern) {
-    console.log(`未找到语言 ${languageCode} 的检测模式，无法判断语言`);
-    return false;
+    // 如果没有找到完整的语言代码，尝试简化版本
+    const simplifiedCode = languageCode.split('-')[0];
+    const simplifiedPattern = languagePatterns[simplifiedCode];
+    if (!simplifiedPattern) {
+      console.log(`未找到语言 ${languageCode} 的检测模式，无法判断语言`);
+      return false;
+    }
+    // 使用简化版本的模式
+    return isTextInLanguage(text, simplifiedCode);
   }
   
   // 移除空格和标点符号，只检测实际的文字内容
   const cleanText = text.replace(/[\s\d\p{P}]/gu, '');
   if (cleanText.length === 0) {
     return false;
+  }
+  
+  // 特殊检测：对于日语，如果包含假名字符，直接判定为日语
+  if (pattern.specialCheck && pattern.specialCheck.test(text)) {
+    console.log(`语言检测 [${languageCode}]: 检测到特殊字符（如日语假名），判定为该语言`);
+    return true;
   }
   
   // 计算特征字符的数量
@@ -4512,37 +5480,76 @@ function isTextInLanguage(text, languageCode) {
   // 计算特征字符的比例
   const ratio = matchCount / chars.length;
   
-  // 特殊处理：对于日语，如果检测到假名，即使比例较低也认为是日语
-  if (languageCode === 'ja' && matchCount > 0) {
-    console.log(`语言检测 [${languageCode}]: 检测到假名，判定为日语`);
-    return true;
-  }
-  
-  console.log(`语言检测 [${languageCode}]: 文本="${text.substring(0, 20)}...", 清理后长度=${chars.length}, 匹配字符=${matchCount}, 比例=${ratio.toFixed(2)}`);
+  console.log(`语言检测 [${languageCode}]: 文本="${text.substring(0, 20)}...", 清理后长度=${chars.length}, 匹配字符=${matchCount}, 比例=${ratio.toFixed(2)}, 阈值=${pattern.threshold}`);
   
   // 判断是否达到阈值
   return ratio >= pattern.threshold;
 }
 
-// 通用的语言检测函数，用于确定文本的语言以正确播放数字
+// 通用的语言检测函数，用于确定文本的语言以正确播放语音
 function detectTextLanguage(text, defaultLang = 'auto') {
   if (!text || typeof text !== 'string') return defaultLang;
   
-  // 通过内容特征判断语言
-  if (/[\u4e00-\u9fa5]/.test(text)) {
-    // 包含中文字符
-    return 'zh-CN';
-  } else if (/[a-zA-Z]/.test(text) && !/[\u4e00-\u9fa5]/.test(text)) {
-    // 只包含英文字符，不包含中文
-    return 'en-US';
-  } else if (/[あいうえおかきくけこ]/.test(text)) {
-    // 包含日文字符
+  console.log(`检测文本语言: "${text.substring(0, 30)}..."`);
+  
+  // 优先检测日语（平假名、片假名）
+  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(text)) {
+    console.log('检测到日语假名字符，判定为日语');
     return 'ja-JP';
-  } else if (/[가-힣]/.test(text)) {
-    // 包含韩文字符
+  }
+  
+  // 检测韩语
+  if (/[\uac00-\ud7a3]/.test(text)) {
+    console.log('检测到韩语字符，判定为韩语');
     return 'ko-KR';
   }
   
+  // 检测中文（但要排除日语中的汉字）
+  const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+  const totalChars = text.replace(/\s/g, '').length;
+  const chineseRatio = totalChars > 0 ? chineseChars / totalChars : 0;
+  
+  // 如果汉字比例很高且没有假名，判定为中文
+  if (chineseRatio > 0.5 && !/[\u3040-\u309f\u30a0-\u30ff]/.test(text)) {
+    console.log(`检测到中文字符比例: ${(chineseRatio * 100).toFixed(1)}%，判定为中文`);
+    return 'zh-CN';
+  }
+  
+  // 检测英文（拉丁字母）
+  const englishChars = (text.match(/[a-zA-Z]/g) || []).length;
+  const englishRatio = totalChars > 0 ? englishChars / totalChars : 0;
+  
+  // 如果英文字母比例很高且没有CJK字符，判定为英文
+  if (englishRatio > 0.6 && !/[\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff\uac00-\ud7a3]/.test(text)) {
+    console.log(`检测到英文字符比例: ${(englishRatio * 100).toFixed(1)}%，判定为英文`);
+    return 'en-US';
+  }
+  
+  // 检测俄语
+  if (/[\u0400-\u04FF]/.test(text)) {
+    console.log('检测到西里尔字母，判定为俄语');
+    return 'ru-RU';
+  }
+  
+  // 检测法语特殊字符
+  if (/[éèêëàâäôöùûüÿçœæ]/i.test(text)) {
+    console.log('检测到法语特殊字符，判定为法语');
+    return 'fr-FR';
+  }
+  
+  // 检测德语特殊字符
+  if (/[äöüßÄÖÜ]/i.test(text)) {
+    console.log('检测到德语特殊字符，判定为德语');
+    return 'de-DE';
+  }
+  
+  // 检测西班牙语特殊字符
+  if (/[áéíóúüñ¿¡]/i.test(text)) {
+    console.log('检测到西班牙语特殊字符，判定为西班牙语');
+    return 'es-ES';
+  }
+  
+  console.log(`无法确定语言，使用默认值: ${defaultLang}`);
   // 无法确定语言时返回默认值
   return defaultLang;
 }

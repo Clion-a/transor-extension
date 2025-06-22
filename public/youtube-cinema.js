@@ -153,7 +153,7 @@ function showSubtitleOptionsPopup() {
   }
   
   // 获取按钮位置用于弹窗定位 - 实际使用在positionPopup函数内
-  const buttonRect = cinemaButton.getBoundingClientRect();
+  // const buttonRect = cinemaButton.getBoundingClientRect(); // 暂时注释掉未使用的变量
   
   // 创建弹窗容器
   const popupContainer = document.createElement('div');
@@ -1025,6 +1025,7 @@ function addCinemaStyles() {
     
     .cinema-subtitles-container {
       width: 80%;
+      max-width: 90vw;
       max-height: 25%;
       color: white;
       background-color: rgba(0, 0, 0, 0.7);
@@ -1034,18 +1035,30 @@ function addCinemaStyles() {
       font-size: 18px;
       line-height: 1.5;
       overflow-y: auto;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
     
     .cinema-original-subtitle {
       margin-bottom: 8px;
       color: #fff;
       text-align: center;
+      word-wrap: break-word;
+      word-break: break-word;
+      white-space: pre-wrap;
+      max-width: 100%;
+      line-height: 1.5;
     }
     
     .cinema-translated-subtitle {
       color: #ff5588;
       font-weight: 500;
       text-align: center;
+      word-wrap: break-word;
+      word-break: break-word;
+      white-space: pre-wrap;
+      max-width: 100%;
+      line-height: 1.5;
     }
     
     .cinema-subtitle-btn {
@@ -2783,7 +2796,7 @@ function processSubtitlesSmartMerging(subtitles) {
   
   // 定义合并条件参数 - 调整参数以提高匹配精度
   const MAX_TIME_GAP = 1.5;        // 最大时间间隔（秒）- 减小间隔，提高匹配精度
-  const MAX_SENTENCE_LENGTH = 160; // 最大句子长度（字符）- 减小长度，防止合并过多
+  const MAX_SENTENCE_LENGTH = 120; // 最大句子长度（字符）- 适中长度，保持完整性
   const PUNCTUATION_END = ['.', '!', '?', '。', '！', '？']; // 仅保留主要句子结束标点符号
   const CONJUNCTION_WORDS = ['and', 'but', 'or', 'because']; // 减少连接词列表，只保留主要连接词
   
@@ -3367,7 +3380,10 @@ function addVideoSubtitleStyles() {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
       width: auto;
       min-width: 200px;
+      max-width: 90vw;
       height: auto;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
     
     .transor-video-subtitle-original {
@@ -3376,7 +3392,10 @@ function addVideoSubtitleStyles() {
       line-height: 1.5;
       margin-bottom: 4px;
       white-space: pre-wrap;
+      word-wrap: break-word;
+      word-break: break-word;
       text-align: center;
+      max-width: 100%;
     }
     
     .transor-video-subtitle-translated {
@@ -3385,7 +3404,10 @@ function addVideoSubtitleStyles() {
       font-size: 16px;
       line-height: 1.5;
       white-space: pre-wrap;
+      word-wrap: break-word;
+      word-break: break-word;
       text-align: center;
+      max-width: 100%;
     }
     
     /* 字幕显示模式样式 */
@@ -4109,22 +4131,31 @@ function displayVideoSubtitle(index) {
   let html = '<div class="transor-video-subtitle-wrapper no-translate">';
   html += '<div class="transor-drag-handle no-translate"></div>';
   
+  // 处理字幕文本
+  let originalText = cleanTextThoroughly(subtitle.text);
+  
+  // 处理翻译字幕文本
+  let translatedText = '';
+  if (translatedSubtitle && translatedSubtitle.translatedText) {
+    translatedText = cleanTextThoroughly(translatedSubtitle.translatedText);
+  }
+  
   // 根据显示模式构建HTML
   if (subtitleDisplayMode === '双语字幕') {
     // 显示原文
-    html += `<div class="transor-video-subtitle-original no-translate">${cleanTextThoroughly(subtitle.text)}</div>`;
+    html += `<div class="transor-video-subtitle-original no-translate">${originalText}</div>`;
     
     // 显示翻译
     if (translatedSubtitle && translatedSubtitle.translatedText) {
-      html += `<div class="transor-video-subtitle-translated no-translate">${cleanTextThoroughly(translatedSubtitle.translatedText)}</div>`;
+      html += `<div class="transor-video-subtitle-translated no-translate">${translatedText}</div>`;
     } else {
       html += `<div class="transor-video-subtitle-translated no-translate">加载翻译中...</div>`;
     }
   } else if (subtitleDisplayMode === '仅原文') {
-    html += `<div class="transor-video-subtitle-original no-translate">${cleanTextThoroughly(subtitle.text)}</div>`;
+    html += `<div class="transor-video-subtitle-original no-translate">${originalText}</div>`;
   } else if (subtitleDisplayMode === '仅译文') {
     if (translatedSubtitle && translatedSubtitle.translatedText) {
-      html += `<div class="transor-video-subtitle-translated no-translate">${cleanTextThoroughly(translatedSubtitle.translatedText)}</div>`;
+      html += `<div class="transor-video-subtitle-translated no-translate">${translatedText}</div>`;
     } else {
       // 如果译文不存在，显示加载中提示，而不是完全不显示
       html += `<div class="transor-video-subtitle-translated no-translate">加载翻译中...</div>`;

@@ -65,27 +65,27 @@
       <div class="service-selector">
         <div class="setting-label">{{ $t('translation_service') }}</div>
         <el-select v-model="transEngine" size="large" class="dark-select" @change="handleEngineChange">
-          <el-option label="Microsoft API" value="microsoftapi">
+          <el-option v-if="serviceStates.microsoftapi" label="Microsoft API" value="microsoftapi">
             <div class="option-with-icon">
               <span>Microsoft API</span>
             </div>
           </el-option>
-          <el-option label="Microsoft Edge" value="microsoft">
+          <el-option v-if="serviceStates.microsoft" label="Microsoft Edge" value="microsoft">
             <div class="option-with-icon">
               <span>Microsoft Edge</span>
             </div>
           </el-option>
-          <el-option label="Google" value="google">
+          <el-option v-if="serviceStates.google" label="Google" value="google">
             <div class="option-with-icon">
               <span>Google</span>
             </div>
           </el-option>
-          <el-option label="OpenAI (Pro)" value="openai">
+          <el-option v-if="serviceStates.openai" label="OpenAI (Pro)" value="openai">
             <div class="option-with-icon">
               <span>OpenAI</span>
             </div>
           </el-option>
-          <el-option label="DeepSeek (Pro)" value="deepseek">
+          <el-option v-if="serviceStates.deepseek" label="DeepSeek (Pro)" value="deepseek">
             <div class="option-with-icon">
               <span>DeepSeek</span>
             </div>
@@ -109,32 +109,32 @@
       <div class="api-key-input">
         <div class="setting-label">{{ $t('aiExpertStrategy') }}:</div>
         <el-select v-model="deepseekExpertStrategy" size="large" class="dark-select" @change="saveDeepseekConfig">
-          <el-option :label="$t('universal')" value="universal"></el-option>
-          <el-option :label="$t('smartChoice')" value="smart-choice"></el-option>
-          <el-option :label="$t('translationMaster')" value="translation-master"></el-option>
-          <el-option :label="$t('paragraphExpert')" value="paragraph-expert"></el-option>
-          <el-option :label="$t('englishSimplifier')" value="english-simplifier"></el-option>
-          <el-option :label="$t('twitterEnhancer')" value="twitter-enhancer"></el-option>
-          <el-option :label="$t('techTranslator')" value="tech-translator"></el-option>
-          <el-option :label="$t('redditEnhancer')" value="reddit-enhancer"></el-option>
-          <el-option :label="$t('academicTranslator')" value="academic-translator"></el-option>
-          <el-option :label="$t('newsTranslator')" value="news-translator"></el-option>
-          <el-option :label="$t('musicExpert')" value="music-expert"></el-option>
-          <el-option :label="$t('medicalTranslator')" value="medical-translator"></el-option>
-          <el-option :label="$t('legalTranslator')" value="legal-translator"></el-option>
-          <el-option :label="$t('githubEnhancer')" value="github-enhancer"></el-option>
-          <el-option :label="$t('gamingTranslator')" value="gaming-translator"></el-option>
-          <el-option :label="$t('ecommerceTranslator')" value="ecommerce-translator"></el-option>
-          <el-option :label="$t('financeTranslator')" value="finance-translator"></el-option>
-          <el-option :label="$t('novelTranslator')" value="novel-translator"></el-option>
-          <el-option :label="$t('ao3Translator')" value="ao3-translator"></el-option>
-          <el-option :label="$t('ebookTranslator')" value="ebook-translator"></el-option>
-          <el-option :label="$t('designer')" value="designer"></el-option>
-          <el-option :label="$t('cnEnPolisher')" value="cn-en-polisher"></el-option>
-          <el-option :label="$t('web3Translator')" value="web3-translator"></el-option>
-          <el-option :label="$t('literalExpert')" value="literal-expert"></el-option>
-          <el-option :label="$t('contextAnalyzer')" value="context-analyzer"></el-option>
-          <el-option :label="$t('culturalAdapter')" value="cultural-adapter"></el-option>
+          <el-option v-if="isExpertVisible('universal')" :label="$t('universal')" value="universal"></el-option>
+          <el-option v-if="isExpertVisible('smart-choice')" :label="$t('smartChoice')" value="smart-choice"></el-option>
+          <el-option v-if="isExpertVisible('translation-master')" :label="$t('translationMaster')" value="translation-master"></el-option>
+          <el-option v-if="isExpertVisible('paragraph-expert')" :label="$t('paragraphExpert')" value="paragraph-expert"></el-option>
+          <el-option v-if="isExpertVisible('english-simplifier')" :label="$t('englishSimplifier')" value="english-simplifier"></el-option>
+          <el-option v-if="isExpertVisible('twitter-enhancer')" :label="$t('twitterEnhancer')" value="twitter-enhancer"></el-option>
+          <el-option v-if="isExpertVisible('tech-translator')" :label="$t('techTranslator')" value="tech-translator"></el-option>
+          <el-option v-if="isExpertVisible('reddit-enhancer')" :label="$t('redditEnhancer')" value="reddit-enhancer"></el-option>
+          <el-option v-if="isExpertVisible('academic-translator')" :label="$t('academicTranslator')" value="academic-translator"></el-option>
+          <el-option v-if="isExpertVisible('news-translator')" :label="$t('newsTranslator')" value="news-translator"></el-option>
+          <el-option v-if="isExpertVisible('music-expert')" :label="$t('musicExpert')" value="music-expert"></el-option>
+          <el-option v-if="isExpertVisible('medical-translator')" :label="$t('medicalTranslator')" value="medical-translator"></el-option>
+          <el-option v-if="isExpertVisible('legal-translator')" :label="$t('legalTranslator')" value="legal-translator"></el-option>
+          <el-option v-if="isExpertVisible('github-enhancer')" :label="$t('githubEnhancer')" value="github-enhancer"></el-option>
+          <el-option v-if="isExpertVisible('gaming-translator')" :label="$t('gamingTranslator')" value="gaming-translator"></el-option>
+          <el-option v-if="isExpertVisible('ecommerce-translator')" :label="$t('ecommerceTranslator')" value="ecommerce-translator"></el-option>
+          <el-option v-if="isExpertVisible('finance-translator')" :label="$t('financeTranslator')" value="finance-translator"></el-option>
+          <el-option v-if="isExpertVisible('novel-translator')" :label="$t('novelTranslator')" value="novel-translator"></el-option>
+          <el-option v-if="isExpertVisible('ao3-translator')" :label="$t('ao3Translator')" value="ao3-translator"></el-option>
+          <el-option v-if="isExpertVisible('ebook-translator')" :label="$t('ebookTranslator')" value="ebook-translator"></el-option>
+          <el-option v-if="isExpertVisible('designer')" :label="$t('designer')" value="designer"></el-option>
+          <el-option v-if="isExpertVisible('cn-en-polisher')" :label="$t('cnEnPolisher')" value="cn-en-polisher"></el-option>
+          <el-option v-if="isExpertVisible('web3-translator')" :label="$t('web3Translator')" value="web3-translator"></el-option>
+          <el-option v-if="isExpertVisible('literal-expert')" :label="$t('literalExpert')" value="literal-expert"></el-option>
+          <el-option v-if="isExpertVisible('context-analyzer')" :label="$t('contextAnalyzer')" value="context-analyzer"></el-option>
+          <el-option v-if="isExpertVisible('cultural-adapter')" :label="$t('culturalAdapter')" value="cultural-adapter"></el-option>
         </el-select>
       </div>
     </div>
@@ -145,32 +145,32 @@
       <div class="api-key-input">
         <div class="setting-label">{{ $t('aiExpertStrategy') }}:</div>
         <el-select v-model="openaiExpertStrategy" size="large" class="dark-select" @change="saveOpenaiConfig">
-          <el-option :label="$t('universal')" value="universal"></el-option>
-          <el-option :label="$t('smartChoice')" value="smart-choice"></el-option>
-          <el-option :label="$t('translationMaster')" value="translation-master"></el-option>
-          <el-option :label="$t('paragraphExpert')" value="paragraph-expert"></el-option>
-          <el-option :label="$t('englishSimplifier')" value="english-simplifier"></el-option>
-          <el-option :label="$t('twitterEnhancer')" value="twitter-enhancer"></el-option>
-          <el-option :label="$t('techTranslator')" value="tech-translator"></el-option>
-          <el-option :label="$t('redditEnhancer')" value="reddit-enhancer"></el-option>
-          <el-option :label="$t('academicTranslator')" value="academic-translator"></el-option>
-          <el-option :label="$t('newsTranslator')" value="news-translator"></el-option>
-          <el-option :label="$t('musicExpert')" value="music-expert"></el-option>
-          <el-option :label="$t('medicalTranslator')" value="medical-translator"></el-option>
-          <el-option :label="$t('legalTranslator')" value="legal-translator"></el-option>
-          <el-option :label="$t('githubEnhancer')" value="github-enhancer"></el-option>
-          <el-option :label="$t('gamingTranslator')" value="gaming-translator"></el-option>
-          <el-option :label="$t('ecommerceTranslator')" value="ecommerce-translator"></el-option>
-          <el-option :label="$t('financeTranslator')" value="finance-translator"></el-option>
-          <el-option :label="$t('novelTranslator')" value="novel-translator"></el-option>
-          <el-option :label="$t('ao3Translator')" value="ao3-translator"></el-option>
-          <el-option :label="$t('ebookTranslator')" value="ebook-translator"></el-option>
-          <el-option :label="$t('designer')" value="designer"></el-option>
-          <el-option :label="$t('cnEnPolisher')" value="cn-en-polisher"></el-option>
-          <el-option :label="$t('web3Translator')" value="web3-translator"></el-option>
-          <el-option :label="$t('literalExpert')" value="literal-expert"></el-option>
-          <el-option :label="$t('contextAnalyzer')" value="context-analyzer"></el-option>
-          <el-option :label="$t('culturalAdapter')" value="cultural-adapter"></el-option>
+          <el-option v-if="isExpertVisible('universal')" :label="$t('universal')" value="universal"></el-option>
+          <el-option v-if="isExpertVisible('smart-choice')" :label="$t('smartChoice')" value="smart-choice"></el-option>
+          <el-option v-if="isExpertVisible('translation-master')" :label="$t('translationMaster')" value="translation-master"></el-option>
+          <el-option v-if="isExpertVisible('paragraph-expert')" :label="$t('paragraphExpert')" value="paragraph-expert"></el-option>
+          <el-option v-if="isExpertVisible('english-simplifier')" :label="$t('englishSimplifier')" value="english-simplifier"></el-option>
+          <el-option v-if="isExpertVisible('twitter-enhancer')" :label="$t('twitterEnhancer')" value="twitter-enhancer"></el-option>
+          <el-option v-if="isExpertVisible('tech-translator')" :label="$t('techTranslator')" value="tech-translator"></el-option>
+          <el-option v-if="isExpertVisible('reddit-enhancer')" :label="$t('redditEnhancer')" value="reddit-enhancer"></el-option>
+          <el-option v-if="isExpertVisible('academic-translator')" :label="$t('academicTranslator')" value="academic-translator"></el-option>
+          <el-option v-if="isExpertVisible('news-translator')" :label="$t('newsTranslator')" value="news-translator"></el-option>
+          <el-option v-if="isExpertVisible('music-expert')" :label="$t('musicExpert')" value="music-expert"></el-option>
+          <el-option v-if="isExpertVisible('medical-translator')" :label="$t('medicalTranslator')" value="medical-translator"></el-option>
+          <el-option v-if="isExpertVisible('legal-translator')" :label="$t('legalTranslator')" value="legal-translator"></el-option>
+          <el-option v-if="isExpertVisible('github-enhancer')" :label="$t('githubEnhancer')" value="github-enhancer"></el-option>
+          <el-option v-if="isExpertVisible('gaming-translator')" :label="$t('gamingTranslator')" value="gaming-translator"></el-option>
+          <el-option v-if="isExpertVisible('ecommerce-translator')" :label="$t('ecommerceTranslator')" value="ecommerce-translator"></el-option>
+          <el-option v-if="isExpertVisible('finance-translator')" :label="$t('financeTranslator')" value="finance-translator"></el-option>
+          <el-option v-if="isExpertVisible('novel-translator')" :label="$t('novelTranslator')" value="novel-translator"></el-option>
+          <el-option v-if="isExpertVisible('ao3-translator')" :label="$t('ao3Translator')" value="ao3-translator"></el-option>
+          <el-option v-if="isExpertVisible('ebook-translator')" :label="$t('ebookTranslator')" value="ebook-translator"></el-option>
+          <el-option v-if="isExpertVisible('designer')" :label="$t('designer')" value="designer"></el-option>
+          <el-option v-if="isExpertVisible('cn-en-polisher')" :label="$t('cnEnPolisher')" value="cn-en-polisher"></el-option>
+          <el-option v-if="isExpertVisible('web3-translator')" :label="$t('web3Translator')" value="web3-translator"></el-option>
+          <el-option v-if="isExpertVisible('literal-expert')" :label="$t('literalExpert')" value="literal-expert"></el-option>
+          <el-option v-if="isExpertVisible('context-analyzer')" :label="$t('contextAnalyzer')" value="context-analyzer"></el-option>
+          <el-option v-if="isExpertVisible('cultural-adapter')" :label="$t('culturalAdapter')" value="cultural-adapter"></el-option>
         </el-select>
       </div>
     </div>
@@ -259,6 +259,15 @@ export default {
       uiLanguage: localStorage.getItem('transor-ui-language') || 'zh-CN', // 默认使用简体中文
       i18n: null, // 保存i18n实例
       showApiKeyNotice: false, // 是否显示API Key提示
+      serviceStates: {
+        microsoftapi: true,
+        microsoft: true,
+        google: true,
+        openai: true,
+        deepseek: true
+      }, // 各服务的启用状态
+      storageListener: null, // storage 变化监听器
+      aiExpertVisibility: {}, // AI专家显示状态
     }
   },
   computed: {
@@ -688,6 +697,41 @@ export default {
     toggleInputSpaceTranslation() {
       this.saveSettings();
     },
+    // 加载服务启用状态
+    loadServiceStates() {
+      chrome.storage.sync.get(null, (data) => {
+        // 更新各服务的启用状态
+        this.serviceStates.microsoftapi = data.microsoftapiEnabled !== false;
+        this.serviceStates.microsoft = data.microsoftEnabled !== false;
+        this.serviceStates.google = data.googleEnabled !== false;
+        this.serviceStates.openai = data.openaiEnabled !== false;
+        this.serviceStates.deepseek = data.deepseekEnabled !== false;
+        
+        // 检查当前选中的翻译引擎是否被禁用
+        if (this.transEngine && !this.serviceStates[this.transEngine]) {
+          // 如果当前引擎被禁用，切换到第一个可用的引擎
+          const availableEngines = Object.keys(this.serviceStates).filter(key => this.serviceStates[key]);
+          if (availableEngines.length > 0) {
+            this.transEngine = availableEngines[0];
+            this.saveSettings();
+          }
+        }
+      });
+    },
+    // 加载AI专家显示状态
+    loadAiExpertVisibility() {
+      chrome.storage.sync.get(['aiExpertVisibility'], (result) => {
+        this.aiExpertVisibility = result.aiExpertVisibility || {};
+      });
+    },
+    // 检查AI专家是否应该显示
+    isExpertVisible(expertValue) {
+      // 如果没有设置，默认显示
+      if (this.aiExpertVisibility[expertValue] === undefined) {
+        return true;
+      }
+      return this.aiExpertVisibility[expertValue];
+    },
   },
   watch: {
     excludedClasses: {
@@ -743,6 +787,32 @@ export default {
         console.warn('无法加载chrome.i18n:', e);
       }
     }
+    
+    // 加载服务启用状态
+    this.loadServiceStates();
+    
+    // 加载AI专家显示状态
+    this.loadAiExpertVisibility();
+    
+    // 监听 storage 变化
+    this.storageListener = (changes, namespace) => {
+      if (namespace === 'sync') {
+        // 检查是否有服务状态的变化
+        const serviceKeys = ['microsoftapiEnabled', 'microsoftEnabled', 'googleEnabled', 'openaiEnabled', 'deepseekEnabled'];
+        const hasServiceChange = Object.keys(changes).some(key => serviceKeys.includes(key));
+        
+        if (hasServiceChange) {
+          // 重新加载服务状态
+          this.loadServiceStates();
+        }
+        
+        // 检查是否有AI专家显示状态的变化
+        if (changes.aiExpertVisibility) {
+          this.loadAiExpertVisibility();
+        }
+      }
+    };
+    chrome.storage.onChanged.addListener(this.storageListener);
   },
   mounted() {
     // 添加全局快捷键监听
@@ -776,6 +846,11 @@ export default {
   beforeDestroy() {
     // 移除全局快捷键监听
     document.removeEventListener('keydown', this.handleKeyboardShortcut);
+    
+    // 移除 storage 变化监听器
+    if (this.storageListener) {
+      chrome.storage.onChanged.removeListener(this.storageListener);
+    }
   }
 }
 </script>

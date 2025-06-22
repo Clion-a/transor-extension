@@ -60,41 +60,52 @@ function getI18n(key, lang) {
 
 // 保存修改到 chrome.storage.sync
 function saveSettings(config = {}) {
+  // 安全获取元素值的辅助函数
+  const getElementValue = (id, defaultValue = '') => {
+    const element = document.getElementById(id);
+    return element ? element.value : defaultValue;
+  };
+  
+  const getElementChecked = (id, defaultValue = false) => {
+    const element = document.getElementById(id);
+    return element ? element.checked : defaultValue;
+  };
+
   // 获取基本设置
-  const uiLanguage = document.getElementById('ui-language').value;
-  const targetLanguage = document.getElementById('target-language').value;
-  const translationEngine = document.getElementById('translation-engine').value;
-  const translationStyle = document.getElementById('translation-style').value;
-  const apiKey = document.getElementById('api-key-input').value;
+  const uiLanguage = getElementValue('ui-language', 'zh-CN');
+  const targetLanguage = getElementValue('target-language', 'zh-CN');
+  const translationEngine = getElementValue('translation-engine', 'microsoft');
+  const translationStyle = getElementValue('translation-style', 'universal_style');
+  const apiKey = getElementValue('api-key-input');
   
   // 获取显示样式设置
-  const fontColor = document.getElementById('font-color').value;
+  const fontColor = getElementValue('font-color', '#ff5588');
   
   // 获取功能开关设置
-  const showFloatingBall = document.getElementById('show-floating-ball').checked;
-  const enableInputSpaceTranslation = document.getElementById('enable-input-space-translation').checked;
-  const showTipDots = document.getElementById('show-tip-dots').checked;
-  const enableSelectionTranslation = document.getElementById('enable-selection-translation').checked;
+  const showFloatingBall = getElementChecked('show-floating-ball', true);
+  const enableInputSpaceTranslation = getElementChecked('enable-input-space-translation', true);
+  const showTipDots = getElementChecked('show-tip-dots', false);
+  const enableSelectionTranslation = getElementChecked('enable-selection-translation', true);
 
   // 获取OpenAI配置
-  const openaiModel = document.getElementById('openai-model').value;
-  const openaiCustomModelEnabled = document.getElementById('openai-custom-model-enabled').checked;
-  const openaiCustomModel = document.getElementById('openai-custom-model').value;
-  const openaiMaxRequests = parseInt(document.getElementById('openai-max-requests').value) || 10;
-  const openaiAiContext = document.getElementById('openai-ai-context').checked;
-  const openaiExpertStrategy = document.getElementById('openai-expert-strategy').value;
-  const openaiApiKey = document.getElementById('openai-api-key').value;
-  const openaiApiEndpoint = document.getElementById('openai-api-endpoint').value;
+  const openaiModel = getElementValue('openai-model', 'gpt-4.1-mini');
+  const openaiCustomModelEnabled = getElementChecked('openai-custom-model-enabled', false);
+  const openaiCustomModel = getElementValue('openai-custom-model');
+  const openaiMaxRequests = parseInt(getElementValue('openai-max-requests', '10')) || 10;
+  const openaiAiContext = getElementChecked('openai-ai-context', false);
+  const openaiExpertStrategy = getElementValue('openai-expert-strategy', 'translation-master');
+  const openaiApiKey = getElementValue('openai-api-key');
+  const openaiApiEndpoint = getElementValue('openai-api-endpoint', 'https://api.openai.com/v1/chat/completions');
 
   // 获取DeepSeek配置
-  const deepseekModel = document.getElementById('deepseek-model').value;
-  const deepseekCustomModelEnabled = document.getElementById('deepseek-custom-model-enabled').checked;
-  const deepseekCustomModel = document.getElementById('deepseek-custom-model').value;
-  const deepseekMaxRequests = parseInt(document.getElementById('deepseek-max-requests').value) || 10;
-  const deepseekAiContext = document.getElementById('deepseek-ai-context').checked;
-  const deepseekExpertStrategy = document.getElementById('deepseek-expert-strategy').value;
-  const deepseekApiKey = document.getElementById('deepseek-api-key').value;
-  const deepseekApiEndpoint = document.getElementById('deepseek-api-endpoint').value;
+  const deepseekModel = getElementValue('deepseek-model', 'deepseek-chat');
+  const deepseekCustomModelEnabled = getElementChecked('deepseek-custom-model-enabled', false);
+  const deepseekCustomModel = getElementValue('deepseek-custom-model');
+  const deepseekMaxRequests = parseInt(getElementValue('deepseek-max-requests', '10')) || 10;
+  const deepseekAiContext = getElementChecked('deepseek-ai-context', false);
+  const deepseekExpertStrategy = getElementValue('deepseek-expert-strategy', 'translation-master');
+  const deepseekApiKey = getElementValue('deepseek-api-key');
+  const deepseekApiEndpoint = getElementValue('deepseek-api-endpoint', 'https://api.deepseek.com/chat/completions');
 
   // 先获取现有的API Keys，然后再构建saveData
   chrome.storage.sync.get(['apiKeys'], (res) => {
@@ -102,7 +113,8 @@ function saveSettings(config = {}) {
     const existingApiKeys = res.apiKeys || {};
     
     // 更新当前引擎的API Key（如果API Key输入框可见）
-    if (document.getElementById('api-key-container').style.display !== 'none') {
+    const apiKeyContainer = document.getElementById('api-key-container');
+    if (apiKeyContainer && apiKeyContainer.style.display !== 'none') {
       existingApiKeys[translationEngine] = apiKey;
     }
     
@@ -164,6 +176,299 @@ function saveSettings(config = {}) {
 
     // 将界面语言保存到localStorage
     localStorage.setItem('transor-ui-language', uiLanguage);
+  });
+}
+
+// 更新AI专家卡片状态
+function updateAiExpertCardStatus(selectedExpert) {
+  document.querySelectorAll('.service-card[data-expert]').forEach(card => {
+    const badge = card.querySelector('.badge');
+    const expertValue = card.getAttribute('data-expert');
+    
+    if (badge) {
+      if (expertValue === selectedExpert) {
+        badge.textContent = '当前默认';
+        badge.className = 'badge bg-success';
+        card.classList.add('active');
+      } else {
+        badge.textContent = '可选择';
+        badge.className = 'badge bg-secondary';
+        card.classList.remove('active');
+      }
+    }
+  });
+}
+
+// 获取并显示用户设置的快捷键
+function loadAndDisplayShortcuts() {
+  console.log('开始加载快捷键显示...');
+  
+  // 只为"翻译当前页面"显示默认快捷键，其他功能显示问号
+  updateShortcutDisplay('translateToEnglish', 'Alt+A');
+  updateShortcutDisplay('translateInputContent', null); // 显示问号
+  updateShortcutDisplay('switchDisplayType', null); // 显示问号
+  updateShortcutDisplay('switchFontColor', null); // 显示问号
+  updateShortcutDisplay('tempUseGoogle', null); // 显示问号
+  updateShortcutDisplay('tempUseMicrosoft', null); // 显示问号
+  updateShortcutDisplay('tempUseOpenAI', null); // 显示问号
+  updateShortcutDisplay('tempUseDeepSeek', null); // 显示问号
+  
+  // 检查是否在扩展环境中，如果是则尝试获取实际设置的快捷键
+  if (typeof chrome !== 'undefined' && chrome.commands) {
+    console.log('在扩展环境中，尝试获取实际快捷键...');
+    try {
+      chrome.commands.getAll((commands) => {
+        console.log('获取到的命令列表:', commands);
+        
+        commands.forEach((command) => {
+          console.log('处理命令:', command.name, command.shortcut);
+          if (command.name === 'toggle_translation') {
+            // 对于翻译当前页面，如果用户设置了快捷键就显示用户设置的，否则显示默认的Alt+A
+            const shortcut = command.shortcut || 'Alt+A';
+            console.log('找到toggle_translation命令，快捷键:', shortcut);
+            updateShortcutDisplay('translateToEnglish', shortcut);
+          } else if (command.name === 'translate_input_content') {
+            // 对于其他功能，只有用户设置了快捷键才显示，否则显示问号
+            console.log('找到translate_input_content命令，快捷键:', command.shortcut);
+            updateShortcutDisplay('translateInputContent', command.shortcut);
+          } else if (command.name === 'switch_display_type') {
+            // 对于其他功能，只有用户设置了快捷键才显示，否则显示问号
+            console.log('找到switch_display_type命令，快捷键:', command.shortcut);
+            updateShortcutDisplay('switchDisplayType', command.shortcut);
+          } else if (command.name === 'switch_font_color') {
+            // 对于其他功能，只有用户设置了快捷键才显示，否则显示问号
+            console.log('找到switch_font_color命令，快捷键:', command.shortcut);
+            updateShortcutDisplay('switchFontColor', command.shortcut);
+          } else if (command.name === 'temp_use_google') {
+            console.log('找到temp_use_google命令，快捷键:', command.shortcut);
+            updateShortcutDisplay('tempUseGoogle', command.shortcut);
+          } else if (command.name === 'temp_use_microsoft') {
+            console.log('找到temp_use_microsoft命令，快捷键:', command.shortcut);
+            updateShortcutDisplay('tempUseMicrosoft', command.shortcut);
+          } else if (command.name === 'temp_use_openai') {
+            console.log('找到temp_use_openai命令，快捷键:', command.shortcut);
+            updateShortcutDisplay('tempUseOpenAI', command.shortcut);
+          } else if (command.name === 'temp_use_deepseek') {
+            console.log('找到temp_use_deepseek命令，快捷键:', command.shortcut);
+            updateShortcutDisplay('tempUseDeepSeek', command.shortcut);
+          }
+        });
+      });
+    } catch (error) {
+      console.error('获取快捷键时出错:', error);
+      // 保持当前显示状态
+    }
+  } else {
+    console.log('不在扩展环境中，保持当前显示状态');
+  }
+}
+
+// 更新快捷键显示
+function updateShortcutDisplay(functionName, shortcut) {
+  console.log(`更新快捷键显示: ${functionName} -> ${shortcut}`);
+  
+  // 特殊处理translateToEnglish，直接通过ID更新
+  if (functionName === 'translateToEnglish') {
+    const shortcutDisplay = document.getElementById('translate-current-page-shortcut');
+    if (shortcutDisplay) {
+      if (shortcut) {
+        const formattedShortcut = formatShortcutDisplay(shortcut);
+        shortcutDisplay.innerHTML = `<kbd class="bg-secondary text-light px-2 py-1 rounded">${formattedShortcut}</kbd>`;
+        console.log('已更新翻译当前页面的快捷键显示');
+      } else {
+        shortcutDisplay.innerHTML = `<span class="text-light-emphasis me-2">未设置</span>`;
+      }
+      return;
+    }
+  }
+  
+  // 特殊处理translateInputContent，直接通过ID更新
+  if (functionName === 'translateInputContent') {
+    const shortcutDisplay = document.getElementById('translate-input-content-shortcut');
+    if (shortcutDisplay) {
+      if (shortcut) {
+        const formattedShortcut = formatShortcutDisplay(shortcut);
+        shortcutDisplay.innerHTML = `<kbd class="bg-secondary text-light px-2 py-1 rounded">${formattedShortcut}</kbd>`;
+        console.log('已更新翻译当前输入框内容的快捷键显示');
+      } else {
+        shortcutDisplay.innerHTML = `<span class="text-light-emphasis me-2" style="font-size: 18px; color: #888;">?</span>`;
+      }
+      return;
+    }
+  }
+  
+  // 特殊处理switchDisplayType，直接通过ID更新
+  if (functionName === 'switchDisplayType') {
+    const shortcutDisplay = document.getElementById('switch-display-type-shortcut');
+    if (shortcutDisplay) {
+      if (shortcut) {
+        const formattedShortcut = formatShortcutDisplay(shortcut);
+        shortcutDisplay.innerHTML = `<kbd class="bg-secondary text-light px-2 py-1 rounded">${formattedShortcut}</kbd>`;
+        console.log('已更新切换显示类型的快捷键显示');
+      } else {
+        shortcutDisplay.innerHTML = `<span class="text-light-emphasis me-2" style="font-size: 18px; color: #888;">?</span>`;
+      }
+      return;
+    }
+  }
+  
+  // 特殊处理switchFontColor，直接通过ID更新
+  if (functionName === 'switchFontColor') {
+    const shortcutDisplay = document.getElementById('switch-font-color-shortcut');
+    if (shortcutDisplay) {
+      if (shortcut) {
+        const formattedShortcut = formatShortcutDisplay(shortcut);
+        shortcutDisplay.innerHTML = `<kbd class="bg-secondary text-light px-2 py-1 rounded">${formattedShortcut}</kbd>`;
+        console.log('已更新切换字体颜色的快捷键显示');
+      } else {
+        shortcutDisplay.innerHTML = `<span class="text-light-emphasis me-2" style="font-size: 18px; color: #888;">?</span>`;
+      }
+      return;
+    }
+  }
+  
+  // 特殊处理临时使用翻译服务的快捷键
+  const tempServiceMap = {
+    'tempUseGoogle': 'temp-use-google-shortcut',
+    'tempUseMicrosoft': 'temp-use-microsoft-shortcut',
+    'tempUseOpenAI': 'temp-use-openai-shortcut',
+    'tempUseDeepSeek': 'temp-use-deepseek-shortcut'
+  };
+  
+  if (tempServiceMap[functionName]) {
+    const shortcutDisplay = document.getElementById(tempServiceMap[functionName]);
+    if (shortcutDisplay) {
+      if (shortcut) {
+        const formattedShortcut = formatShortcutDisplay(shortcut);
+        shortcutDisplay.innerHTML = `<kbd class="bg-secondary text-light px-2 py-1 rounded">${formattedShortcut}</kbd>`;
+        console.log(`已更新${functionName}的快捷键显示`);
+      } else {
+        shortcutDisplay.innerHTML = `<span class="text-light-emphasis me-2" style="font-size: 18px; color: #888;">?</span>`;
+      }
+      return;
+    }
+  }
+  
+  // 通用方法：查找对应的快捷键显示元素
+  const shortcutElements = document.querySelectorAll('[data-i18n="' + functionName + '"]');
+  
+  shortcutElements.forEach((element) => {
+    const container = element.closest('.col-md-6');
+    if (container) {
+      // 查找快捷键显示区域 - 更精确的选择器
+      const outerDiv = container.querySelector('.d-flex.align-items-center.justify-content-between');
+      if (outerDiv) {
+        const shortcutDisplay = outerDiv.querySelector('.d-flex.align-items-center:last-child');
+        
+        if (shortcutDisplay) {
+          if (shortcut) {
+            // 格式化快捷键显示
+            const formattedShortcut = formatShortcutDisplay(shortcut);
+            shortcutDisplay.innerHTML = `<kbd class="bg-secondary text-light px-2 py-1 rounded">${formattedShortcut}</kbd>`;
+          } else {
+            // 如果没有设置快捷键，显示问号
+            shortcutDisplay.innerHTML = `<span class="text-light-emphasis me-2" style="font-size: 18px; color: #888;">?</span>`;
+          }
+        }
+      }
+    }
+  });
+}
+
+// 格式化快捷键显示
+function formatShortcutDisplay(shortcut) {
+  if (!shortcut) return '';
+  
+  // 将快捷键转换为更友好的显示格式
+  let formatted = shortcut
+    .replace(/Alt/g, '⌥')
+    .replace(/Ctrl/g, '⌃')
+    .replace(/Shift/g, '⇧')
+    .replace(/Cmd/g, '⌘')
+    .replace(/Command/g, '⌘')
+    .replace(/Meta/g, '⌘');
+  
+  // 处理加号，保留键之间的连接
+  formatted = formatted.replace(/\+/g, '');
+  
+  return formatted;
+}
+
+// 保存AI专家选择
+function saveAiExpertSelection(expertValue) {
+  chrome.storage.sync.set({ 'selectedAiExpert': expertValue }, function() {
+    console.log('AI专家选择已保存:', expertValue);
+    showSaveNotification('AI专家选择已保存');
+    
+    // 更新所有专家卡片的状态
+    updateAiExpertCardStatus(expertValue);
+    
+    // 同步更新 OpenAI 和 DeepSeek 的专家策略选择器
+    const openaiExpertSelect = document.getElementById('openai-expert-strategy');
+    const deepseekExpertSelect = document.getElementById('deepseek-expert-strategy');
+    
+    if (openaiExpertSelect) {
+      openaiExpertSelect.value = expertValue;
+      // 触发保存 OpenAI 配置
+      saveAiConfig('openai');
+    }
+    
+    if (deepseekExpertSelect) {
+      deepseekExpertSelect.value = expertValue;
+      // 触发保存 DeepSeek 配置
+      saveAiConfig('deepseek');
+    }
+  });
+}
+
+// 保存AI专家显示状态
+function saveAiExpertVisibility(expertValue, isVisible) {
+  chrome.storage.sync.get(['aiExpertVisibility'], (result) => {
+    const visibility = result.aiExpertVisibility || {};
+    visibility[expertValue] = isVisible;
+    
+    chrome.storage.sync.set({ 'aiExpertVisibility': visibility }, function() {
+      console.log(`AI专家 ${expertValue} 显示状态已保存:`, isVisible);
+      showSaveNotification('专家显示设置已保存');
+    });
+  });
+}
+
+// 初始化AI专家选择
+function initializeAiExpertSelection() {
+  chrome.storage.sync.get(['selectedAiExpert', 'aiExpertVisibility'], (result) => {
+    const selectedExpert = result.selectedAiExpert || 'universal';
+    const visibility = result.aiExpertVisibility || {};
+    
+    // 更新所有专家卡片的状态
+    updateAiExpertCardStatus(selectedExpert);
+    
+    // 初始化所有专家的显示状态
+    document.querySelectorAll('input[id$="-expert-enabled"]').forEach(checkbox => {
+      const expertId = checkbox.id.replace('-expert-enabled', '');
+      const expertValue = expertId.replace('-expert', '');
+      
+      // 如果存储中有保存的状态，使用保存的状态；否则默认为true
+      checkbox.checked = visibility[expertValue] !== false;
+      
+      // 为每个复选框添加事件监听器
+      checkbox.addEventListener('change', function() {
+        saveAiExpertVisibility(expertValue, this.checked);
+      });
+    });
+    
+    // 为AI专家卡片添加点击事件
+    document.querySelectorAll('.service-card[data-expert]').forEach(card => {
+      card.addEventListener('click', function(e) {
+        // 如果点击的是复选框或标签，不处理
+        if (e.target.type === 'checkbox' || e.target.tagName === 'LABEL') return;
+        
+        const expertValue = this.getAttribute('data-expert');
+        
+        // 保存选择的专家
+        saveAiExpertSelection(expertValue);
+      });
+    });
   });
 }
 
@@ -299,28 +604,90 @@ function toggleCustomModelInput(prefix) {
   }
 }
 
-// 切换内容区域
-function switchContentSection(sectionId) {
-  // 隐藏所有内容区域
+// 切换内容区域的功能现在通过hash和handleHashChange处理
+
+// 从URL hash或localStorage恢复页面状态
+function restorePageState() {
+  let targetSection = 'general'; // 默认页面
+  
+  // 首先检查URL hash
+  if (window.location.hash) {
+    const hashSection = window.location.hash.substring(1);
+    // 验证section是否存在
+    if (document.getElementById(`${hashSection}-section`)) {
+      targetSection = hashSection;
+    }
+  } else {
+    // 如果没有hash，检查localStorage
+    const savedSection = localStorage.getItem('transor-current-section');
+    if (savedSection && document.getElementById(`${savedSection}-section`)) {
+      targetSection = savedSection;
+      // 设置hash以保持一致性
+      window.location.hash = targetSection;
+    } else {
+      // 如果都没有，设置默认hash
+      window.location.hash = targetSection;
+    }
+  }
+  
+  // 直接更新UI状态
   document.querySelectorAll('.content-section').forEach(section => {
     section.classList.remove('active');
   });
   
-  // 移除所有导航项的活动状态
-  document.querySelectorAll('.nav-item').forEach(item => {
+  document.querySelectorAll('.nav-link').forEach(item => {
     item.classList.remove('active');
   });
   
-  // 显示选定的内容区域
-  const targetSection = document.getElementById(`${sectionId}-section`);
-  if (targetSection) {
-    targetSection.classList.add('active');
+  const targetSectionElement = document.getElementById(`${targetSection}-section`);
+  if (targetSectionElement) {
+    targetSectionElement.classList.add('active');
   }
   
-  // 激活对应的导航项
-  const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+  const navItem = document.querySelector(`.nav-link[data-section="${targetSection}"]`);
   if (navItem) {
     navItem.classList.add('active');
+  }
+  
+  localStorage.setItem('transor-current-section', targetSection);
+  
+  if (targetSection === 'shortcuts') {
+    setTimeout(() => {
+      loadAndDisplayShortcuts();
+    }, 100);
+  }
+}
+
+// 监听浏览器前进后退按钮
+function handleHashChange() {
+  if (window.location.hash) {
+    const sectionId = window.location.hash.substring(1);
+    if (document.getElementById(`${sectionId}-section`)) {
+             // 直接更新UI状态，避免重复设置hash
+      document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.nav-link').forEach(item => {
+        item.classList.remove('active');
+      });
+      
+      const targetSection = document.getElementById(`${sectionId}-section`);
+      if (targetSection) {
+        targetSection.classList.add('active');
+      }
+      
+      const navItem = document.querySelector(`.nav-link[data-section="${sectionId}"]`);
+      if (navItem) {
+        navItem.classList.add('active');
+      }
+      
+      localStorage.setItem('transor-current-section', sectionId);
+      
+      if (sectionId === 'shortcuts') {
+        loadAndDisplayShortcuts();
+      }
+    }
   }
 }
 
@@ -332,10 +699,136 @@ function updateI18n() {
     if (window.i18n && typeof window.i18n.t === 'function') {
       const translatedText = window.i18n.t(key, userInterfaceLanguage);
       console.log(`翻译 "${key}" -> "${translatedText}"`);
-      el.textContent = translatedText;
+      
+      // 对于简单的文本元素（如h6, small, span, p等），直接设置textContent
+      const simpleTextTags = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'SPAN', 'SMALL', 'STRONG', 'EM', 'LABEL', 'A', 'BUTTON', 'LI', 'TD', 'TH'];
+      
+      if (simpleTextTags.includes(el.tagName) && !el.querySelector('[data-i18n]')) {
+        // 如果是简单文本标签且内部没有其他需要翻译的元素，直接设置textContent
+        el.textContent = translatedText;
+      } else if (el.children.length > 0) {
+        // 对于复杂元素，查找并更新第一个文本节点
+        const textNode = Array.from(el.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+        if (textNode) {
+          textNode.textContent = translatedText;
+        } else {
+          // 如果没有文本节点，创建一个
+          const newTextNode = document.createTextNode(translatedText);
+          el.insertBefore(newTextNode, el.firstChild);
+        }
+      } else {
+        // 如果没有子元素，直接设置textContent
+        el.textContent = translatedText;
+      }
     } else {
       // 如果i18n.js尚未加载，保留原有文本
       console.warn('i18n对象未正确加载，无法翻译:', key);
+    }
+  });
+  
+  // 更新翻译服务和AI专家的多语言内容
+  updateTranslationServicesI18n();
+}
+
+// 动态更新翻译服务和AI专家的多语言内容
+function updateTranslationServicesI18n() {
+  // 更新翻译服务卡片的多语言内容
+  const serviceCards = document.querySelectorAll('.service-card[data-service]');
+  serviceCards.forEach(card => {
+    const serviceId = card.getAttribute('data-service');
+    const titleElement = card.querySelector('.card-title');
+    const descElement = card.querySelector('.text-light-emphasis');
+    const statusBadge = card.querySelector('.badge');
+    const configBtn = card.querySelector('.config-btn span');
+    
+    if (titleElement && window.i18n && typeof window.i18n.t === 'function') {
+      const titleKey = `${serviceId}Translation`;
+      const descKey = `${serviceId}TranslationDesc`;
+      
+      titleElement.textContent = window.i18n.t(titleKey, userInterfaceLanguage);
+      if (descElement) {
+        descElement.textContent = window.i18n.t(descKey, userInterfaceLanguage);
+      }
+    }
+    
+    if (statusBadge) {
+      const badgeText = statusBadge.getAttribute('data-i18n');
+      if (badgeText && window.i18n && typeof window.i18n.t === 'function') {
+        statusBadge.textContent = window.i18n.t(badgeText, userInterfaceLanguage);
+      }
+    }
+    
+    if (configBtn) {
+      const btnText = configBtn.getAttribute('data-i18n');
+      if (btnText && window.i18n && typeof window.i18n.t === 'function') {
+        configBtn.textContent = window.i18n.t(btnText, userInterfaceLanguage);
+      }
+    }
+  });
+  
+  // 更新AI专家卡片的多语言内容
+  const expertCards = document.querySelectorAll('.service-card[data-expert]');
+  expertCards.forEach(card => {
+    const expertId = card.getAttribute('data-expert');
+    const titleElement = card.querySelector('.card-title');
+    const descElement = card.querySelector('.text-light-emphasis');
+    const statusBadge = card.querySelector('.badge');
+    const showOptionLabel = card.querySelector('.form-check-label[data-i18n="showThisOption"]');
+    
+    if (titleElement && window.i18n && typeof window.i18n.t === 'function') {
+      // 将expert ID转换为对应的标题键
+      const titleKey = expertId.split('-').map((word, index) => {
+        if (index === 0) return word;
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }).join('') + 'ExpertTitle';
+      
+      const descKey = expertId.split('-').map((word, index) => {
+        if (index === 0) return word;
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }).join('') + 'ExpertDesc';
+      
+      titleElement.textContent = window.i18n.t(titleKey, userInterfaceLanguage);
+      if (descElement) {
+        descElement.textContent = window.i18n.t(descKey, userInterfaceLanguage);
+      }
+    }
+    
+    if (statusBadge) {
+      const badgeText = statusBadge.getAttribute('data-i18n');
+      if (badgeText && window.i18n && typeof window.i18n.t === 'function') {
+        statusBadge.textContent = window.i18n.t(badgeText, userInterfaceLanguage);
+      } else {
+        // 为没有data-i18n属性的badge添加翻译
+        const badgeTextContent = statusBadge.textContent.trim();
+        if (badgeTextContent === '可选择') {
+          statusBadge.textContent = window.i18n.t('available', userInterfaceLanguage);
+        } else if (badgeTextContent === '当前默认') {
+          statusBadge.textContent = window.i18n.t('currentDefault', userInterfaceLanguage);
+        }
+      }
+    }
+    
+    if (showOptionLabel) {
+      showOptionLabel.textContent = window.i18n.t('showThisOption', userInterfaceLanguage);
+    }
+  });
+  
+  // 更新所有"显示此选项"标签
+  const allShowOptionLabels = document.querySelectorAll('.form-check-label');
+  allShowOptionLabels.forEach(label => {
+    if (label.textContent.trim() === '显示此选项' || label.textContent.trim() === 'Show this option') {
+      label.textContent = window.i18n.t('showThisOption', userInterfaceLanguage);
+    }
+  });
+  
+  // 更新所有状态标签
+  const allBadges = document.querySelectorAll('.badge');
+  allBadges.forEach(badge => {
+    const badgeText = badge.textContent.trim();
+    if (badgeText === '可选择' || badgeText === 'Available') {
+      badge.textContent = window.i18n.t('available', userInterfaceLanguage);
+    } else if (badgeText === '当前默认' || badgeText === 'Current Default') {
+      badge.textContent = window.i18n.t('currentDefault', userInterfaceLanguage);
     }
   });
 }
@@ -506,8 +999,6 @@ window.addEventListener('DOMContentLoaded', () => {
   const engineSel = document.getElementById('translation-engine');
   const engine2Sel = document.getElementById('translation-engine-2');
   const apiKeyInput = document.getElementById('api-key-input');
-  const apiKeyLabel = document.getElementById('api-key-label');
-  const toggleApiKeyBtn = document.getElementById('toggle-api-key');
   const styleSel = document.getElementById('translation-style');
   const enableTranslationChk = document.getElementById('enable-translation');
   const enableHighlightChk = document.getElementById('enable-highlight');
@@ -517,32 +1008,40 @@ window.addEventListener('DOMContentLoaded', () => {
   const fontColorPicker = document.getElementById('font-color-picker');
   const fontColorInput = document.getElementById('font-color');
   
-  // OpenAI配置元素
-  const openaiConfig = document.getElementById('openai-config');
-  const openaiModel = document.getElementById('openai-model');
-  const openaiCustomModelEnabled = document.getElementById('openai-custom-model-enabled');
-  const openaiCustomModel = document.getElementById('openai-custom-model');
-  const openaiCustomModelGroup = document.getElementById('openai-custom-model-group');
-  const openaiMaxRequests = document.getElementById('openai-max-requests');
-  const openaiAiContext = document.getElementById('openai-ai-context');
-  const openaiExpertStrategy = document.getElementById('openai-expert-strategy');
+  // AI配置元素
   const openaiApiKey = document.getElementById('openai-api-key');
-  const openaiApiEndpoint = document.getElementById('openai-api-endpoint');
-  
-  // DeepSeek配置元素
-  const deepseekConfig = document.getElementById('deepseek-config');
-  const deepseekModel = document.getElementById('deepseek-model');
-  const deepseekCustomModelEnabled = document.getElementById('deepseek-custom-model-enabled');
-  const deepseekCustomModel = document.getElementById('deepseek-custom-model');
-  const deepseekCustomModelGroup = document.getElementById('deepseek-custom-model-group');
-  const deepseekMaxRequests = document.getElementById('deepseek-max-requests');
-  const deepseekAiContext = document.getElementById('deepseek-ai-context');
-  const deepseekExpertStrategy = document.getElementById('deepseek-expert-strategy');
   const deepseekApiKey = document.getElementById('deepseek-api-key');
-  const deepseekApiEndpoint = document.getElementById('deepseek-api-endpoint');
   
   // 动态生成翻译服务列表
   generateTranslationServicesList();
+  
+  // 初始化翻译服务页面
+  initializeTranslationServices();
+  
+  // 初始化AI专家选择
+  initializeAiExpertSelection();
+  
+  // 恢复页面状态（在其他初始化之前）
+  restorePageState();
+  
+  // 添加hashchange事件监听器
+  window.addEventListener('hashchange', handleHashChange);
+  
+  // 加载并显示快捷键
+  // 延迟一点时间确保DOM完全渲染
+  setTimeout(() => {
+    loadAndDisplayShortcuts();
+  }, 100);
+  
+  // 添加快捷键设置链接事件
+  const shortcutSettingsLink = document.getElementById('shortcut-settings-link');
+  if (shortcutSettingsLink) {
+    shortcutSettingsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      // 打开Chrome扩展快捷键设置页面
+      chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    });
+  }
   
   // 首先加载UI语言
   chrome.storage.local.get('transor-ui-language', (res) => {
@@ -572,15 +1071,19 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 添加左侧导航事件
-  document.querySelectorAll('.nav-item').forEach(item => {
+  // 添加左侧导航事件（现在主要通过hash处理，但保留作为备用）
+  document.querySelectorAll('.nav-link').forEach(item => {
     item.addEventListener('click', () => {
       const section = item.getAttribute('data-section');
       if (section) {
-        switchContentSection(section);
+        // 让浏览器处理hash导航，不阻止默认行为
+        // 页面切换会通过hashchange事件触发
       }
     });
   });
+
+  // AI专家选择和卡片点击事件已经在 initializeAiExpertSelection 中处理
+  // 这里不需要重复添加事件监听器
 
   // 字体颜色输入和选择器相关事件
   if (fontColorInput && fontColorPicker) {
@@ -636,9 +1139,15 @@ window.addEventListener('DOMContentLoaded', () => {
       fontColorPicker.value = savedColor;
     }
     
-    enableTranslationChk.checked = settings.isEnabled !== false;
-    enableHighlightChk.checked = settings.highlightFavoritesEnabled !== false;
-    enableYouTubeCinemaChk.checked = settings.youtubeCinemaEnabled !== false;
+    if (enableTranslationChk) {
+      enableTranslationChk.checked = settings.isEnabled !== false;
+    }
+    if (enableHighlightChk) {
+      enableHighlightChk.checked = settings.highlightFavoritesEnabled !== false;
+    }
+    if (enableYouTubeCinemaChk) {
+      enableYouTubeCinemaChk.checked = settings.youtubeCinemaEnabled !== false;
+    }
     
     // 加载功能开关设置
     const showFloatingBallChk = document.getElementById('show-floating-ball');
@@ -693,7 +1202,12 @@ window.addEventListener('DOMContentLoaded', () => {
       }
       if (openaiMaxRequestsInput) openaiMaxRequestsInput.value = openaiConfig.maxRequests || 10;
       if (openaiAiContextChk) openaiAiContextChk.checked = openaiConfig.aiContext || false;
-      if (openaiExpertStrategySelect) openaiExpertStrategySelect.value = openaiConfig.expertStrategy || 'translation-master';
+      if (openaiExpertStrategySelect) {
+        // 优先使用 selectedAiExpert，如果没有则使用配置中的值
+        chrome.storage.sync.get(['selectedAiExpert'], (result) => {
+          openaiExpertStrategySelect.value = result.selectedAiExpert || openaiConfig.expertStrategy || 'universal';
+        });
+      }
       
       // 更新自定义模型输入框显示
       if (openaiCustomModelEnabledChk) {
@@ -743,7 +1257,12 @@ window.addEventListener('DOMContentLoaded', () => {
       if (deepseekCustomModelInput) deepseekCustomModelInput.value = deepseekConfig.customModel || '';
       if (deepseekMaxRequestsInput) deepseekMaxRequestsInput.value = deepseekConfig.maxRequests || 10;
       if (deepseekAiContextChk) deepseekAiContextChk.checked = deepseekConfig.aiContext || false;
-      if (deepseekExpertStrategySelect) deepseekExpertStrategySelect.value = deepseekConfig.expertStrategy || 'translation-master';
+      if (deepseekExpertStrategySelect) {
+        // 优先使用 selectedAiExpert，如果没有则使用配置中的值
+        chrome.storage.sync.get(['selectedAiExpert'], (result) => {
+          deepseekExpertStrategySelect.value = result.selectedAiExpert || deepseekConfig.expertStrategy || 'universal';
+        });
+      }
       
       // 更新自定义模型输入框显示
       if (deepseekCustomModelEnabledChk) {
@@ -861,17 +1380,23 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // 事件监听保存 - 功能开关
-  enableTranslationChk.addEventListener('change', () => {
-    saveSettings({ isEnabled: enableTranslationChk.checked });
-  });
+  if (enableTranslationChk) {
+    enableTranslationChk.addEventListener('change', () => {
+      saveSettings({ isEnabled: enableTranslationChk.checked });
+    });
+  }
 
-  enableHighlightChk.addEventListener('change', () => {
-    saveSettings({ highlightFavoritesEnabled: enableHighlightChk.checked });
-  });
+  if (enableHighlightChk) {
+    enableHighlightChk.addEventListener('change', () => {
+      saveSettings({ highlightFavoritesEnabled: enableHighlightChk.checked });
+    });
+  }
 
-  enableYouTubeCinemaChk.addEventListener('change', () => {
-    saveSettings({ youtubeCinemaEnabled: enableYouTubeCinemaChk.checked });
-  });
+  if (enableYouTubeCinemaChk) {
+    enableYouTubeCinemaChk.addEventListener('change', () => {
+      saveSettings({ youtubeCinemaEnabled: enableYouTubeCinemaChk.checked });
+    });
+  }
   
   // 新增功能开关的事件监听器
   const showFloatingBallChk = document.getElementById('show-floating-ball');
@@ -1058,6 +1583,247 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// 初始化翻译服务页面
+function initializeTranslationServices() {
+  // 获取所有翻译服务卡片（只包含有 data-service 属性的卡片）
+  const serviceCards = document.querySelectorAll('.service-card[data-service]');
+  const serviceToggles = document.querySelectorAll('#translation-services-list .form-check-input');
+  
+  // 为每个服务开关添加事件监听器
+  serviceToggles.forEach(toggle => {
+    toggle.addEventListener('change', function() {
+      const serviceId = this.id.replace('-enabled', '');
+      const serviceCard = document.querySelector(`[data-service="${serviceId}"]`);
+      const statusBadge = serviceCard ? serviceCard.querySelector('.badge') : null;
+      
+      if (this.checked) {
+        // 启用服务
+        if (serviceCard) {
+          serviceCard.classList.add('active');
+        }
+        
+        // 如果是当前默认引擎，保持"当前默认"状态
+        if (statusBadge) {
+          chrome.storage.sync.get(['translationEngine'], (res) => {
+            const currentEngine = res.translationEngine || 'microsoft';
+            if (serviceId === currentEngine) {
+              statusBadge.textContent = '当前默认';
+              statusBadge.className = 'badge bg-success';
+            } else {
+              // 移除"去修改"状态，只显示空白或隐藏徽章
+              statusBadge.textContent = '';
+              statusBadge.className = 'badge d-none';
+            }
+          });
+        }
+      } else {
+        // 禁用服务
+        if (serviceCard) {
+          serviceCard.classList.remove('active');
+        }
+        if (statusBadge) {
+          statusBadge.textContent = '已禁用';
+          statusBadge.className = 'badge bg-danger';
+        }
+      }
+      
+              // 保存服务状态
+        const serviceStates = {};
+        serviceStates[`${serviceId}Enabled`] = this.checked;
+        
+        // 如果是 Microsoft Edge 服务，同时更新 microsoftapi 的状态
+        if (serviceId === 'microsoft') {
+          serviceStates['microsoftapiEnabled'] = this.checked;
+        }
+        
+        // 如果禁用了当前默认引擎，需要切换到其他可用引擎
+        if (!this.checked) {
+          chrome.storage.sync.get(['translationEngine'], (res) => {
+            const currentEngine = res.translationEngine || 'microsoft';
+            
+            // 如果禁用的是当前引擎，或者是 microsoft/microsoftapi 的特殊情况
+            if (currentEngine === serviceId || 
+                (serviceId === 'microsoft' && currentEngine === 'microsoftapi')) {
+              // 找到第一个启用的服务
+              const allToggles = document.querySelectorAll('#translation-services-list .form-check-input');
+              let newEngine = null;
+              
+              allToggles.forEach(toggle => {
+                if (toggle.checked && toggle.id !== `${serviceId}-enabled`) {
+                  const newServiceId = toggle.id.replace('-enabled', '');
+                  if (!newEngine) {
+                    newEngine = newServiceId;
+                  }
+                }
+              });
+              
+              if (newEngine) {
+                setDefaultTranslationEngine(newEngine);
+              }
+            }
+          });
+        }
+        
+        // 只保存服务状态，不尝试读取所有设置
+        chrome.storage.sync.set(serviceStates, function() {
+          if (chrome.runtime.lastError) {
+            console.error('保存服务状态失败:', chrome.runtime.lastError);
+          } else {
+            console.log('服务状态已保存:', serviceStates);
+          }
+        });
+    });
+  });
+  
+  // 为服务卡片添加点击事件（切换为默认引擎）
+  serviceCards.forEach(card => {
+    card.addEventListener('click', function(e) {
+      // 如果点击的是开关，不处理
+      if (e.target.type === 'checkbox') return;
+      
+      const serviceId = this.getAttribute('data-service');
+      if (!serviceId) return; // 确保有 data-service 属性
+      
+      const toggle = document.getElementById(`${serviceId}-enabled`);
+      if (!toggle) return; // 确保找到对应的开关
+      
+      // 如果服务未启用，先启用它
+      if (!toggle.checked) {
+        toggle.checked = true;
+        toggle.dispatchEvent(new Event('change'));
+      }
+      
+      // 设置为默认引擎
+      setDefaultTranslationEngine(serviceId);
+    });
+  });
+  
+  // 为配置按钮添加点击事件
+  document.querySelectorAll('.config-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation(); // 阻止事件冒泡到卡片点击事件
+      
+      const serviceId = this.getAttribute('data-service');
+      
+      // 跳转到常规设置页面
+      window.location.hash = 'general';
+      
+      // 设置翻译引擎为对应服务
+      const engineSelect = document.getElementById('translation-engine');
+      if (engineSelect) {
+        engineSelect.value = serviceId;
+        engineSelect.dispatchEvent(new Event('change'));
+      }
+      
+      // 滚动到翻译引擎选择器
+      setTimeout(() => {
+        const engineContainer = document.getElementById('translation-engine').closest('.card');
+        if (engineContainer) {
+          engineContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    });
+  });
+
+  // 加载当前服务状态
+  loadTranslationServicesStatus();
+}
+
+// 设置默认翻译引擎
+function setDefaultTranslationEngine(engineId) {
+  // 更新所有翻译服务状态徽章（只处理有 data-service 属性的卡片）
+  document.querySelectorAll('.service-card[data-service]').forEach(card => {
+    const badge = card.querySelector('.badge');
+    const cardServiceId = card.getAttribute('data-service');
+    const toggle = document.getElementById(`${cardServiceId}-enabled`);
+    
+    if (badge && cardServiceId === engineId) {
+      badge.textContent = '当前默认';
+      badge.className = 'badge bg-success';
+      card.classList.add('active');
+    } else if (badge && toggle && toggle.checked) {
+      // 移除"去修改"状态，只显示空白或隐藏徽章
+      badge.textContent = '';
+      badge.className = 'badge d-none';
+    }
+  });
+  
+  // 保存翻译引擎设置
+  const saveEngineSettings = (engineToSave) => {
+    chrome.storage.sync.set({ translationEngine: engineToSave }, function() {
+      if (chrome.runtime.lastError) {
+        console.error('保存翻译引擎失败:', chrome.runtime.lastError);
+      } else {
+        console.log('翻译引擎已保存:', engineToSave);
+      }
+    });
+  };
+  
+  // 如果选择了 microsoft，检查是否需要使用 microsoftapi
+  if (engineId === 'microsoft') {
+    chrome.storage.sync.get(['translationEngine'], (res) => {
+      const actualEngineId = (res.translationEngine === 'microsoftapi') ? 'microsoftapi' : engineId;
+      saveEngineSettings(actualEngineId);
+    });
+  } else {
+    saveEngineSettings(engineId);
+  }
+  
+  // 同步更新常规设置页面的选择器
+  const engineSelect = document.getElementById('translation-engine');
+  if (engineSelect) {
+    engineSelect.value = engineId;
+    updateApiKeyVisibility(engineId);
+  }
+  
+  showSaveNotification('已设置为默认翻译引擎');
+}
+
+// 加载翻译服务状态
+function loadTranslationServicesStatus() {
+  chrome.storage.sync.get(null, (settings) => {
+    const currentEngine = settings.translationEngine || 'microsoft';
+    
+    // 更新每个翻译服务的状态（只处理有 data-service 属性的卡片）
+    document.querySelectorAll('.service-card[data-service]').forEach(card => {
+      const serviceId = card.getAttribute('data-service');
+      const toggle = document.getElementById(`${serviceId}-enabled`);
+      const badge = card.querySelector('.badge');
+      
+      // 检查服务是否启用（默认都启用）
+      let isEnabled = settings[`${serviceId}Enabled`] !== false;
+      
+      // 特殊处理：如果是 microsoft 服务，也检查 microsoftapiEnabled
+      if (serviceId === 'microsoft' && settings['microsoftEnabled'] === undefined) {
+        // 如果没有明确设置 microsoftEnabled，则使用 microsoftapiEnabled 的值
+        isEnabled = settings['microsoftapiEnabled'] !== false;
+      }
+      
+      if (toggle) {
+        toggle.checked = isEnabled;
+      }
+      
+      if (badge) {
+        if (isEnabled) {
+          card.classList.add('active');
+          if (serviceId === currentEngine) {
+            badge.textContent = '当前默认';
+            badge.className = 'badge bg-success';
+          } else {
+            // 移除"去修改"状态，只显示空白或隐藏徽章
+            badge.textContent = '';
+            badge.className = 'badge d-none';
+          }
+        } else {
+          card.classList.remove('active');
+          badge.textContent = '已禁用';
+          badge.className = 'badge bg-danger';
+        }
+      }
+    });
+  });
+}
+
 // 保存AI配置
 function saveAiConfig(engine) {
   const config = {};
@@ -1136,5 +1902,13 @@ function saveAiConfig(engine) {
     }
   }
   
-  saveSettings(config);
+  // 直接保存配置到存储，不调用完整的 saveSettings
+  chrome.storage.sync.set(config, function() {
+    if (chrome.runtime.lastError) {
+      console.error('保存AI配置失败:', chrome.runtime.lastError);
+    } else {
+      console.log('AI配置已保存:', config);
+      showSaveNotification('AI配置已保存');
+    }
+  });
 } 
