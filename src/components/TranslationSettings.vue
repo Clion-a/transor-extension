@@ -64,32 +64,93 @@
     <div class="settings-group">
       <div class="service-selector">
         <div class="setting-label">{{ $t('translation_service') }}</div>
-        <el-select v-model="transEngine" size="large" class="dark-select" @change="handleEngineChange">
-          <el-option v-if="serviceStates.microsoftapi" label="Microsoft API" value="microsoftapi">
-            <div class="option-with-icon">
-              <span>Microsoft API</span>
-            </div>
-          </el-option>
-          <el-option v-if="serviceStates.microsoft" label="Microsoft Edge" value="microsoft">
-            <div class="option-with-icon">
-              <span>Microsoft Edge</span>
-            </div>
-          </el-option>
-          <el-option v-if="serviceStates.google" label="Google" value="google">
-            <div class="option-with-icon">
-              <span>Google</span>
-            </div>
-          </el-option>
-          <el-option v-if="serviceStates.openai" label="OpenAI (Pro)" value="openai">
-            <div class="option-with-icon">
-              <span>OpenAI</span>
-            </div>
-          </el-option>
-          <el-option v-if="serviceStates.deepseek" label="DeepSeek (Pro)" value="deepseek">
-            <div class="option-with-icon">
-              <span>DeepSeek</span>
-            </div>
-          </el-option>
+        <el-select class="trans-engine-select dark-select" v-model="transEngine" size="large" @change="handleEngineChange">
+          <!-- 高级模型分组 -->
+          <el-option-group label="高级模型">
+            <el-option 
+              label="ChatGPT-4o" 
+              value="chatgpt-4o" 
+              :disabled="!isPremiumUser"
+              @click.native="handlePremiumOptionClick('chatgpt-4o')">
+              <div class="option-with-icon">
+                <span>ChatGPT-4o</span>
+                <span class="pro-tag">Pro</span>
+              </div>
+            </el-option>
+            <el-option 
+              label="ChatGPT-4o-mini" 
+              value="chatgpt-4o-mini" 
+              :disabled="!isPremiumUser"
+              @click.native="handlePremiumOptionClick('chatgpt-4o-mini')">
+              <div class="option-with-icon">
+                <span>ChatGPT-4o-mini</span>
+                <span class="pro-tag">Pro</span>
+              </div>
+            </el-option>
+            <el-option 
+              label="DeepSeek-V3" 
+              value="deepseek-v3" 
+              :disabled="!isPremiumUser"
+              @click.native="handlePremiumOptionClick('deepseek-v3')">
+              <div class="option-with-icon">
+                <span>DeepSeek-V3</span>
+                <span class="pro-tag">Pro</span>
+              </div>
+            </el-option>
+            <el-option 
+              label="Gemini-2.0-flash" 
+              value="gemini-2-flash" 
+              :disabled="!isPremiumUser"
+              @click.native="handlePremiumOptionClick('gemini-2-flash')">
+              <div class="option-with-icon">
+                <span>Gemini-2.0-flash</span>
+                <span class="pro-tag">Pro</span>
+              </div>
+            </el-option>
+            <el-option 
+              label="DeepL" 
+              value="deepl" 
+              :disabled="!isPremiumUser"
+              @click.native="handlePremiumOptionClick('deepl')">
+              <div class="option-with-icon">
+                <span>DeepL</span>
+                <span class="pro-tag">Pro</span>
+              </div>
+            </el-option>
+          </el-option-group>
+
+          <!-- 普通模型分组 -->
+          <el-option-group label="普通模型">
+            <el-option v-if="serviceStates.microsoft" label="Microsoft Edge" value="microsoft">
+              <div class="option-with-icon">
+                <span>Microsoft Edge</span>
+              </div>
+            </el-option>
+            <el-option v-if="serviceStates.microsoftapi" label="Microsoft API" value="microsoftapi">
+              <div class="option-with-icon">
+                <span>Microsoft API</span>
+              </div>
+            </el-option>
+            <el-option v-if="serviceStates.google" label="Google" value="google">
+              <div class="option-with-icon">
+                <span>Google</span>
+              </div>
+            </el-option>
+          </el-option-group>
+
+          <!-- 其他/自定义分组 -->
+          <el-option-group label="其他/自定义">
+            <el-option v-if="serviceStates.openai" label="OpenAI" value="openai">
+              <div class="option-with-icon">
+                <span>OpenAI</span>
+              </div>
+            </el-option>
+            <el-option v-if="serviceStates.deepseek" label="DeepSeek" value="deepseek">
+              <div class="option-with-icon">
+                <span>DeepSeek</span>
+              </div>
+            </el-option>
+          </el-option-group>
         </el-select>
       </div>
 
@@ -97,8 +158,10 @@
       <div class="api-key-notice" v-if="showApiKeyNotice">
         <div class="api-key-notice-message">
           <i class="el-icon-warning-outline"></i>
-          {{ $t('apiKeyRequired') }} 
-          <a href="#" @click="openOptionsPage">{{ $t('goToSettings') }}</a>
+          {{ isHighPriorityEngine(transEngine) ? $t('premiumLoginRequired') : $t('apiKeyRequired') }} 
+          <a href="#" @click="isHighPriorityEngine(transEngine) ? openProfilePage() : openOptionsPage()">
+            {{ isHighPriorityEngine(transEngine) ? $t('goToProfile') : $t('goToSettings') }}
+          </a>
         </div>
       </div>
     </div>
@@ -268,6 +331,8 @@ export default {
       }, // 各服务的启用状态
       storageListener: null, // storage 变化监听器
       aiExpertVisibility: {}, // AI专家显示状态
+      userInfo: null, // 添加用户信息
+      isPremiumUser: false, // 是否为会员用户
     }
   },
   computed: {
@@ -517,7 +582,9 @@ export default {
           'input_triple_space_tip': '小技巧：在任意输入框中输入文本后，连续敲击三个空格可以立即翻译文本。按ESC键可取消翻译。',
           'input_space_translation_toggle': '输入框空格翻译',
           'apiKeyRequired': '需要设置API密钥才能使用此服务',
+          'premiumLoginRequired': '高级模型需要登录才能使用',
           'goToSettings': '前往设置页面',
+          'goToProfile': '前往个人资料页面',
           'aiExpertStrategy': 'AI专家策略',
           'translationMaster': '意译大师',
           'literalExpert': '直译专家',
@@ -547,7 +614,9 @@ export default {
           'input_triple_space_tip': 'Tip: In any input field, after typing text, press space three times in a row to instantly translate the text. Press ESC to cancel translation.',
           'input_space_translation_toggle': 'Input Space Translation',
           'apiKeyRequired': 'API Key is required to use this service',
+          'premiumLoginRequired': 'Premium models require login to use',
           'goToSettings': 'Go to Settings',
+          'goToProfile': 'Go to Profile Page',
           'aiExpertStrategy': 'AI Expert Strategy',
           'translationMaster': 'Translation Master',
           'literalExpert': 'Literal Expert',
@@ -656,6 +725,17 @@ export default {
       
       this.saveSettings();
     },
+    // 处理高级模型选项点击
+    handlePremiumOptionClick(option) {
+      // 允许用户选择高级模型，即使他们不是会员
+      // 这样他们可以看到自己的选择，并在需要时升级
+      console.log(`用户选择了高级模型: ${option}`);
+      
+      // 如果用户不是会员，可以在实际使用时提示
+      if (!this.userInfo || !this.isPremiumUser) {
+        console.log('用户不是会员，但允许选择高级模型');
+      }
+    },
     // 调整handleEngineChange方法
     handleEngineChange() {
       const engine = this.transEngine;
@@ -663,8 +743,22 @@ export default {
       // 重置API Key提示状态
       this.showApiKeyNotice = false;
       
-      // 检查AI引擎是否需要API Key
-      if (engine === 'openai' || engine === 'deepseek') {
+      // 检查是否为高级模型
+      const premiumEngines = ['chatgpt-4o', 'chatgpt-4o-mini', 'deepseek-v3', 'gemini-2-flash', 'deepl'];
+      
+      if (premiumEngines.includes(engine)) {
+        // 对于高级模型，检查用户登录状态
+        chrome.storage.local.get(['authToken'], (result) => {
+          if (!result.authToken) {
+            console.log('高级模型需要登录，显示登录提示');
+            this.showApiKeyNotice = true;
+          } else if (!this.userInfo || !this.isPremiumUser) {
+            console.log('高级模型需要会员，显示升级提示');
+            this.showApiKeyNotice = true;
+          }
+        });
+      } else if (engine === 'openai' || engine === 'deepseek') {
+        // 检查传统AI引擎是否需要API Key
         const apiKey = this.apiKeys && this.apiKeys[engine];
         
         if (!apiKey || apiKey.trim() === '') {
@@ -673,7 +767,7 @@ export default {
         }
       }
       
-      // 保存设置
+      // 保存设置（即使是高级模型也保存，让用户可以看到他们的选择）
       this.saveSettings();
     },
     // 打开设置页面
@@ -684,6 +778,15 @@ export default {
         // 后备方案：尝试直接打开options.html
         window.open(chrome.runtime.getURL('options.html'), '_blank');
       }
+    },
+    // 打开个人资料页面
+    openProfilePage() {
+      window.open('http://localhost:8080/profile', '_blank');
+    },
+    // 检查是否为高级模型
+    isHighPriorityEngine(engine) {
+      const premiumEngines = ['chatgpt-4o', 'chatgpt-4o-mini', 'deepseek-v3', 'gemini-2-flash', 'deepl'];
+      return premiumEngines.includes(engine);
     },
     // 保存OpenAI配置
     saveOpenaiConfig() {
@@ -707,8 +810,12 @@ export default {
         this.serviceStates.openai = data.openaiEnabled !== false;
         this.serviceStates.deepseek = data.deepseekEnabled !== false;
         
+        // 高级模型列表（这些模型始终可用，不受serviceStates控制）
+        const premiumEngines = ['chatgpt-4o', 'chatgpt-4o-mini', 'deepseek-v3', 'gemini-2-flash', 'deepl'];
+        
         // 检查当前选中的翻译引擎是否被禁用
-        if (this.transEngine && !this.serviceStates[this.transEngine]) {
+        // 高级模型不受serviceStates限制，始终可用
+        if (this.transEngine && !premiumEngines.includes(this.transEngine) && !this.serviceStates[this.transEngine]) {
           // 如果当前引擎被禁用，切换到第一个可用的引擎
           const availableEngines = Object.keys(this.serviceStates).filter(key => this.serviceStates[key]);
           if (availableEngines.length > 0) {
@@ -731,6 +838,46 @@ export default {
         return true;
       }
       return this.aiExpertVisibility[expertValue];
+    },
+    // 获取用户信息并检查会员状态
+    async getUserInfo() {
+      try {
+        return new Promise((resolve) => {
+          chrome.storage.local.get(['authToken', 'userInfo'], (result) => {
+            if (chrome.runtime.lastError) {
+              console.warn('获取用户信息失败:', chrome.runtime.lastError);
+              resolve(null);
+              return;
+            }
+            
+            console.log('获取到的用户信息:', result);
+            
+            if (result.authToken && result.userInfo) {
+              this.userInfo = result.userInfo;
+              
+              // 检查用户plan状态，如果不是'free'则为会员用户
+              if (this.userInfo.plan && this.userInfo.plan !== 'free') {
+                this.isPremiumUser = true;
+                console.log('检测到会员用户, plan:', this.userInfo.plan);
+              } else {
+                this.isPremiumUser = false;
+                console.log('检测到免费用户');
+              }
+            } else {
+              this.userInfo = null;
+              this.isPremiumUser = false;
+              console.log('用户未登录');
+            }
+            
+            resolve(this.userInfo);
+          });
+        });
+      } catch (error) {
+        console.error('获取用户信息时出错:', error);
+        this.userInfo = null;
+        this.isPremiumUser = false;
+        return null;
+      }
     },
   },
   watch: {
@@ -763,6 +910,9 @@ export default {
         }
       }
     });
+
+    // 获取用户信息并检查会员状态
+    this.getUserInfo();
 
     // 从localStorage中获取已保存的界面语言设置
     const savedLanguage = localStorage.getItem('transor-ui-language');
@@ -797,6 +947,40 @@ export default {
     // 监听 storage 变化
     this.storageListener = (changes, namespace) => {
       if (namespace === 'sync') {
+        // 检查是否有翻译引擎变化
+        if (changes.translationEngine) {
+          console.log('TranslationSettings.vue - 检测到翻译引擎变化:', {
+            oldValue: changes.translationEngine.oldValue,
+            newValue: changes.translationEngine.newValue,
+            currentStoreValue: this.$store.state.translationEngine
+          });
+          this.$store.commit('setTranslationEngine', changes.translationEngine.newValue);
+          
+          // 重新检查API Key提示状态
+          const engine = changes.translationEngine.newValue;
+          const premiumEngines = ['chatgpt-4o', 'chatgpt-4o-mini', 'deepseek-v3', 'gemini-2-flash', 'deepl'];
+          
+          if (premiumEngines.includes(engine)) {
+            // 高级模型检查登录状态
+            chrome.storage.local.get(['authToken'], (result) => {
+              if (!result.authToken) {
+                this.showApiKeyNotice = true;
+              } else {
+                this.showApiKeyNotice = false;
+              }
+            });
+          } else if ((engine === 'openai' || engine === 'deepseek') && this.$store.state.apiKeys) {
+            // 传统AI引擎检查API Key
+            if (!this.$store.state.apiKeys[engine] || this.$store.state.apiKeys[engine].trim() === '') {
+              this.showApiKeyNotice = true;
+            } else {
+              this.showApiKeyNotice = false;
+            }
+          } else {
+            this.showApiKeyNotice = false;
+          }
+        }
+        
         // 检查是否有服务状态的变化
         const serviceKeys = ['microsoftapiEnabled', 'microsoftEnabled', 'googleEnabled', 'openaiEnabled', 'deepseekEnabled'];
         const hasServiceChange = Object.keys(changes).some(key => serviceKeys.includes(key));
@@ -809,6 +993,14 @@ export default {
         // 检查是否有AI专家显示状态的变化
         if (changes.aiExpertVisibility) {
           this.loadAiExpertVisibility();
+        }
+      }
+      
+      // 监听local存储中的用户信息变化
+      if (namespace === 'local') {
+        if (changes.authToken || changes.userInfo) {
+          console.log('检测到用户登录状态变化，重新获取用户信息');
+          this.getUserInfo();
         }
       }
     };
@@ -862,7 +1054,7 @@ export default {
 }
 
 .settings-group {
-  margin-bottom: 22px;
+  margin-bottom: 28px;
 }
 
 .language-selector {
@@ -879,6 +1071,8 @@ export default {
 }
 
 .direction-arrow {
+  width: 62px;
+  text-align: center;
   color: #aaa;
   font-size: 16px;
   margin: -20px 2px 0 2px;
@@ -888,7 +1082,7 @@ export default {
 .ai-mode {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 32px;
 }
 
 .setting-label {
@@ -990,28 +1184,53 @@ export default {
 .option-with-icon {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  width: 100%;
+  gap: 16px;
+  min-height: 20px;
+}
+
+.option-with-icon > span:first-child {
+  flex: 1;
+  font-weight: 500;
 }
 
 .icon-circle {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background-color: #f0f0f0;
+  width: 20px;
+  height: 20px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  color: #555;
+  font-size: 10px;
+  color: #64748b;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  flex-shrink: 0;
 }
 
 .pro-tag {
   font-size: 10px;
-  background-color: #facc15;
-  color: #000;
-  border-radius: 3px;
-  padding: 0 3px;
-  margin-left: 5px;
+  font-weight: 500;
+  background: #ff5588;
+  color: #ffffff;
+  border-radius: 4px;
+  padding: 2px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: none;
+  box-shadow: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.pro-tag::before {
+  display: none;
+}
+
+@keyframes shine {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
 .toggle-container {
@@ -1052,46 +1271,123 @@ export default {
 }
 
 :deep(.el-input__wrapper) {
-  background-color: #ffffff !important;
-  border: 1px solid #ddd !important;
-  box-shadow: none !important;
-  border-radius: 6px;
+  background: #ffffff !important;
+  border: 1px solid #e1e5e9 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02) !important;
+  border-radius: 12px !important;
+  transition: all 0.3s ease !important;
+  padding: 0 16px !important;
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: #ff5588 !important;
+  border-color: #94a3b8 !important;
+  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.08) !important;
+  transform: translateY(-1px) !important;
+  background: #f8fafc !important;
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: #ff5588 !important;
-  box-shadow: 0 0 0 1px rgba(255, 85, 136, 0.2) !important;
+  border-color: #64748b !important;
+  box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.1), 0 4px 12px rgba(100, 116, 139, 0.15) !important;
+  background: #ffffff !important;
+  transform: translateY(-1px) !important;
 }
 
 :deep(.el-input__inner) {
-  color: #333 !important;
-  height: 36px;
+  color: #1f2937 !important;
+  height: 24px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+:deep(.el-select .el-input .el-select__caret) {
+  color: #64748b !important;
+  font-size: 14px !important;
+  transition: all 0.3s ease !important;
+  line-height: 24px !important;
+}
+
+:deep(.el-select .el-input.is-focus .el-select__caret) {
+  color: #475569 !important;
+  transform: rotate(180deg) !important;
 }
 
 :deep(.el-select-dropdown) {
-  background-color: #fff !important;
-  /* border: 1px solid #eee !important; */
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1) !important;
+  background: #2a2a2a !important;
+  border: 1px solid #3a3a3a !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+  overflow: hidden !important;
+  padding: 4px !important;
+  max-height: 100% !important;
+  min-width: 200px !important;
 }
 
 :deep(.el-select-dropdown__item) {
-  color: #666 !important;
+  padding: 10px 16px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
+  transition: all 0.15s ease !important;
+  border-radius: 6px !important;
+  margin: 2px !important;
+  cursor: pointer !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
 }
 
-:deep(.el-select-dropdown__item.hover),
-:deep(.el-select-dropdown__item:hover) {
-  background-color: #fff5f8 !important;
+:deep(.el-select-dropdown__item:last-child) {
+  margin-bottom: 2px !important;
+}
+
+:deep(.el-select-group__title) {
+  color: #888888 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  padding: 6px 16px 6px 16px !important;
+  background: transparent !important;
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+  line-height: 20px !important;
+}
+
+:deep(.el-select-group__title::before) {
+  display: none !important;
+}
+
+:deep(.el-select-group__title::after) {
+  display: none !important;
+}
+
+:deep(.el-select-group__wrap) {
+  border-bottom: none !important;
+  margin-bottom: 8px !important;
+}
+
+:deep(.el-select-group__wrap:last-of-type) {
+  margin-bottom: 4px !important;
+}
+
+:deep(.el-select-group .el-select-dropdown__item) {
+  margin: 2px !important;
 }
 
 :deep(.el-select-dropdown__item.selected) {
   color: #ff5588 !important;
-  font-weight: 600;
-  background-color: #fff0f5 !important;
 }
+
+::v-deep .el-select-dropdown__item.selected{
+  color: #ff5588 !important;
+}
+
+
 
 :deep(.el-icon) {
   color: #999 !important;
@@ -1120,7 +1416,7 @@ export default {
 .ui-language-selector {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 32px;
 }
 
 .api-key-input {

@@ -910,6 +910,14 @@ async function handleBatchTranslation(texts, sourceLanguage, targetLanguage, opt
         }
         translateFunction = translateWithOpenAI;
         break;
+      // 高级模型使用云端API
+      case 'chatgpt-4o':
+      case 'chatgpt-4o-mini':
+      case 'deepseek-v3':
+      case 'gemini-2-flash':
+      case 'deepl':
+        translateFunction = translateWithCloudAPI;
+        break;
       case 'google':
       default:
         translateFunction = translateWithGoogle;
@@ -1788,6 +1796,114 @@ async function translateWithDeepSeek(texts, sourceLanguage, targetLanguage) {
   } catch (error) {
     console.error('DeepSeek翻译出错:', error);
     // 全局错误回退：使用Google翻译
+    try {
+      return await translateWithGoogle(texts, sourceLanguage, targetLanguage);
+    } catch (err) {
+      // 如果Google翻译也失败，返回原文
+      return Array.isArray(texts) ? texts : texts;
+    }
+  }
+}
+
+// 使用云端API翻译（高级模型）
+async function translateWithCloudAPI(texts, sourceLanguage, targetLanguage) {
+  try {
+    // 获取设置
+    const settings = await getSettings();
+    const translationEngine = settings.translationEngine;
+    
+    // 输入验证和规范化
+    const isArray = Array.isArray(texts);
+    const textArray = isArray ? texts : [texts];
+    
+    if (textArray.length === 0) {
+      return isArray ? [] : '';
+    }
+
+    // 获取用户认证信息
+    let authToken = null;
+    try {
+      const authData = await new Promise((resolve) => {
+        chrome.storage.local.get(['authToken'], (result) => {
+          resolve(result);
+        });
+      });
+      authToken = authData.authToken;
+    } catch (error) {
+      console.error('获取认证令牌失败:', error);
+    }
+
+    if (!authToken) {
+      console.error('未找到认证令牌，无法使用高级模型');
+      // 回退到Google翻译
+      return await translateWithGoogle(texts, sourceLanguage, targetLanguage);
+    }
+
+    console.log(`使用云端API翻译，引擎: ${translationEngine}, 文本数量: ${textArray.length}`);
+
+    // 转换引擎名称为API需要的格式
+    const engineMap = {
+      'chatgpt-4o': 'ChatGPT-4o',
+      'chatgpt-4o-mini': 'ChatGPT-4o-mini',
+      'deepseek-v3': 'DeepSeek-V3',
+      'gemini-2-flash': 'Gemini-2.0-flash',
+      'deepl': 'DeepL'
+    };
+    
+    const apiEngine = engineMap[translationEngine.toLowerCase()] || translationEngine;
+
+    // 准备API请求
+    const requestBody = {
+      source_text: textArray,
+      source_lang: sourceLanguage === 'auto' ? 'auto' : sourceLanguage,
+      target_lang: targetLanguage,
+      engine: apiEngine
+    };
+
+    console.log('发送云端API请求:', requestBody);
+
+    // 发送请求到云端API
+    const response = await fetch('http://api-test.transor.ai/translate/text', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`云端API请求失败: ${response.status} ${response.statusText}`, errorText);
+      
+      // 如果是认证问题，清除令牌
+      if (response.status === 401) {
+        chrome.storage.local.remove(['authToken']);
+      }
+      
+      // 回退到Google翻译
+      return await translateWithGoogle(texts, sourceLanguage, targetLanguage);
+    }
+
+    const data = await response.json();
+    
+    console.log('云端API响应:', data);
+
+    if (data.code === 1 && data.translations && Array.isArray(data.translations)) {
+      console.log(`云端API翻译成功: 使用引擎 ${data.engine || apiEngine}`);
+      
+      // 如果原始输入是字符串，返回第一个结果
+      return isArray ? data.translations : data.translations[0] || '';
+    } else {
+      console.error('云端API返回错误:', data);
+      // 回退到Google翻译
+      return await translateWithGoogle(texts, sourceLanguage, targetLanguage);
+    }
+
+  } catch (error) {
+    console.error('云端API翻译出错:', error);
+    
+    // 出错时回退到Google翻译
     try {
       return await translateWithGoogle(texts, sourceLanguage, targetLanguage);
     } catch (err) {

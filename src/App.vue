@@ -48,4 +48,5 @@ export default {
   padding: 20px;
   margin-top: 20px;
 }
+
 </style> 

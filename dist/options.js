@@ -78,6 +78,8 @@ function saveSettings(config = {}) {
   const translationStyle = getElementValue('translation-style', 'universal_style');
   const apiKey = getElementValue('api-key-input');
   
+  console.log('保存设置 - 翻译引擎:', translationEngine);
+  
   // 获取显示样式设置
   const fontColor = getElementValue('font-color', '#ff5588');
   
@@ -574,17 +576,33 @@ function updateApiKeyVisibility(engine) {
   const label = document.getElementById('api-key-label');
   const openaiConfig = document.getElementById('openai-config');
   const deepseekConfig = document.getElementById('deepseek-config');
+  const apiKeyInput = document.getElementById('api-key-input');
+  
+  console.log('更新API Key显示状态，引擎:', engine);
+  
+  // 首先清空API Key输入框，避免显示错误的值
+  if (apiKeyInput) {
+    apiKeyInput.value = '';
+  }
   
   // 首先隐藏所有配置
   if (container) container.style.display = 'none';
   if (openaiConfig) openaiConfig.style.display = 'none';
   if (deepseekConfig) deepseekConfig.style.display = 'none';
   
-  if (['openai', 'deepseek'].includes(engine)) {
-    // 显示API Key输入框
+  // 检查是否是需要API Key的引擎（不包括高级模型）
+  const needsApiKeyEngines = ['openai', 'deepseek'];
+  
+  // 高级模型列表（这些模型不需要API Key，而是根据用户等级判断）
+  const premiumEngines = ['chatgpt-4o', 'chatgpt-4o-mini', 'deepseek-v3', 'gemini-2-flash', 'deepl'];
+  
+  if (needsApiKeyEngines.includes(engine)) {
+    // 显示API Key输入框（仅针对传统AI引擎）
     if (container) {
       container.style.display = 'block';
-      if (label) label.textContent = `${engine} API Key`;
+      if (label) {
+        label.textContent = `${engine.toUpperCase()} API Key`;
+      }
     }
     
     // 显示对应的AI配置模块
@@ -593,6 +611,115 @@ function updateApiKeyVisibility(engine) {
     } else if (engine === 'deepseek' && deepseekConfig) {
       deepseekConfig.style.display = 'block';
     }
+    
+    // 延迟加载对应引擎的API Key，确保UI更新完成
+    setTimeout(() => {
+      loadApiKeyForEngine(engine);
+    }, 50);
+  } else if (premiumEngines.includes(engine)) {
+    // 高级模型不需要API Key，但需要检查用户登录状态和等级
+    console.log(`${engine} 是高级模型，检查用户登录状态和等级`);
+    
+    // 检查用户登录状态和会员等级
+    chrome.storage.local.get(['authToken', 'userInfo'], (result) => {
+      if (!result.authToken) {
+        console.log('用户未登录，显示登录提示');
+        showPremiumNotice(engine, 'login');
+      } else if (!result.userInfo || !result.userInfo.plan || result.userInfo.plan === 'free') {
+        console.log('用户已登录但不是会员，显示升级提示');
+        showPremiumNotice(engine, 'upgrade');
+      } else {
+        console.log('用户是会员，可以使用高级模型');
+        hidePremiumNotice();
+      }
+    });
+  } else {
+    // 普通引擎不需要API Key，确保输入框为空
+    if (apiKeyInput) {
+      apiKeyInput.value = '';
+    }
+    hidePremiumNotice();
+  }
+}
+
+// 为指定引擎加载API Key
+function loadApiKeyForEngine(engine) {
+  chrome.storage.sync.get(['apiKeys'], (result) => {
+    const apiKeys = result.apiKeys || {};
+    const apiKeyInput = document.getElementById('api-key-input');
+    
+    if (apiKeyInput) {
+      // 只为传统AI引擎加载API Key
+      const savedKey = apiKeys[engine] || '';
+      console.log(`加载API Key: ${engine} = ${savedKey ? '[已设置]' : '[未设置]'}`);
+      
+      // 清空输入框，然后设置正确的值
+      apiKeyInput.value = '';
+      apiKeyInput.value = savedKey;
+      
+      // 如果输入框是密码类型，确保切换按钮状态正确
+      const toggleBtn = document.getElementById('toggle-api-key');
+      if (toggleBtn && apiKeyInput.type === 'text') {
+        apiKeyInput.type = 'password';
+        toggleBtn.innerHTML = '<i class="fas fa-eye"></i>';
+      }
+    }
+  });
+}
+
+// 显示高级模型提示
+function showPremiumNotice(engine, type) {
+  // 创建或更新提示消息
+  let noticeContainer = document.getElementById('premium-notice');
+  if (!noticeContainer) {
+    noticeContainer = document.createElement('div');
+    noticeContainer.id = 'premium-notice';
+    noticeContainer.className = 'premium-notice';
+    
+    // 将提示插入到翻译引擎选择器后面
+    const engineContainer = document.getElementById('translation-engine').closest('.mb-3');
+    if (engineContainer && engineContainer.parentNode) {
+      engineContainer.parentNode.insertBefore(noticeContainer, engineContainer.nextSibling);
+    }
+  }
+  
+  let message, linkText, linkAction;
+  
+  if (type === 'login') {
+    message = '高级模型需要登录才能使用';
+    linkText = '前往登录';
+    linkAction = () => window.open('http://localhost:8080/login', '_blank');
+  } else {
+    message = '高级模型需要会员才能使用';
+    linkText = '前往个人资料页面';
+    linkAction = () => window.open('http://localhost:8080/profile', '_blank');
+  }
+  
+  noticeContainer.innerHTML = `
+    <div class="premium-notice-message">
+      <i class="fas fa-crown" style="color: #ffd700;"></i>
+      <span>${message}</span>
+      <a href="#" class="premium-link">${linkText}</a>
+    </div>
+  `;
+  
+  // 添加点击事件
+  const link = noticeContainer.querySelector('.premium-link');
+  if (link) {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      linkAction();
+    });
+  }
+  
+  noticeContainer.style.display = 'block';
+}
+
+// 隐藏高级模型提示
+function hidePremiumNotice() {
+  const noticeContainer = document.getElementById('premium-notice');
+  if (noticeContainer) {
+    noticeContainer.style.display = 'none';
   }
 }
 
@@ -778,16 +905,15 @@ function updateTranslationServicesI18n() {
     const showOptionLabel = card.querySelector('.form-check-label[data-i18n="showThisOption"]');
     
     if (titleElement && window.i18n && typeof window.i18n.t === 'function') {
-      // 将expert ID转换为对应的标题键
+      // 将expert ID转换为对应的简化键名
       const titleKey = expertId.split('-').map((word, index) => {
         if (index === 0) return word;
         return word.charAt(0).toUpperCase() + word.slice(1);
-      }).join('') + 'ExpertTitle';
+      }).join('');
       
-      const descKey = expertId.split('-').map((word, index) => {
-        if (index === 0) return word;
-        return word.charAt(0).toUpperCase() + word.slice(1);
-      }).join('') + 'ExpertDesc';
+      // 对于某些专家，描述键需要加"Expert"前缀
+      const specialExperts = ['universal', 'smartChoice', 'translationMaster'];
+      const descKey = specialExperts.includes(titleKey) ? titleKey + 'ExpertDesc' : titleKey + 'Desc';
       
       titleElement.textContent = window.i18n.t(titleKey, userInterfaceLanguage);
       if (descElement) {
@@ -1176,6 +1302,90 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // 添加翻译引擎选择器的事件处理程序
+  const translationEngineSelect = document.getElementById('translation-engine');
+  if (translationEngineSelect) {
+    translationEngineSelect.addEventListener('change', function() {
+      const selectedEngine = this.value;
+      console.log('翻译引擎已切换为:', selectedEngine);
+      
+      // 更新API Key输入框的显示
+      updateApiKeyVisibility(selectedEngine);
+      
+      // 直接保存翻译引擎设置，确保立即生效
+      console.log('options.js - 正在保存翻译引擎:', selectedEngine);
+      chrome.storage.sync.set({ translationEngine: selectedEngine }, function() {
+        if (chrome.runtime.lastError) {
+          console.error('保存翻译引擎失败:', chrome.runtime.lastError);
+        } else {
+          console.log('options.js - 翻译引擎已保存到storage:', selectedEngine);
+          showSaveNotification('翻译引擎已保存');
+          
+          // 验证保存是否成功
+          chrome.storage.sync.get(['translationEngine'], (result) => {
+            console.log('options.js - 验证保存结果:', result.translationEngine);
+          });
+        }
+      });
+    });
+  }
+  
+  // 添加UI语言选择器的事件处理程序
+  const uiLanguageSelect = document.getElementById('ui-language');
+  if (uiLanguageSelect) {
+    uiLanguageSelect.addEventListener('change', function() {
+      const selectedLanguage = this.value;
+      console.log('界面语言已切换为:', selectedLanguage);
+      
+      // 保存UI语言设置
+      saveUiLanguage(selectedLanguage);
+    });
+  }
+  
+  // 添加目标语言选择器的事件处理程序
+  const targetLanguageSelect = document.getElementById('target-language');
+  if (targetLanguageSelect) {
+    targetLanguageSelect.addEventListener('change', function() {
+      const selectedLanguage = this.value;
+      console.log('目标语言已切换为:', selectedLanguage);
+      
+      // 立即保存设置
+      saveSettings({ targetLanguage: selectedLanguage });
+    });
+  }
+  
+  // 添加翻译样式选择器的事件处理程序
+  const translationStyleSelect = document.getElementById('translation-style');
+  if (translationStyleSelect) {
+    translationStyleSelect.addEventListener('change', function() {
+      const selectedStyle = this.value;
+      console.log('翻译样式已切换为:', selectedStyle);
+      
+      // 立即保存设置
+      saveSettings({ translationStyle: selectedStyle });
+    });
+  }
+  
+  // 添加字体颜色输入框的事件处理程序
+  const fontColorInput = document.getElementById('font-color');
+  const fontColorPicker = document.getElementById('font-color-picker');
+  
+  if (fontColorInput) {
+    fontColorInput.addEventListener('change', function() {
+      const color = this.value;
+      if (fontColorPicker) fontColorPicker.value = color;
+      saveSettings({ fontColor: color });
+    });
+  }
+  
+  if (fontColorPicker) {
+    fontColorPicker.addEventListener('change', function() {
+      const color = this.value;
+      if (fontColorInput) fontColorInput.value = color;
+      saveSettings({ fontColor: color });
+    });
+  }
+  
   // 添加恢复默认设置按钮的事件处理程序
   const restoreDefaultsBtn = document.getElementById('restore-defaults');
   if (restoreDefaultsBtn) {
@@ -1193,6 +1403,157 @@ document.addEventListener('DOMContentLoaded', function() {
   if (selectionTriggerModeSelect) {
     selectionTriggerModeSelect.addEventListener('change', function() {
       saveSettings({ selectionTriggerMode: selectionTriggerModeSelect.value });
+    });
+  }
+  
+  // 添加OpenAI配置相关的事件监听器
+  const openaiModelSelect = document.getElementById('openai-model');
+  if (openaiModelSelect) {
+    openaiModelSelect.addEventListener('change', function() {
+      saveAiConfig('openai');
+    });
+  }
+  
+  const openaiCustomModelEnabled = document.getElementById('openai-custom-model-enabled');
+  if (openaiCustomModelEnabled) {
+    openaiCustomModelEnabled.addEventListener('change', function() {
+      toggleCustomModelInput('openai');
+      saveAiConfig('openai');
+    });
+  }
+  
+  const openaiCustomModel = document.getElementById('openai-custom-model');
+  if (openaiCustomModel) {
+    openaiCustomModel.addEventListener('change', function() {
+      saveAiConfig('openai');
+    });
+  }
+  
+  const openaiMaxRequests = document.getElementById('openai-max-requests');
+  if (openaiMaxRequests) {
+    openaiMaxRequests.addEventListener('change', function() {
+      saveAiConfig('openai');
+    });
+  }
+  
+  const openaiAiContext = document.getElementById('openai-ai-context');
+  if (openaiAiContext) {
+    openaiAiContext.addEventListener('change', function() {
+      saveAiConfig('openai');
+    });
+  }
+  
+  const openaiExpertStrategy = document.getElementById('openai-expert-strategy');
+  if (openaiExpertStrategy) {
+    openaiExpertStrategy.addEventListener('change', function() {
+      saveAiConfig('openai');
+    });
+  }
+  
+  const openaiApiEndpoint = document.getElementById('openai-api-endpoint');
+  if (openaiApiEndpoint) {
+    openaiApiEndpoint.addEventListener('change', function() {
+      saveAiConfig('openai');
+    });
+  }
+  
+  // 添加DeepSeek配置相关的事件监听器
+  const deepseekModelSelect = document.getElementById('deepseek-model');
+  if (deepseekModelSelect) {
+    deepseekModelSelect.addEventListener('change', function() {
+      saveAiConfig('deepseek');
+    });
+  }
+  
+  const deepseekCustomModelEnabled = document.getElementById('deepseek-custom-model-enabled');
+  if (deepseekCustomModelEnabled) {
+    deepseekCustomModelEnabled.addEventListener('change', function() {
+      toggleCustomModelInput('deepseek');
+      saveAiConfig('deepseek');
+    });
+  }
+  
+  const deepseekCustomModel = document.getElementById('deepseek-custom-model');
+  if (deepseekCustomModel) {
+    deepseekCustomModel.addEventListener('change', function() {
+      saveAiConfig('deepseek');
+    });
+  }
+  
+  const deepseekMaxRequests = document.getElementById('deepseek-max-requests');
+  if (deepseekMaxRequests) {
+    deepseekMaxRequests.addEventListener('change', function() {
+      saveAiConfig('deepseek');
+    });
+  }
+  
+  const deepseekAiContext = document.getElementById('deepseek-ai-context');
+  if (deepseekAiContext) {
+    deepseekAiContext.addEventListener('change', function() {
+      saveAiConfig('deepseek');
+    });
+  }
+  
+  const deepseekExpertStrategy = document.getElementById('deepseek-expert-strategy');
+  if (deepseekExpertStrategy) {
+    deepseekExpertStrategy.addEventListener('change', function() {
+      saveAiConfig('deepseek');
+    });
+  }
+  
+  const deepseekApiEndpoint = document.getElementById('deepseek-api-endpoint');
+  if (deepseekApiEndpoint) {
+    deepseekApiEndpoint.addEventListener('change', function() {
+      saveAiConfig('deepseek');
+    });
+  }
+  
+  // 添加API Key输入框的事件监听器
+  const apiKeyInput = document.getElementById('api-key-input');
+  if (apiKeyInput) {
+    apiKeyInput.addEventListener('change', function() {
+      const currentEngine = document.getElementById('translation-engine').value;
+      
+      // 只为传统AI引擎保存API Key，高级模型不需要API Key
+      const needsApiKeyEngines = ['openai', 'deepseek'];
+      if (!needsApiKeyEngines.includes(currentEngine)) {
+        console.log(`${currentEngine} 不需要API Key，跳过保存`);
+        return;
+      }
+      
+      // 获取现有的API Keys，然后更新对应引擎的Key
+      chrome.storage.sync.get(['apiKeys'], (result) => {
+        const apiKeys = result.apiKeys || {};
+        apiKeys[currentEngine] = this.value;
+        
+        console.log(`保存API Key: ${currentEngine} = ${this.value ? '[已设置]' : '[已清空]'}`);
+        
+        chrome.storage.sync.set({ apiKeys: apiKeys }, function() {
+          if (chrome.runtime.lastError) {
+            console.error('保存API Key失败:', chrome.runtime.lastError);
+          } else {
+            console.log('API Key已保存');
+            showSaveNotification('API Key已保存');
+          }
+        });
+      });
+    });
+  }
+  
+  // 添加API Key显示/隐藏切换按钮的事件监听器
+  const toggleApiKeyBtn = document.getElementById('toggle-api-key');
+  if (toggleApiKeyBtn) {
+    toggleApiKeyBtn.addEventListener('click', function() {
+      const input = document.getElementById('api-key-input');
+      if (input) {
+        if (input.type === 'password') {
+          input.type = 'text';
+          this.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        } else {
+          input.type = 'password';
+          this.innerHTML = '<i class="fas fa-eye"></i>';
+        }
+      }
     });
   }
   
@@ -1309,17 +1670,27 @@ function initializeTranslationServices() {
       const serviceId = this.getAttribute('data-service');
       if (!serviceId) return; // 确保有 data-service 属性
       
-      const toggle = document.getElementById(`${serviceId}-enabled`);
-      if (!toggle) return; // 确保找到对应的开关
+      // 高级模型列表
+      const premiumEngines = ['chatgpt-4o', 'chatgpt-4o-mini', 'deepseek-v3', 'gemini-2-flash', 'deepl'];
       
-      // 如果服务未启用，先启用它
-      if (!toggle.checked) {
-        toggle.checked = true;
-        toggle.dispatchEvent(new Event('change'));
+      // 检查是否为高级模型
+      if (premiumEngines.includes(serviceId)) {
+        // 高级模型直接设置为默认引擎，不需要检查开关状态
+        setDefaultTranslationEngine(serviceId);
+      } else {
+        // 传统服务需要检查开关状态
+        const toggle = document.getElementById(`${serviceId}-enabled`);
+        if (!toggle) return; // 确保找到对应的开关
+        
+        // 如果服务未启用，先启用它
+        if (!toggle.checked) {
+          toggle.checked = true;
+          toggle.dispatchEvent(new Event('change'));
+        }
+        
+        // 设置为默认引擎
+        setDefaultTranslationEngine(serviceId);
       }
-      
-      // 设置为默认引擎
-      setDefaultTranslationEngine(serviceId);
     });
   });
   
@@ -1356,6 +1727,9 @@ function initializeTranslationServices() {
 
 // 设置默认翻译引擎
 function setDefaultTranslationEngine(engineId) {
+  // 高级模型列表
+  const premiumEngines = ['chatgpt-4o', 'chatgpt-4o-mini', 'deepseek-v3', 'gemini-2-flash', 'deepl'];
+  
   // 更新所有翻译服务状态徽章（只处理有 data-service 属性的卡片）
   document.querySelectorAll('.service-card[data-service]').forEach(card => {
     const badge = card.querySelector('.badge');
@@ -1366,20 +1740,33 @@ function setDefaultTranslationEngine(engineId) {
       badge.textContent = '当前默认';
       badge.className = 'badge bg-success';
       card.classList.add('active');
-    } else if (badge && toggle && toggle.checked) {
-      // 移除"去修改"状态，只显示空白或隐藏徽章
-      badge.textContent = '';
-      badge.className = 'badge d-none';
+    } else if (badge) {
+      // 区分高级模型和传统服务
+      if (premiumEngines.includes(cardServiceId)) {
+        // 高级模型：隐藏徽章（除非是当前默认）
+        badge.textContent = '';
+        badge.className = 'badge d-none';
+      } else if (toggle && toggle.checked) {
+        // 传统服务：只有启用的才隐藏徽章
+        badge.textContent = '';
+        badge.className = 'badge d-none';
+      }
     }
   });
   
   // 保存翻译引擎设置
   const saveEngineSettings = (engineToSave) => {
+    console.log('setDefaultTranslationEngine - 正在保存:', engineToSave);
     chrome.storage.sync.set({ translationEngine: engineToSave }, function() {
       if (chrome.runtime.lastError) {
         console.error('保存翻译引擎失败:', chrome.runtime.lastError);
       } else {
-        console.log('翻译引擎已保存:', engineToSave);
+        console.log('setDefaultTranslationEngine - 已保存到storage:', engineToSave);
+        
+        // 验证保存是否成功
+        chrome.storage.sync.get(['translationEngine'], (result) => {
+          console.log('setDefaultTranslationEngine - 验证保存结果:', result.translationEngine);
+        });
       }
     });
   };
@@ -1409,40 +1796,59 @@ function loadTranslationServicesStatus() {
   chrome.storage.sync.get(null, (settings) => {
     const currentEngine = settings.translationEngine || 'microsoft';
     
+    // 高级模型列表
+    const premiumEngines = ['chatgpt-4o', 'chatgpt-4o-mini', 'deepseek-v3', 'gemini-2-flash', 'deepl'];
+    
     // 更新每个翻译服务的状态（只处理有 data-service 属性的卡片）
     document.querySelectorAll('.service-card[data-service]').forEach(card => {
       const serviceId = card.getAttribute('data-service');
       const toggle = document.getElementById(`${serviceId}-enabled`);
       const badge = card.querySelector('.badge');
       
-      // 检查服务是否启用（默认都启用）
-      let isEnabled = settings[`${serviceId}Enabled`] !== false;
-      
-      // 特殊处理：如果是 microsoft 服务，也检查 microsoftapiEnabled
-      if (serviceId === 'microsoft' && settings['microsoftEnabled'] === undefined) {
-        // 如果没有明确设置 microsoftEnabled，则使用 microsoftapiEnabled 的值
-        isEnabled = settings['microsoftapiEnabled'] !== false;
-      }
-      
-      if (toggle) {
-        toggle.checked = isEnabled;
-      }
-      
-      if (badge) {
-        if (isEnabled) {
+      // 检查是否为高级模型
+      if (premiumEngines.includes(serviceId)) {
+        // 高级模型始终显示为"可用"状态，不需要开关
+        if (badge) {
           card.classList.add('active');
           if (serviceId === currentEngine) {
             badge.textContent = '当前默认';
             badge.className = 'badge bg-success';
           } else {
-            // 移除"去修改"状态，只显示空白或隐藏徽章
             badge.textContent = '';
             badge.className = 'badge d-none';
           }
-        } else {
-          card.classList.remove('active');
-          badge.textContent = '已禁用';
-          badge.className = 'badge bg-danger';
+        }
+      } else {
+        // 传统服务的处理逻辑
+        // 检查服务是否启用（默认都启用）
+        let isEnabled = settings[`${serviceId}Enabled`] !== false;
+        
+        // 特殊处理：如果是 microsoft 服务，也检查 microsoftapiEnabled
+        if (serviceId === 'microsoft' && settings['microsoftEnabled'] === undefined) {
+          // 如果没有明确设置 microsoftEnabled，则使用 microsoftapiEnabled 的值
+          isEnabled = settings['microsoftapiEnabled'] !== false;
+        }
+        
+        if (toggle) {
+          toggle.checked = isEnabled;
+        }
+        
+        if (badge) {
+          if (isEnabled) {
+            card.classList.add('active');
+            if (serviceId === currentEngine) {
+              badge.textContent = '当前默认';
+              badge.className = 'badge bg-success';
+            } else {
+              // 移除"去修改"状态，只显示空白或隐藏徽章
+              badge.textContent = '';
+              badge.className = 'badge d-none';
+            }
+          } else {
+            card.classList.remove('active');
+            badge.textContent = '已禁用';
+            badge.className = 'badge bg-danger';
+          }
         }
       }
     });

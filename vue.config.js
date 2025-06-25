@@ -58,6 +58,78 @@ module.exports = {
         to: 'welcome.html'
       })
       args[0].push({
+        from: 'public/options.html',
+        to: 'options.html'
+      })
+      args[0].push({
+        from: 'public/options.js',
+        to: 'options.js'
+      })
+      args[0].push({
+        from: 'public/options-ui.js',
+        to: 'options-ui.js'
+      })
+      args[0].push({
+        from: 'public/i18n.js',
+        to: 'i18n.js'
+      })
+      args[0].push({
+        from: 'public/config.js',
+        to: 'config.js'
+      })
+      args[0].push({
+        from: 'public/storage-manager.js',
+        to: 'storage-manager.js'
+      })
+      args[0].push({
+        from: 'public/favorites.html',
+        to: 'favorites.html'
+      })
+      args[0].push({
+        from: 'public/favorites.js',
+        to: 'favorites.js'
+      })
+      args[0].push({
+        from: 'public/i18n-favorites.js',
+        to: 'i18n-favorites.js'
+      })
+      args[0].push({
+        from: 'public/highlight-favorites.js',
+        to: 'highlight-favorites.js'
+      })
+      args[0].push({
+        from: 'public/image-translator.js',
+        to: 'image-translator.js'
+      })
+      args[0].push({
+        from: 'public/screenshot.html',
+        to: 'screenshot.html'
+      })
+      args[0].push({
+        from: 'public/screenshot.js',
+        to: 'screenshot.js'
+      })
+      args[0].push({
+        from: 'public/login-bridge.js',
+        to: 'login-bridge.js'
+      })
+      args[0].push({
+        from: 'public/transor-bridge-injection.js',
+        to: 'transor-bridge-injection.js'
+      })
+      args[0].push({
+        from: 'public/youtube-cinema.js',
+        to: 'youtube-cinema.js'
+      })
+      args[0].push({
+        from: 'public/netflix-cinema.js',
+        to: 'netflix-cinema.js'
+      })
+      args[0].push({
+        from: 'public/libs',
+        to: 'libs'
+      })
+      args[0].push({
         from: 'public/icons',
         to: 'icons'
       })
