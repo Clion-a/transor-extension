@@ -2,15 +2,23 @@
 
 ## 基本信息
 
-- 基础URL: `https://api.transor.com/`
-- 请求格式: JSON
+- 基础URL: `https://api.transor.ai/`
+- 测试基础URL: `http://api-test.transor.ai`
+- 请求格式: GET or POST
 - 响应格式: JSON
-- 认证方式: Bearer Token
+- 认证方式: Token
 - Language: Header
+**通用数据返回格式**
+  
+| 参数名     | 类型   | 必填 | 描述     |
+|------------|--------|------|----------|
+| code      | Int | 是   | 1表示成功，-1表示失败 |
+| data   | String | 是   | 一般是数组或者字符串 |
+| info   | String | 是   | 错误信息，有时候成功的时候没有数据返回，这个会根据用户的语言进行切换 |
 
 ## 认证相关接口
 
-### 1. 用户登录
+### 1. 用户登录 【已确定】
 
 **接口描述**: 用户使用账号密码登录系统，获取访问令牌
 
@@ -43,17 +51,20 @@ http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsa
 | 参数名      | 类型   | 描述                     |
 |-------------|--------|--------------------------|
 | code     | Boolean|  请求是否成功  1成功，-1失败            |
+| data.token       | String | 访问令牌,这个是全局的，所有的都用这个token                 |
 | data.SESSID       | String | 访问令牌,这个先沿用以前的字段 SESSID                 |
-| expires_in   | Number | 令牌有效期(秒)，现在这个是个假数据           |
+| data.expires_in   | Number | 令牌有效期(秒)，现在这个是个假数据           |
+| info   | String | 错误提示信息          |
 
 **响应示例**:
 ```json
 {
   "code": 1,
-  
+  "info": "Login Successfully.",
   "data": {
-    "SESSID": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expiresIn": 86400,
+     "SESSID": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+     "expires_in": 86400,
   }
 }
 ```
@@ -63,11 +74,9 @@ http://api-test.transor.ai/pubapi1/email_login/?email=test1@gmail.com&psw=dadfsa
 
 | 错误码 | 描述                   |
 |--------|------------------------|
-| 401    | 邮箱或密码错误         |
-| 403    | 账号已被禁用           |
-| 429    | 登录尝试次数过多，请稍后再试 |
+| -1    | 所有的错误都返回-1，错误信息在info里         |
 
-### 2. 谷歌登录
+### 2. 谷歌登录 【URL地址是对的，这个等上线前接入】
 
 **接口描述**: 使用谷歌账号登录系统
 
@@ -95,8 +104,9 @@ http://api-test.transor.ai/pubapi1/google_login
 
 | 参数名      | 类型   | 描述                     |
 |-------------|--------|--------------------------|
-| success     | Boolean| 请求是否成功             |
+| code     | Int| 1 -1           |
 | data.SESSID       | String | 访问令牌                 |
+| data.token       | String | 访问令牌                 |
 | data.expires_in   | Number | 令牌有效期(秒)           |
 
 **响应示例**:
@@ -105,6 +115,7 @@ http://api-test.transor.ai/pubapi1/google_login
   "success": true,
   "user": {
     "SESSID": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "expires_in": 86400,
   }
   
@@ -115,73 +126,15 @@ http://api-test.transor.ai/pubapi1/google_login
 
 | 错误码 | 描述                   |
 |--------|------------------------|
-| 400    | 无效的谷歌令牌         |
-| 403    | 账号已被禁用           |
-| 500    | 服务器验证谷歌令牌失败 |
+| -1   | 无效的谷歌令牌         |
 
-### 3. Apple登录
 
-**接口描述**: 使用Apple账号登录系统
 
-**请求URL**: `/pubapi1/apple_login`
-
-**请求方法**: POST
-
-现在没有
-
-**请求参数**:
-
-| 参数名      | 类型   | 必填 | 描述     |
-|-------------|--------|------|----------|
-| idToken     | String | 是   | Apple身份令牌 |
-| fullName    | Object | 否   | 用户全名（首次登录时需要） |
-| fullName.firstName | String | 否   | 用户名 |
-| fullName.lastName  | String | 否   | 用户姓 |
-
-**请求示例**:
-```json
-{
-  "idToken": "eyJraWQiOiJXNldjT0tCIiwiYWxnIjoiUlMyNTYifQ...",
-  "fullName": {
-    "firstName": "John",
-    "lastName": "Doe"
-  },
-}
-```
-
-**响应参数**:
-
-| 参数名      | 类型   | 描述                     |
-|-------------|--------|--------------------------|
-| success     | Boolean| 请求是否成功             |
-| data.SESSID       | String | 访问令牌                 |
-| data.expires_in   | Number | 令牌有效期(秒)           |
-
-**响应示例**:
-```json
-{
-  "code": 1,
-  
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expiresIn": 86400
-  },
-}
-```
-
-**错误码**:
-
-| 错误码 | 描述                   |
-|--------|------------------------|
-| 400    | 无效的Apple令牌        |
-| 403    | 账号已被禁用           |
-| 500    | 服务器验证Apple令牌失败 |
-
-### 4. 用户注册
+### 4. 用户注册 [暂时还没有】
 
 **接口描述**: 新用户注册账号
 
-**请求URL**: `/auth/register`
+**请求URL**: `/pubapi1/email_regist`
 
 **请求方法**: POST
 
@@ -190,7 +143,7 @@ http://api-test.transor.ai/pubapi1/google_login
 | 参数名     | 类型   | 必填 | 描述     |
 |------------|--------|------|----------|
 | email      | String | 是   | 用户邮箱 |
-| password   | String | 是   | 用户密码 |
+| psw   | String | 是   | 用户密码 |
 
 **请求示例**:
 ```json
@@ -221,59 +174,13 @@ http://api-test.transor.ai/pubapi1/google_login
 
 | 错误码 | 描述                   |
 |--------|------------------------|
-| 400    | 请求参数不完整或无效   |
-| 409    | 邮箱已被注册           |
-| 429    | 注册请求过于频繁，请稍后再试 |
+| -1    | 请求参数不完整或无效   |
 
-### 5. 刷新令牌
-
-**接口描述**: 使用刷新令牌获取新的访问令牌
-
-**请求URL**: `/auth/refresh-token`
-
-**请求方法**: POST
-
-**请求参数**:
-
-| 参数名       | 类型   | 必填 | 描述     |
-|--------------|--------|------|----------|
-| refreshToken | String | 是   | 刷新令牌 |
-
-**请求示例**:
-```json
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**响应参数**:
-
-| 参数名      | 类型   | 描述                     |
-|-------------|--------|--------------------------|
-| success     | Boolean| 请求是否成功             |
-| token       | String | 新的访问令牌             |
-| expiresIn   | Number | 令牌有效期(秒)           |
-
-**响应示例**:
-```json
-{
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresIn": 86400
-}
-```
-
-**错误码**:
-
-| 错误码 | 描述                   |
-|--------|------------------------|
-| 401    | 无效的刷新令牌         |
-| 403    | 刷新令牌已过期         |
 
 
 ## 翻译相关接口
 
-### 1. 文本翻译
+### 1. 文本翻译 【大概能用】
 
 **接口描述**: 翻译单条或多条文本
 
@@ -344,14 +251,11 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 错误码 | 描述                   |
 |--------|------------------------|
-| 400    | 请求参数不完整或无效   |
-| 401    | 未授权或令牌无效       |
-| 402    | 已超出使用限制         |
-| 429    | 请求频率过高           |
+| -1    | 目前所有错误code都是-1   |
 
-## 用户配置接口
+## 用户配置接口 【已调整】
 
-### 1. 获取用户配置
+### 1. 获取用户Chrome配置 【已确定】
 
 **接口描述**: 获取用户的翻译配置
 
@@ -397,9 +301,9 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 }
 ```
 
-### 2. 更新用户配置
+### 2. 更新用户配置【已确定】
 
-**接口描述**: 更新用户的翻译配置
+**接口描述**: 更新用户的翻译配置 
 
 **请求URL**: `/priapi1/update_chrome_settings`
 
@@ -439,7 +343,7 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 }
 ```
 
-## 用户账户接口
+## 用户账户接口 [已确定】
 
 ### 1. 获取用户信息
 
@@ -457,32 +361,32 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 | 参数名             | 类型    | 描述                     |
 |--------------------|---------|--------------------------|
 | code            | int | 请求是否成功  1 -1            |
-| data            | Object  | 用户资料对象             |
-| data.id         | String  | 用户ID                   |
+| data            | Array  | 用户资料对象             |
+| data.id         | String  | 用户昵称，应该没有       |
+| data.name        | String  | 用户ID                   |
 | data.email       | String  | 用户邮箱                 |
-| data.status      | String  | 用户状态，1正常，-1被锁定                 |
-| data.plan     | String  | 用户套餐类型               |
+| data.status      | Int  | 用户状态，1正常，-1被锁定                 |
+| data.add_time     | Int  | Timestamp 用户加入时间            |
+| data.plan     | String  | 用户套餐，默认free, 还有pro,max               |
+| data.TOKENS     | String  | 用户的TOKENS剩余量               |
+| data.plan_endtime     | Int| Timestamp 计划套餐结束时间              |
 
 
 **响应示例**:
 ```json
 {
-  "code": 1,
-  "data": {
-    "id": "usr_123456789",
-    "name": "John Doe", //暂时没有
-    "email": "user@example.com",
-    //"avatar": "https://api.transor.com/avatars/default.png",
-    "plan": "free",
-    //"usageStats": {
-    //  "charactersTranslated": 3547,
-    //  "imagesProcessed": 5,
-    //  "subtitlesTranslated": 245,
-    //  "charactersLimit": 500000,
-    //  "remainingCharacters": 496453
-    //},
-    //"createdAt": "2023-01-15T08:30:00Z"
-  }
+	"code": 1,
+	"data": {
+		"id": "8",
+		"email": "test@gmail.com",
+		"status": "0",
+		"name": "",
+		"plan": "free",
+		"add_time": 1745298993,
+		"TOKENS": "0.00000000",
+		"plan_endtime": "2025-06-07 20:39:45"
+	},
+	"info": ""
 }
 ```
 
@@ -492,7 +396,8 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 **接口描述**: 获取所有可订阅的套餐信息
 
-**请求URL**: `/subscriptions/plans`
+**请求URL**: `/pubapi1/get_plan_config`
+http://api-test.transor.ai/pubapi1/get_plan_config
 
 **请求方法**: GET
 
@@ -503,11 +408,68 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名     | 类型    | 描述                 |
 |------------|---------|----------------------|
-| success    | Boolean | 请求是否成功         |
-| plans      | Array   | 套餐信息数组         |
+| code    | Int | 请求是否成功         |
+| data      | Array   | 套餐信息数组         |
+| info      | String   | 错误信息        |
+
+这里的多国语言还没想好怎么处理 !!!!
 
 **响应示例**:
 ```json
+{
+	"code": 1,
+	"data": [{
+		"id": "1",
+		"type": "free", // free, pro, max
+		"token_monthly": "0.0000", //每月赠送token量
+		"img_monthly": "0", //每月可以翻译的图片数量
+		"doc_monthly": "0", //每月可以翻译的文档的页数
+		"collections_amount": "0", //收藏上限
+		"usd_price_monthly": "0.0000", //按月支付每月USD价格
+		"usd_price_monthly_original": "0.0000", //每月USD原价
+		"usd_price_yearly": "0.0000", //按年支付每年价格
+		"usd_price_yearly_original": "0.0000", //按年支付原价多少
+		"stripe_monthly": "", //Stripe 按月支付的链接
+		"stripe_yearly": "", //Stripe 按年支付的链接
+		"ctime": "2025-04-09 13:53:55",
+		"uptime": "2025-04-08 19:21:09",
+		"status": "1"
+	}, {
+		"id": "2",
+		"type": "pro",
+		"token_monthly": "1000000.0000",
+		"img_monthly": "100",
+		"doc_monthly": "500",
+		"collections_amount": "1000",
+		"usd_price_monthly": "3.0000",
+		"usd_price_monthly_original": "5.0000",
+		"usd_price_yearly": "30.0000",
+		"usd_price_yearly_original": "60.0000",
+		"stripe_monthly": "https:\/\/buy.stripe.com\/cNifZi2FY6uT21xfpa1kA00",
+		"stripe_yearly": "https:\/\/buy.stripe.com\/4gMaEY2FY9H521x90M1kA03",
+		"ctime": "2025-04-09 13:54:33",
+		"uptime": "2025-04-08 19:25:09",
+		"status": "1"
+	}, {
+		"id": "3",
+		"type": "max",
+		"token_monthly": "10000000.0000",
+		"img_monthly": "1000",
+		"doc_monthly": "5000",
+		"collections_amount": "10000",
+		"usd_price_monthly": "10.0000",
+		"usd_price_monthly_original": "12.0000",
+		"usd_price_yearly": "100.0000",
+		"usd_price_yearly_original": "144.0000",
+		"stripe_monthly": "https:\/\/buy.stripe.com\/6oU14ofsK8D1eOjel61kA01",
+		"stripe_yearly": "https:\/\/buy.stripe.com\/bJedRafsKaL935B7WI1kA02",
+		"ctime": "2025-04-09 13:54:39",
+		"uptime": "2025-04-08 19:25:09",
+		"status": "1"
+	}],
+	"info": ""
+}
+
 {
   "success": true,
   "plans": [
@@ -573,20 +535,22 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名      | 类型    | 描述                         |
 |-------------|---------|------------------------------|
-| success     | Boolean | 请求是否成功                 |
-| redirectUrl | String  | 支付页面URL                  |
-| orderId     | String  | 订单ID                       |
+| code     | Boolean | 1 删除成功 -1 删除失败                |
+| data.id | Int  | 数组 返回收藏id               |
+| info     | String  | info                       |
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "redirectUrl": "https://payment.transor.com/checkout?session=xyz123",
-  "orderId": "ord_987654321"
+	"code": -1,
+	"data": {
+		"id": 34
+	},
+	"info": "删除失败"
 }
 ```
 
-### 2. 收藏单词
+### 2. 收藏单词 【已确定】
 
 **接口描述**: 收藏单词
 
@@ -608,26 +572,28 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名      | 类型    | 描述                         |
 |-------------|---------|------------------------------|
-| code     | Boolean | 1 -1                 |
-| data | String  | 空                 |
+| code     | Boolean | 1 or -1                 |
+| data.id | String or Int  | 收藏之后的id               |
 | info     | String  | 成功 失败                    |
 
 **响应示例**:
 ```json
 {
-  "success": true,
-  "redirectUrl": "https://payment.transor.com/checkout?session=xyz123",
-  "orderId": "ord_987654321"
+	"code": 1,
+	"data": {
+		"id": "43"
+	},
+	"info": "Collection success"
 }
 ```
 
-### 2. 获取我收藏的单词
+### 2. 删除收藏单词 【 已确定】
 
-**接口描述**: 订阅指定套餐
+**接口描述**: 删除收藏收藏单词
 
-**请求URL**: `/priapi1/get_my_words`
+**请求URL**: `/priapi1/del_my_words`
 
-**请求方法**: GET
+**请求方法**: POST
 
 **请求头**:
 - Authorization: Bearer {token}
@@ -636,23 +602,227 @@ http://api-test.transor.ai/translate/text?source_text=[%22%E4%BD%A0%E5%A5%BD%E4%
 
 | 参数名   | 类型   | 必填 | 描述                        |
 |----------|--------|------|----------------------------|
-| 现在啥也不用传   | String | 是   | 套餐ID                     |
+| id   | Int | 是   | 收藏的id                    |
 
 **响应参数**:
 
 | 参数名      | 类型    | 描述                         |
 |-------------|---------|------------------------------|
-| success     | Boolean | 请求是否成功                 |
-| redirectUrl | String  | 支付页面URL                  |
-| orderId     | String  | 订单ID                       |
+| code     | Boolean | 1 成功 or -1失败                 |
+| data.id | String or Int  | 收藏之后的id               |
+| info     | String  | 成功 失败                    |
 
 **响应示例**:
 ```json
 {
-  "code": 1,
-  "data": "一个数组",
- 
+	"code": -1,
+	"data": {
+		"id": 34
+	},
+	"info": "删除失败"
 }
 ```
 
+### 2. 获取我收藏的单词 【已确定】
+
+**接口描述**: 订阅指定套餐
+
+**请求URL**: `/priapi1/get_my_words`
+
+**请求方法**: GET
+
+**请求头**:
+- Authorization:  {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| page_size   | Int | 否   | 每页多少，默认100，不穿就是取所有                    |
+| page   | Int | 否   | 当前多少页， 默认1                    |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| code     | Boolean | 请求是否成功                 |
+| data.id | Int  | 收藏ID                 |
+| data.user_id | Int  | 用户ID                  |
+| data.source_text | String  | 收藏的文字                |
+| data.source_md5 | String  | 排重MD5，这个是md5(user_id-word)来计算的                  |
+| data.source_lang | String  | 源语言 zh-CN, zh-TW, en                  |
+| data.trans_times | Int  | 查询次数，每次查询之后，都会增加一次          |
+| data.ctime | Int  | 创建时间  Timestamp，需要根据前端时间进行转换               |
+| data.uptime | Int  | 更新时间，Timestamp                 |
+| data.status | Int  | 现在都是1，如果删除，就直接删除数据了                  |
+| info     | String  |                        |
+
+**响应示例**:
+```json
+{
+	"code": 1,
+	"data": [{
+		"id": "23",
+		"user_id": "8",
+		"source_text": "nice",
+		"source_md5": "461946c73121692b36e8fa2824d8cabd",
+		"source_lang": "en",
+		"target_lang": "",
+		"trans_times": "8",
+		"ctime": 1749289339,
+		"uptime": 1749290010,
+		"status": "0"
+	}, {
+		"id": "24",
+		"user_id": "8",
+		"source_text": "mark",
+		"source_md5": "f0692dc2b5b2ebe529078f86c7b92482",
+		"source_lang": "en",
+		"target_lang": "zh-CN",
+		"trans_times": "5",
+		"ctime": 1749290013,
+		"uptime": 1749290148,
+		"status": "1"
+	}],
+	"info": ""
+}
+```
+
+### 2. 收藏句子 【已确定】
+
+**接口描述**: 收藏单词
+
+**请求URL**: `/priapi1/collect_my_sentence`
+
+**请求方法**: POST
+
+**请求头**:
+- Authorization: Bearer {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| source_text   | String | 是   | 源词                    |
+| source_lang | String | 是 |源语言 zh-CN,zh-TW, en |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| code     | Boolean | 1 or -1                 |
+| data.id | String or Int  | 收藏之后的id               |
+| info     | String  | 成功 失败                    |
+
+**响应示例**:
+```json
+{
+	"code": 1,
+	"data": {
+		"id": "43"
+	},
+	"info": "Collection success"
+}
+```
+
+### 2. 删除收藏句子【已确定】
+
+**接口描述**: 删除收藏收藏单词
+
+**请求URL**: `/priapi1/del_my_sentence`
+
+**请求方法**: POST
+
+**请求头**:
+- Authorization: Bearer {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| id   | Int | 是   | 收藏的id                    |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| code     | Boolean | 1 成功 or -1失败                 |
+| data.id | String or Int  | 收藏之后的id               |
+| info     | String  | 成功 失败                    |
+
+**响应示例**:
+```json
+{
+	"code": -1,
+	"data": {
+		"id": 34
+	},
+	"info": "删除失败"
+}
+```
+
+### 2. 获取我收藏的句子【已确定】
+
+**接口描述**: 订阅指定套餐
+
+**请求URL**: `/priapi1/get_my_sentence`
+
+**请求方法**: GET
+
+**请求头**:
+- Authorization:  {token}
+
+**请求参数**:
+
+| 参数名   | 类型   | 必填 | 描述                        |
+|----------|--------|------|----------------------------|
+| page_size   | Int | 否   | 每页多少，默认100，不穿就是取所有                    |
+| page   | Int | 否   | 当前多少页， 默认1                    |
+
+**响应参数**:
+
+| 参数名      | 类型    | 描述                         |
+|-------------|---------|------------------------------|
+| code     | Boolean | 请求是否成功                 |
+| data.id | Int  | 收藏ID                 |
+| data.user_id | Int  | 用户ID                  |
+| data.source_text | String  | 收藏的文字                |
+| data.source_md5 | String  | 排重MD5，这个是md5(user_id-word)来计算的                  |
+| data.source_lang | String  | 源语言 zh-CN, zh-TW, en                  |
+| data.trans_times | Int  | 查询次数，每次查询之后，都会增加一次          |
+| data.ctime | Int  | 创建时间  Timestamp，需要根据前端时间进行转换               |
+| data.uptime | Int  | 更新时间，Timestamp                 |
+| data.status | Int  | 现在都是1，如果删除，就直接删除数据了                  |
+| info     | String  |                        |
+
+**响应示例**:
+```json
+{
+	"code": 1,
+	"data": [{
+		"id": "23",
+		"user_id": "8",
+		"source_text": "nice",
+		"source_md5": "461946c73121692b36e8fa2824d8cabd",
+		"source_lang": "en",
+		"target_lang": "",
+		"trans_times": "8",
+		"ctime": 1749289339,
+		"uptime": 1749290010,
+		"status": "0"
+	}, {
+		"id": "24",
+		"user_id": "8",
+		"source_text": "mark",
+		"source_md5": "f0692dc2b5b2ebe529078f86c7b92482",
+		"source_lang": "en",
+		"target_lang": "zh-CN",
+		"trans_times": "5",
+		"ctime": 1749290013,
+		"uptime": 1749290148,
+		"status": "1"
+	}],
+	"info": ""
+}
+```
 
