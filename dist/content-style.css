@@ -1,0 +1,109 @@
+/* Transor 沉浸式翻译 内容样式 */
+
+.transor-translation {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+/* .transor-inline {
+  border-bottom: 1px dashed #ff5588 !important;
+  padding: 0 2px !important;
+  margin: 0 2px !important;
+  color: #ff5588 !important;
+} */
+
+/* .transor-bilingual {
+  display: block !important;
+  color: #ff5588 !important;
+  margin-top: 3px !important;
+  padding-left: 10px !important;
+  border-left: 2px solid #ff5588 !important;
+} */
+
+.transor-hover {
+  position: relative !important;
+  text-decoration: underline !important;
+  text-decoration-style: dotted !important;
+  /* 颜色由JavaScript动态生成 */
+}
+
+.transor-hover-content {
+  display: none !important;
+  position: absolute !important;
+  background: white !important;
+  border: 1px solid #ddd !important;
+  border-radius: 3px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  padding: 8px !important;
+  z-index: 9999 !important;
+  color: #333 !important;
+  top: 100% !important;
+  left: 0 !important;
+  min-width: 200px !important;
+  max-width: 300px !important;
+}
+
+.transor-hover:hover .transor-hover-content {
+  display: block !important;
+}
+
+/* 悬浮球样式 */
+.transor-floating-ball {
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  width: 48px !important;
+  height: 48px !important;
+  z-index: 9999 !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  user-select: none !important;
+}
+
+.transor-floating-ball:hover {
+  transform: scale(1.05) !important;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.15)) !important;
+}
+
+.transor-floating-ball-icon {
+  width: 48px !important;
+  height: 48px !important;
+  object-fit: contain !important;
+  border-radius: 50% !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 悬浮球菜单样式 */
+.transor-floating-menu {
+  position: fixed !important;
+  bottom: 80px !important;
+  right: 20px !important;
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2) !important;
+  z-index: 9998 !important;
+  overflow: hidden !important;
+  transition: all 0.3s ease !important;
+}
+
+.transor-floating-menu-item {
+  padding: 10px 15px !important;
+  font-size: 14px !important;
+  color: #333 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s !important;
+  display: flex !important;
+  align-items: center !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+
+.transor-floating-menu-item:last-child {
+  border-bottom: none !important;
+}
+
+.transor-floating-menu-item:hover {
+  background-color: #f5f5f5 !important;
+}

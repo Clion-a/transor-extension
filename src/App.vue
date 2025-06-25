@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <div class="transor-container">
-      <div class="content">
+      <div class="content-translation-settings">
         <TranslationSettings />
         <!-- <TranslationControl /> -->
       </div>
@@ -41,9 +41,11 @@ export default {
   color: #409EFF;
 }
 
-.content {
+.content-translation-settings {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 20px;
+  margin-top: 20px;
 }
 </style> 

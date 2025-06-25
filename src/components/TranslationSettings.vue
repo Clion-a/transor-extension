@@ -862,7 +862,7 @@ export default {
 }
 
 .settings-group {
-  margin-bottom: 30px;
+  margin-bottom: 22px;
 }
 
 .language-selector {
@@ -892,7 +892,7 @@ export default {
 }
 
 .setting-label {
-  color: #666;
+  color: #222222;
   font-size: 14px;
   white-space: nowrap;
 }
