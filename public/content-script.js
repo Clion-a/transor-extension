@@ -2176,11 +2176,9 @@ function initSelectionTranslator() {
     
     // 根据不同的触发模式设置不同的样式
     if (translationSettings.selectionTriggerMode === 'icon') {
-      // 图标模式
+      // 图标模式 - 只显示图标，不要背景
       selectionIndicator.innerHTML = `
-        <div style="width: 24px; height: 24px; background: #fff; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;">
-          <img src="${chrome.runtime.getURL('logos/logo16.png')}" width="16" height="16" alt="翻译" style="display: block;">
-        </div>
+        <img src="${chrome.runtime.getURL('logos/logo16.png')}" width="20" height="20" alt="翻译" style="display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));">
       `;
     } else {
       // 小圆点模式
